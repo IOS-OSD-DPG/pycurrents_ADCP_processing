@@ -1,3 +1,0 @@
-H. Hourston Feb 20, 2020:
-
-ADCP_pycurrents.py is a script version of Jody Klymak's code that was minimally changed. Later numbered versions will have more edits to the code of my original that apply BODC variable names, add variable and global attributes, and dimensions to match the netCDF ADCP files produced before using R.
