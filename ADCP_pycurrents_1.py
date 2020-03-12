@@ -13,10 +13,16 @@ import xarray as xr
 import pandas as pd
 from pycurrents.adcp.rdiraw import Multiread
 
+#import inspect
+#print(inspect.getsource(Multiread))
+
 
 # Specify raw ADCP file to create nc file from
-inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/20568-A1-56.000" #raw .000 file
+inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/callR_fromPython/20568-A1-56.000" #raw .000 file
 file_meta = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/a1_20160713_20170513_0480m/P01/a1_20160713_20170513_0480m_meta_L1.csv" #csv metadata file
+
+inFile = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/fortune1_20171007_20180714_0090m/fortune1_20171007_20180714_0090m.pd0'
+file_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/fortune1_20171007_20180714_0090m/P01/fortune1_20171007_20180714_0090m_meta_L1.csv'
 
 # Splice file name to get output netCDF file name
 outname = os.path.basename(inFile)[:-3] + 'adcp.L1.nc'; print(outname)
@@ -36,8 +42,8 @@ with open(file_meta) as csv_file:
                 model = "bb"
             elif row[1] == "Narrowband":
                 model = "nb"
-            elif row[1] == "Sentinel V": #not sure if Multiread() function supports Sentinel V or MC DCP files
-                model = ""
+            elif row[1] == "Sentinel V": #missing from documentation
+                model = "sv"
             elif row[1] == "Multi-Cell Doppler Current Profiler":
                 model = ""
             else:
@@ -75,11 +81,17 @@ time_1970 = ''
 
 stn = 1
 
-nchar = np.array(range(1,24))
+nchar = np.array(range(1,24)) #what is
 
 #extract metadata from csv file
-lat = ''
-lon = ''
+with open(file_meta) as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter = ',')
+    line_count = 0
+    for row in csv_reader:
+        if row[0] == 'latitude':
+            lat = int(row[1])
+        elif row[0] == 'longitude':
+            lon = int(row[1])
 
 # Should dimensions be integers or arrays?
 # Change fill value to 1e35?
@@ -92,6 +104,18 @@ lon = ''
 # data_vars=variables
 # how to add attributes to variables?
 # a = TNIHCE01-4
+
+# Unpack variables in VL numpy.void object variable
+svel = np.zeros(shape=(len(data.VL),))
+pres = np.zeros(shape=(len(data.VL),))
+sal = np.zeros(shape=(len(data.VL),))
+dtut = np.zeros(shape=(len(data.VL),)) #time values as ISO8601 string
+for i in range(len(data.VL)):
+    svel[i] = data.VL[i]['SoundSpeed']
+    pres[i] = data.VL[i]['Pressure']
+    sal[i] = data.VL[i]['Salinity']
+    dtut[i] = ''
+
 out = xr.Dataset(coords={'distance': data.dep, 'time': time, 'station': stn, 'nchar': nchar},
                  data_vars={'time':(['time'], time_1970),
                             'distance':(['distance'], data.dep),
@@ -123,9 +147,9 @@ out = xr.Dataset(coords={'distance': data.dep, 'time': time, 'station': stn, 'nc
                             'ALONZZ01': (['station'], lon),
                             'latitude': (['station'], lat),
                             'longitude': (['station'], lon),
-                            '?PRESPR01': (['station', 'time'], ),
-                            '?SVELCV01': (['station', 'time'], ),
-                            'DTUT8601': (['time', 'nchar'], ),
+                            'PRESPR01': (['station', 'time'], pres),
+                            'SVELCV01': (['station', 'time'], svel),
+                            '?DTUT8601': (['time', 'nchar'], ),
                             'yday': (['time'], data.dday)})
 
 # to here, things have run without error
