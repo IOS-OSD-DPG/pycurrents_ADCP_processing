@@ -4,7 +4,9 @@ For processing raw ADCP data in Python using the UHDAS pycurrents package -- und
 
 *ADCP_pycurrents.py* is Jody Klymak's script (https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09) with minor edits.
 
-The *ADCP_pycurrents_3.py* version contains changes to variable names (following BODC conventions), and addition of variables, variable and global attributes, and dimensions to match the netCDF ADCP files produced before using R. This script is under construction.
+The *ADCP_pycurrents_3.py* version contains changes to variable names (following BODC conventions), and addition of variables, variable and global attributes, and dimensions to match the netCDF ADCP files produced before using R. This script is in-progress.
+
+*read_mcdcp.py* is in-progress.
 
 ## Installation
 To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
