@@ -14,16 +14,24 @@ import pandas as pd
 import datetime
 from pycurrents.adcp.rdiraw import Multiread
 
+from pycurrents.adcp.transform import heading_rotate
+# import pycurrents.adcp.adcp_nc as adcp_nc
+# from pycurrents.adcp.transform import rdi_xyz_enu
+import pycurrents.adcp.transform as transform
+
+#this prints out the Multiread() function code
 #import inspect
-#print(inspect.getsource(Multiread)) #this prints out the Multiread() function code
+#print(inspect.getsource(Multiread))
 
 
 # Specify raw ADCP file to create nc file from
-inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/callR_fromPython/20568-A1-56.000" #raw .000 file
-file_meta = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/a1_20160713_20170513_0480m/P01/a1_20160713_20170513_0480m_meta_L1.csv" #csv metadata file
+# raw .000 file
+inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/callR_fromPython/20568-A1-56.000"
+# csv metadata file
+file_meta = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/a1_20160713_20170513_0480m/P01/a1_20160713_20170513_0480m_meta_L1.csv"
 
-inFile = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/fortune1_20171007_20180714_0090m/fortune1_20171007_20180714_0090m.pd0'
-file_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/fortune1_20171007_20180714_0090m/P01/fortune1_20171007_20180714_0090m_meta_L1.csv'
+#inFile = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/fortune1_20171007_20180714_0090m/fortune1_20171007_20180714_0090m.pd0'
+#file_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/fortune1_20171007_20180714_0090m/P01/fortune1_20171007_20180714_0090m_meta_L1.csv'
 
 # Splice file name to get output netCDF file name
 outname = os.path.basename(inFile)[:-3] + 'adcp.L1.nc'; print(outname)
@@ -75,27 +83,23 @@ if model == "":
 m = Multiread(inFile, model)  #m outputs $ <pycurrents.adcp.rdiraw.Multiread at 0x7f05b6eecd10>
 data = m.read()  #data outputs the kind of output we're looking for
 
-from pycurrents.adcp.transform import heading_rotate
-# import pycurrents.adcp.adcp_nc as adcp_nc
-# from pycurrents.adcp.transform import rdi_xyz_enu
-import pycurrents.adcp.transform as transform
 
-# Set up dimensions
-station = int(meta_dict['station_number']) # Should dimensions be integers or arrays?
+## Set up dimensions
+# time = pd.to_datetime(data.dday, unit='D', origin=pd.Timestamp('2016-01-01')) #original code line
+# convert time variable to elapsed time since 1970-01-01T00:00:00Z; dtype='datetime64[ns]'
+time_us = np.array(pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'), dtype='datetime64')
+station = float(meta_dict['station_number']) # Should dimensions be integers or arrays?
 nchar = np.array(range(1,100)) #was (1,24) which was the same as R code originally
 
-# Set up variables that need it
+## Set up variables that need it
 
 # Get timestamp from "data" object just created
 # In R, the start time was obtained from the "adp" object created within R
 # data.yearbase is an integer of the year that the timeseries starts (e.g., 2016)
 data_origin = str(data.yearbase) + '-01-01' #convert to date object; NEED TIME ZONE = UTC
 
-#time = pd.to_datetime(data.dday, unit='D', origin=pd.Timestamp('2016-01-01')) #original code line
-time_DTUT8601 = pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S %Z')
-
-# convert time variable to seconds since 1970-01-01T00:00:00Z ##########################
-time_sec = time_DTUT8601.timestamp() #have to iterate through?
+# DTUT8601 should have dtype='|S23' ? this is where nchar=23 comes in?
+time_DTUT8601 = pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S') #don't need %Z in strftime
 
 # Overwrite serial number to include the model:
 meta_dict['serialNumber'] = model.upper() + meta_dict['serialNumber']
@@ -104,29 +108,25 @@ meta_dict['serialNumber'] = model.upper() + meta_dict['serialNumber']
 
 # Unpack variables in VL numpy.void object variable
 svel = np.zeros(shape=(len(data.VL),))
-head = np.zeros(shape=(len(data.VL),))
-ptch = np.zeros(shape=(len(data.VL),))
-roll = np.zeros(shape=(len(data.VL),))
 pres = np.zeros(shape=(len(data.VL),))
-sal = np.zeros(shape=(len(data.VL),))
-temp = np.zeros(shape=(len(data.VL),))
+#sal = np.zeros(shape=(len(data.VL),)) #the R script doesn't include this, and neither do the .adcp files
 for i in range(len(data.VL)):
     svel[i] = data.VL[i]['SoundSpeed']
     pres[i] = data.VL[i]['Pressure']
-    sal[i] = data.VL[i]['Salinity']
+    #sal[i] = data.VL[i]['Salinity']
 
 # Make into netCDF file
 # unknown items in data.VL: EnsNumMSB (ensemble number ?), BIT, MPT_minutes/seconds/hundredths, ADC0-ADC7, ESW, spare1, spare2, RTCCentury/.../hundredths     
 
-out = xr.Dataset(coords={'distance': data.dep, 'time': time_sec, 'station': station, 'nchar': nchar},
-                 data_vars={'time': (['time'], time_sec),
+out = xr.Dataset(coords={'time': time_us, 'distance': data.dep, 'station': station, 'nchar': nchar},
+                 data_vars={'time': (['time'], time_us),
                             'distance': (['distance'], data.dep),
                             'station': (['station'], station),
                             'LCEWAP01': (['station', 'distance', 'time'], data.vel1),
                             'LCNSAP01': (['station', 'distance', 'time'], data.vel2),
                             'LRZAAP01': (['station', 'distance', 'time'], data.vel3),
                             'LERRAP01': (['station', 'distance', 'time'], data.vel4),
-                            'ELTMEP01': (['time', 'station'], time_sec),
+                            'ELTMEP01': (['time', 'station'], time_us),
                             'TNIHCE01': (['station', 'distance', 'time'], data.amp1),
                             'TNIHCE02': (['station', 'distance', 'time'], data.amp2),
                             'TNIHCE03': (['station', 'distance', 'time'], data.amp3),
@@ -160,177 +160,186 @@ out = xr.Dataset(coords={'distance': data.dep, 'time': time_sec, 'station': stat
 # making lists of variables that need the same attributes could help shorten this part of the script, but how?
 # it may also make it harder to rename variables in the future...
 # Time
-out.time.attrs['units'] = "seconds since 1970-01-01T00:00:00Z"
-out.time.attrs['long_name'] = "time"
-out.time.attrs['cf_role'] = "profile_id"
-out.time.attrs['calendar'] = "gregorian"
+var = out.time
+var.attrs['units'] = "seconds since 1970-01-01T00:00:00Z"
+var.attrs['long_name'] = "time"
+var.attrs['cf_role'] = "profile_id"
+var.attrs['calendar'] = "gregorian"
 
 # Bin distances
-out.distance.attrs['units'] = "metres"
-out.distance.attrs['long_name'] = "distance"
+var = out.distance
+var.attrs['units'] = "metres"
+var.attrs['long_name'] = "distance"
 
 # Station
-out.station.attrs['long_name'] = "station"
-out.station.attrs['cf_role'] = "timeseries_id"
-out.station.attrs['standard_name'] = "platform_name"
-out.station.attrs['longitude'] = float(meta_dict['longitude'])
-out.station.attrs['latitude'] = float(meta_dict['latitude'])
+var = out.station
+var.attrs['long_name'] = "station"
+var.attrs['cf_role'] = "timeseries_id"
+var.attrs['standard_name'] = "platform_name"
+var.attrs['longitude'] = float(meta_dict['longitude'])
+var.attrs['latitude'] = float(meta_dict['latitude'])
 
 # LCEWAP01: eastward velocity (vel1); all velocities have many overlapping attribute values (but not all)
-# try:
-# var = out.LCEWAP01
-# var.attrs[''] = '' ... etc.
-out.LCEWAP01.attrs['units'] = 'm/sec'
-out.LCEWAP01.attrs['_FillValue'] = '1e35'
-out.LCEWAP01.attrs['long_name'] = 'eastward_sea_water_velocity'
-out.LCEWAP01.attrs['sensor_type'] = 'adcp'
-out.LCEWAP01.attrs['sensor_depth'] = '' ############################
-out.LCEWAP01.attrs['serial_number'] = meta_dict['serialNumber']
-out.LCEWAP01.attrs['generic_name'] = 'u'
-out.LCEWAP01.attrs['flag_meanings'] = meta_dict['flag_meaning']
-out.LCEWAP01.attrs['flag_values'] = meta_dict['flag_values']
-out.LCEWAP01.attrs['References'] = meta_dict['flag_references']
-out.LCEWAP01.attrs['legency_GF3_code'] = 'SDN:GF3::EWCT'
-out.LCEWAP01.attrs['sdn_parameter_name'] = 'Eastward current velocity (Eulerian measurement) in the water body by moored acoustic doppler current profiler (ADCP)'
-out.LCEWAP01.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-out.LCEWAP01.attrs['sdn_uom_name'] = 'Metres per second'
-out.LCEWAP01.attrs['standard_name'] = 'eastward_sea_water_velocity'
-out.LCEWAP01.attrs['data_max'] = np.nanmax(data.vel1)
-out.LCEWAP01.attrs['data_min'] = np.nanmin(data.vel1)
-out.LCEWAP01.attrs['valid_max'] = 1000
-out.LCEWAP01.attrs['valid_min'] = -1000
+var = out.LCEWAP01
+var.attrs['units'] = 'm/sec'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'eastward_sea_water_velocity'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'u'
+var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+var.attrs['flag_values'] = meta_dict['flag_values']
+var.attrs['References'] = meta_dict['flag_references']
+var.attrs['legency_GF3_code'] = 'SDN:GF3::EWCT'
+var.attrs['sdn_parameter_name'] = 'Eastward current velocity (Eulerian measurement) in the water body by moored acoustic doppler current profiler (ADCP)'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+var.attrs['sdn_uom_name'] = 'Metres per second'
+var.attrs['standard_name'] = 'eastward_sea_water_velocity'
+var.attrs['data_max'] = np.nanmax(data.vel1)
+var.attrs['data_min'] = np.nanmin(data.vel1)
+var.attrs['valid_max'] = 1000
+var.attrs['valid_min'] = -1000
 
 # LCNSAP01: northward velocity (vel2)
-out.LCNSAP01.attrs['units'] = 'm/sec'
-out.LCNSAP01.attrs['_FillValue'] = '1e35'
-out.LCNSAP01.attrs['long_name'] = 'northward_sea_water_velocity'
-out.LCNSAP01.attrs['sensor_type'] = 'adcp'
-out.LCNSAP01.attrs['sensor_depth'] = '' ############################
-out.LCNSAP01.attrs['serial_number'] = meta_dict['serialNumber']
-out.LCNSAP01.attrs['generic_name'] = 'v'
-out.LCNSAP01.attrs['flag_meanings'] = meta_dict['flag_meaning']
-out.LCNSAP01.attrs['flag_values'] = meta_dict['flag_values']
-out.LCNSAP01.attrs['References'] = meta_dict['flag_references']
-out.LCNSAP01.attrs['legency_GF3_code'] = 'SDN:GF3::NSCT'
-out.LCNSAP01.attrs['sdn_parameter_name'] = 'Northward current velocity (Eulerian measurement) in the water body by moored acoustic doppler current profiler (ADCP)'
-out.LCNSAP01.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-out.LCNSAP01.attrs['sdn_uom_name'] = 'Metres per second'
-out.LCNSAP01.attrs['standard_name'] = 'northward_sea_water_velocity'
-out.LCNSAP01.attrs['data_max'] = np.nanmax(data.vel2)
-out.LCNSAP01.attrs['data_min'] = np.nanmin(data.vel2)
-out.LCEWAP01.attrs['valid_max'] = 1000
-out.LCEWAP01.attrs['valid_min'] = -1000
+var = out.LCNSAP01
+var.attrs['units'] = 'm/sec'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'northward_sea_water_velocity'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'v'
+var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+var.attrs['flag_values'] = meta_dict['flag_values']
+var.attrs['References'] = meta_dict['flag_references']
+var.attrs['legency_GF3_code'] = 'SDN:GF3::NSCT'
+var.attrs['sdn_parameter_name'] = 'Northward current velocity (Eulerian measurement) in the water body by moored acoustic doppler current profiler (ADCP)'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+var.attrs['sdn_uom_name'] = 'Metres per second'
+var.attrs['standard_name'] = 'northward_sea_water_velocity'
+var.attrs['data_max'] = np.nanmax(data.vel2)
+var.attrs['data_min'] = np.nanmin(data.vel2)
+var.attrs['valid_max'] = 1000
+var.attrs['valid_min'] = -1000
 
 # LRZAAP01: vertical velocity (vel3)
-out.LRZAAP01.attrs['units'] = 'm/sec'
-out.LRZAAP01.attrs['_FillValue'] = '1e35'
-out.LRZAAP01.attrs['long_name'] = 'upward_sea_water_velocity'
-out.LRZAAP01.attrs['sensor_type'] = 'adcp'
-out.LRZAAP01.attrs['sensor_depth'] = '' ############################
-out.LRZAAP01.attrs['serial_number'] = meta_dict['serialNumber']
-out.LRZAAP01.attrs['generic_name'] = 'w'
-out.LRZAAP01.attrs['flag_meanings'] = meta_dict['flag_meaning']
-out.LRZAAP01.attrs['flag_values'] = meta_dict['flag_values']
-out.LRZAAP01.attrs['References'] = meta_dict['flag_references']
-out.LRZAAP01.attrs['legency_GF3_code'] = 'SDN:GF3::VCSP'
-out.LRZAAP01.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) in the water body by moored acoustic doppler current profiler (ADCP)'
-out.LRZAAP01.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-out.LRZAAP01.attrs['sdn_uom_name'] = 'Metres per second'
-out.LRZAAP01.attrs['standard_name'] = 'upward_sea_water_velocity'
-out.LRZAAP01.attrs['data_max'] = np.nanmax(data.vel3)
-out.LRZAAP01.attrs['data_min'] = np.nanmin(data.vel3)
-out.LRZAAP01.attrs['valid_max'] = 1000
-out.LRZAAP01.attrs['valid_min'] = -1000
+var = out.LRZAAP01
+var.attrs['units'] = 'm/sec'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'upward_sea_water_velocity'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'w'
+var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+var.attrs['flag_values'] = meta_dict['flag_values']
+var.attrs['References'] = meta_dict['flag_references']
+var.attrs['legency_GF3_code'] = 'SDN:GF3::VCSP'
+var.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) in the water body by moored acoustic doppler current profiler (ADCP)'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+var.attrs['sdn_uom_name'] = 'Metres per second'
+var.attrs['standard_name'] = 'upward_sea_water_velocity'
+var.attrs['data_max'] = np.nanmax(data.vel3)
+var.attrs['data_min'] = np.nanmin(data.vel3)
+var.attrs['valid_max'] = 1000
+var.attrs['valid_min'] = -1000
 
 # LERRAP01: error velocity (vel4)
-out.LERRAP01.attrs['units'] = 'm/sec'
-out.LERRAP01.attrs['_FillValue'] = '1e35'
-out.LERRAP01.attrs['long_name'] = 'error_velocity_in_sea_water'
-out.LERRAP01.attrs['sensor_type'] = 'adcp'
-out.LERRAP01.attrs['sensor_depth'] = '' ############################
-out.LERRAP01.attrs['serial_number'] = meta_dict['serialNumber']
-out.LERRAP01.attrs['generic_name'] = 'e'
-out.LERRAP01.attrs['flag_meanings'] = meta_dict['flag_meaning']
-out.LERRAP01.attrs['flag_values'] = meta_dict['flag_values']
-out.LERRAP01.attrs['References'] = meta_dict['flag_references']
-out.LERRAP01.attrs['legency_GF3_code'] = 'SDN:GF3::ERRV'
-out.LERRAP01.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current profiler (ADCP)'
-out.LERRAP01.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-out.LERRAP01.attrs['sdn_uom_name'] = 'Metres per second'
-out.LERRAP01.attrs['data_max'] = np.nanmax(data.vel4)
-out.LERRAP01.attrs['data_min'] = np.nanmin(data.vel4)
-out.LERRAP01.attrs['valid_max'] = 2000
-out.LERRAP01.attrs['valid_min'] = -2000
+var = out.LERRAP01
+var.attrs['units'] = 'm/sec'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'error_velocity_in_sea_water'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'e'
+var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+var.attrs['flag_values'] = meta_dict['flag_values']
+var.attrs['References'] = meta_dict['flag_references']
+var.attrs['legency_GF3_code'] = 'SDN:GF3::ERRV'
+var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current profiler (ADCP)'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+var.attrs['sdn_uom_name'] = 'Metres per second'
+var.attrs['data_max'] = np.nanmax(data.vel4)
+var.attrs['data_min'] = np.nanmin(data.vel4)
+var.attrs['valid_max'] = 2000
+var.attrs['valid_min'] = -2000
 
 # ELTMEP01: seconds since 1970
-out.ELTMEP01.attrs['units'] = 'seconds since 1970-01-01T00:00:00Z'
-out.ELTMEP01.attrs['_FillValue'] = '1e35'
-out.ELTMEP01.attrs['long_name'] = 'time_02'
-out.ELTMEP01.attrs['legency_GF3_code'] = 'SDN:GF3::N/A'
-out.ELTMEP01.attrs['sdn_parameter_name'] = 'Elapsed time (since 1970-01-01T00:00:00Z)'
-out.ELTMEP01.attrs['sdn_uom_urn'] = 'SDN:P06::UTBB'
-out.ELTMEP01.attrs['sdn_uom_name'] = 'Seconds'
-out.ELTMEP01.attrs['standard_name'] = 'time'
+var = out.ELTMEP01
+var.attrs['units'] = 'seconds since 1970-01-01T00:00:00Z'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'time_02'
+var.attrs['legency_GF3_code'] = 'SDN:GF3::N/A'
+var.attrs['sdn_parameter_name'] = 'Elapsed time (since 1970-01-01T00:00:00Z)'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UTBB'
+var.attrs['sdn_uom_name'] = 'Seconds'
+var.attrs['standard_name'] = 'time'
 
 # TNIHCE01: echo intensity beam 1
-out.TNIHCE01.attrs['units'] = 'counts'
-out.TNIHCE01.attrs['_FillValue'] = '1e35'
-out.TNIHCE01.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
-out.TNIHCE01.attrs['sensor_type'] = 'adcp'
-out.TNIHCE01.attrs['sensor_depth'] = '' ############################
-out.TNIHCE01.attrs['serial_number'] = meta_dict['serialNumber']
-out.TNIHCE01.attrs['generic_name'] = 'AGC'
-out.TNIHCE01.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_01'
-out.TNIHCE01.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 1'
-out.TNIHCE01.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-out.TNIHCE01.attrs['sdn_uom_name'] = 'Counts'
-out.TNIHCE01.attrs['data_min'] = np.nanmin(data.amp1)
-out.TNIHCE01.attrs['data_max'] = np.nanmax(data.amp1)
+var = out.TNIHCE01
+var.attrs['units'] = 'counts'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'AGC'
+var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_01'
+var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 1'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+var.attrs['sdn_uom_name'] = 'Counts'
+var.attrs['data_min'] = np.nanmin(data.amp1)
+var.attrs['data_max'] = np.nanmax(data.amp1)
 
 # TNIHCE02: echo intensity beam 2
-out.TNIHCE02.attrs['units'] = 'counts'
-out.TNIHCE02.attrs['_FillValue'] = '1e35'
-out.TNIHCE02.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
-out.TNIHCE02.attrs['sensor_type'] = 'adcp'
-out.TNIHCE02.attrs['sensor_depth'] = '' ############################
-out.TNIHCE02.attrs['serial_number'] = meta_dict['serialNumber']
-out.TNIHCE02.attrs['generic_name'] = 'AGC'
-out.TNIHCE02.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_02'
-out.TNIHCE02.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 2'
-out.TNIHCE02.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-out.TNIHCE02.attrs['sdn_uom_name'] = 'Counts'
-out.TNIHCE02.attrs['data_min'] = np.nanmin(data.amp2)
-out.TNIHCE02.attrs['data_max'] = np.nanmax(data.amp2)
+var = out.TNIHCE02
+var.attrs['units'] = 'counts'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'AGC'
+var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_02'
+var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 2'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+var.attrs['sdn_uom_name'] = 'Counts'
+var.attrs['data_min'] = np.nanmin(data.amp2)
+var.attrs['data_max'] = np.nanmax(data.amp2)
 
 # TNIHCE03: echo intensity beam 3
-out.TNIHCE03.attrs['units'] = 'counts'
-out.TNIHCE03.attrs['_FillValue'] = '1e35'
-out.TNIHCE03.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
-out.TNIHCE03.attrs['sensor_type'] = 'adcp'
-out.TNIHCE03.attrs['sensor_depth'] = '' ############################
-out.TNIHCE03.attrs['serial_number'] = meta_dict['serialNumber']
-out.TNIHCE03.attrs['generic_name'] = 'AGC'
-out.TNIHCE03.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_03'
-out.TNIHCE03.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 3'
-out.TNIHCE03.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-out.TNIHCE03.attrs['sdn_uom_name'] = 'Counts'
-out.TNIHCE03.attrs['data_min'] = np.nanmin(data.amp3)
-out.TNIHCE03.attrs['data_max'] = np.nanmax(data.amp3)
+var = out.TNIHCE03
+var.attrs['units'] = 'counts'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'AGC'
+var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_03'
+var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 3'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+var.attrs['sdn_uom_name'] = 'Counts'
+var.attrs['data_min'] = np.nanmin(data.amp3)
+var.attrs['data_max'] = np.nanmax(data.amp3)
 
 # TNIHCE04: echo intensity beam 4
-out.TNIHCE04.attrs['units'] = 'counts'
-out.TNIHCE04.attrs['_FillValue'] = '1e35'
-out.TNIHCE04.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
-out.TNIHCE04.attrs['sensor_type'] = 'adcp'
-out.TNIHCE04.attrs['sensor_depth'] = '' ############################
-out.TNIHCE04.attrs['serial_number'] = meta_dict['serialNumber']
-out.TNIHCE04.attrs['generic_name'] = 'AGC'
-out.TNIHCE04.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_04'
-out.TNIHCE04.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 4'
-out.TNIHCE04.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-out.TNIHCE04.attrs['sdn_uom_name'] = 'Counts'
-out.TNIHCE04.attrs['data_min'] = np.nanmin(data.amp4)
-out.TNIHCE04.attrs['data_max'] = np.nanmax(data.amp4)
+var = out.TNIHCE04
+var.attrs['units'] = 'counts'
+var.attrs['_FillValue'] = '1e35'
+var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
+var.attrs['sensor_type'] = 'adcp'
+var.attrs['sensor_depth'] = '' ############################
+var.attrs['serial_number'] = meta_dict['serialNumber']
+var.attrs['generic_name'] = 'AGC'
+var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_04'
+var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current profiler (ADCP) beam 4'
+var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+var.attrs['sdn_uom_name'] = 'Counts'
+var.attrs['data_min'] = np.nanmin(data.amp4)
+var.attrs['data_max'] = np.nanmax(data.amp4)
 
 # PCGDAP00 - 4: percent good beam 1-4
 var = out.PCGDAP00
@@ -520,7 +529,7 @@ var.attrs['legency_GF3_code'] = 'SDN:GF3::PRES'
 var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling pressure sensor and corrected to read zero at sea level'
 var.attrs['sdn_uom_urn'] = 'SDN:P06::UPDB'
 var.attrs['sdn_uom_name'] = 'Decibars'
-var.attrs['standard_name'] = 'sea_water_pressure
+var.attrs['standard_name'] = 'sea_water_pressure'
 var.attrs['data_min'] = np.nanmin(pres)
 var.attrs['data_max'] = np.nanmax(pres)
 
@@ -619,7 +628,9 @@ for key in data.sysconfig.keys():
 # Not from metadata file:
 processing_history = "Metadata read in from log sheet and combined with raw data to export as netCDF file."
 out.attrs['processing_history'] = processing_history
-out.attrs['time_coverage_duration'] = '' #calculated from start and end times
+out.attrs['time_coverage_duration'] = (time_sec[-1]-time_sec[0]) /60 /60 /24  #convert seconds to days
+out.attrs['time_coverage_duration_units'] = "days"
+#^calculated from start and end times; in days: add time_coverage_duration_units?
 out.attrs['cdm_data_type'] = "station"
 out.attrs['number_of_beams'] = data.NBeams #change in python and R to numberOfBeams?
 #out.attrs['nprofs'] = data.nprofs #number of ensembles
