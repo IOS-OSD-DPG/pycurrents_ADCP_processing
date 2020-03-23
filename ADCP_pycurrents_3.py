@@ -84,19 +84,21 @@ m = Multiread(inFile, model)  #m outputs $ <pycurrents.adcp.rdiraw.Multiread at 
 data = m.read()  #data outputs the kind of output we're looking for
 
 
-## Set up dimensions
-# time = pd.to_datetime(data.dday, unit='D', origin=pd.Timestamp('2016-01-01')) #original code line
-# convert time variable to elapsed time since 1970-01-01T00:00:00Z; dtype='datetime64[ns]'
-time_us = np.array(pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'), dtype='datetime64')
-station = float(meta_dict['station_number']) # Should dimensions be integers or arrays?
-nchar = np.array(range(1,100)) #was (1,24) which was the same as R code originally
-
-## Set up variables that need it
-
 # Get timestamp from "data" object just created
 # In R, the start time was obtained from the "adp" object created within R
 # data.yearbase is an integer of the year that the timeseries starts (e.g., 2016)
 data_origin = str(data.yearbase) + '-01-01' #convert to date object; NEED TIME ZONE = UTC
+
+## Set up dimensions
+
+# time = pd.to_datetime(data.dday, unit='D', origin=pd.Timestamp('2016-01-01')) #original code line
+# convert time variable to elapsed time since 1970-01-01T00:00:00Z; dtype='datetime64[ns]'
+# t = pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True)[0].strftime('%Y-%m-%d %H:%M:%S.%f') + str(pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True)[0].nanosecond)
+time_us = np.array(pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'), dtype='datetime64')
+station = np.array([float(meta_dict['station_number'])]) # Should dimensions be integers or arrays?
+nchar = np.array(range(1,100)) #was (1,24) which was the same as R code originally
+
+## Set up variables that need it
 
 # DTUT8601 should have dtype='|S23' ? this is where nchar=23 comes in?
 time_DTUT8601 = pd.to_datetime(data.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S') #don't need %Z in strftime
@@ -109,48 +111,53 @@ meta_dict['serialNumber'] = model.upper() + meta_dict['serialNumber']
 # Unpack variables in VL numpy.void object variable
 svel = np.zeros(shape=(len(data.VL),))
 pres = np.zeros(shape=(len(data.VL),))
-#sal = np.zeros(shape=(len(data.VL),)) #the R script doesn't include this, and neither do the .adcp files
 for i in range(len(data.VL)):
     svel[i] = data.VL[i]['SoundSpeed']
     pres[i] = data.VL[i]['Pressure']
-    #sal[i] = data.VL[i]['Salinity']
+
+sensor_dep = np.nanmean(data.XducerDepth)
 
 # Make into netCDF file
 # unknown items in data.VL: EnsNumMSB (ensemble number ?), BIT, MPT_minutes/seconds/hundredths, ADC0-ADC7, ESW, spare1, spare2, RTCCentury/.../hundredths     
 
+#Reshape variables so as to include station
+#v1 = data.vel1.data.reshape((1, len(time_us), len(data.dep)))
+
+# no variable reshaping
+
 out = xr.Dataset(coords={'time': time_us, 'distance': data.dep, 'station': station, 'nchar': nchar},
-                 data_vars={'time': (['time'], time_us),
-                            'distance': (['distance'], data.dep),
-                            'station': (['station'], station),
-                            'LCEWAP01': (['station', 'distance', 'time'], data.vel1),
-                            'LCNSAP01': (['station', 'distance', 'time'], data.vel2),
-                            'LRZAAP01': (['station', 'distance', 'time'], data.vel3),
-                            'LERRAP01': (['station', 'distance', 'time'], data.vel4),
+                 data_vars={'time_var': (['time'], time_us),
+                            'distance_var': (['distance'], data.dep),
+                            'station_var': (['station'], station),
+                            'LCEWAP01': (['time', 'distance', 'station'], data.vel1.data),
+                            'LCNSAP01': (['time', 'distance', 'station'], data.vel2.data),
+                            'LRZAAP01': (['time', 'distance', 'station'], data.vel3.data),
+                            'LERRAP01': (['time', 'distance', 'station'], data.vel4.data),
                             'ELTMEP01': (['time', 'station'], time_us),
-                            'TNIHCE01': (['station', 'distance', 'time'], data.amp1),
-                            'TNIHCE02': (['station', 'distance', 'time'], data.amp2),
-                            'TNIHCE03': (['station', 'distance', 'time'], data.amp3),
-                            'TNIHCE04': (['station', 'distance', 'time'], data.amp4),
-                            'CMAGZZ01': (['station', 'distance', 'time'], data.cor1),
-                            'CMAGZZ02': (['station', 'distance', 'time'], data.cor2),
-                            'CMAGZZ03': (['station', 'distance', 'time'], data.cor3),
-                            'CMAGZZ04': (['station', 'distance', 'time'], data.cor4),
-                            'PCGDAP00': (['station', 'distance', 'time'], data.pg1),
-                            'PCGDAP02': (['station', 'distance', 'time'], data.pg2),
-                            'PCGDAP03': (['station', 'distance', 'time'], data.pg3),
-                            'PCGDAP04': (['station', 'distance', 'time'], data.pg4),
-                            'PTCHGP01': (['station', 'time'], data.pitch),
-                            'HEADCM01': (['station', 'time'], data.heading),
-                            'ROLLGP01': (['station', 'time'], data.roll),
-                            'TEMPPR01': (['station', 'time'], data.temperature),
-                            'DISTTRAN': (['station', 'distance'], data.dep),
-                            'PPSAADCP': (['station', 'time'], data.XducerDepth),
+                            'TNIHCE01': (['time', 'distance', 'station'], data.amp1),
+                            'TNIHCE02': (['time', 'distance', 'station'], data.amp2),
+                            'TNIHCE03': (['time', 'distance', 'station'], data.amp3),
+                            'TNIHCE04': (['time', 'distance', 'station'], data.amp4),
+                            'CMAGZZ01': (['time', 'distance', 'station'], data.cor1),
+                            'CMAGZZ02': (['time', 'distance', 'station'], data.cor2),
+                            'CMAGZZ03': (['time', 'distance', 'station'], data.cor3),
+                            'CMAGZZ04': (['time', 'distance', 'station'], data.cor4),
+                            'PCGDAP00': (['time', 'distance', 'station'], data.pg1),
+                            'PCGDAP02': (['time', 'distance', 'station'], data.pg2),
+                            'PCGDAP03': (['time', 'distance', 'station'], data.pg3),
+                            'PCGDAP04': (['time', 'distance', 'station'], data.pg4),
+                            'PTCHGP01': (['time', 'station'], data.pitch),
+                            'HEADCM01': (['time', 'station'], data.heading),
+                            'ROLLGP01': (['time', 'station'], data.roll),
+                            'TEMPPR01': (['time', 'station'], data.temperature),
+                            'DISTTRAN': (['station', 'distance'], data.dep - sensor_dep),
+                            'PPSAADCP': (['time', 'station'], data.XducerDepth),
                             'ALATZZ01': (['station'], np.array([float(meta_dict['latitude'])])),
                             'ALONZZ01': (['station'], np.array([float(meta_dict['longitude'])])),
                             'latitude': (['station'], np.array([float(meta_dict['latitude'])])),
                             'longitude': (['station'], np.array([float(meta_dict['longitude'])])),
-                            'PRESPR01': (['station', 'time'], pres),
-                            'SVELCV01': (['station', 'time'], svel),
+                            'PRESPR01': (['time', 'station'], pres),
+                            'SVELCV01': (['time', 'station'], svel),
                             'DTUT8601': (['time', 'nchar'], time_DTUT8601),
                             'filename': (['station', 'nchar'], np.array([outname[-4]])),
                             'instrument_serial_number': (['station', 'nchar'], np.array([meta_dict['serialNumber']])),
@@ -159,20 +166,23 @@ out = xr.Dataset(coords={'time': time_us, 'distance': data.dep, 'station': stati
 # Add attributes to each variable:
 # making lists of variables that need the same attributes could help shorten this part of the script, but how?
 # it may also make it harder to rename variables in the future...
+
+fillValue = '1e+35'
+
 # Time
-var = out.time
+var = out.time_var
 var.attrs['units'] = "seconds since 1970-01-01T00:00:00Z"
 var.attrs['long_name'] = "time"
 var.attrs['cf_role'] = "profile_id"
 var.attrs['calendar'] = "gregorian"
 
 # Bin distances
-var = out.distance
+var = out.distance_var
 var.attrs['units'] = "metres"
 var.attrs['long_name'] = "distance"
 
 # Station
-var = out.station
+var = out.station_var
 var.attrs['long_name'] = "station"
 var.attrs['cf_role'] = "timeseries_id"
 var.attrs['standard_name'] = "platform_name"
@@ -182,10 +192,10 @@ var.attrs['latitude'] = float(meta_dict['latitude'])
 # LCEWAP01: eastward velocity (vel1); all velocities have many overlapping attribute values (but not all)
 var = out.LCEWAP01
 var.attrs['units'] = 'm/sec'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'eastward_sea_water_velocity'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'u'
 var.attrs['flag_meanings'] = meta_dict['flag_meaning']
@@ -204,10 +214,10 @@ var.attrs['valid_min'] = -1000
 # LCNSAP01: northward velocity (vel2)
 var = out.LCNSAP01
 var.attrs['units'] = 'm/sec'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'northward_sea_water_velocity'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'v'
 var.attrs['flag_meanings'] = meta_dict['flag_meaning']
@@ -226,10 +236,10 @@ var.attrs['valid_min'] = -1000
 # LRZAAP01: vertical velocity (vel3)
 var = out.LRZAAP01
 var.attrs['units'] = 'm/sec'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'upward_sea_water_velocity'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'w'
 var.attrs['flag_meanings'] = meta_dict['flag_meaning']
@@ -248,10 +258,10 @@ var.attrs['valid_min'] = -1000
 # LERRAP01: error velocity (vel4)
 var = out.LERRAP01
 var.attrs['units'] = 'm/sec'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'error_velocity_in_sea_water'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'e'
 var.attrs['flag_meanings'] = meta_dict['flag_meaning']
@@ -269,7 +279,7 @@ var.attrs['valid_min'] = -2000
 # ELTMEP01: seconds since 1970
 var = out.ELTMEP01
 var.attrs['units'] = 'seconds since 1970-01-01T00:00:00Z'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'time_02'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::N/A'
 var.attrs['sdn_parameter_name'] = 'Elapsed time (since 1970-01-01T00:00:00Z)'
@@ -280,10 +290,10 @@ var.attrs['standard_name'] = 'time'
 # TNIHCE01: echo intensity beam 1
 var = out.TNIHCE01
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'AGC'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_01'
@@ -296,10 +306,10 @@ var.attrs['data_max'] = np.nanmax(data.amp1)
 # TNIHCE02: echo intensity beam 2
 var = out.TNIHCE02
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'AGC'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_02'
@@ -312,10 +322,10 @@ var.attrs['data_max'] = np.nanmax(data.amp2)
 # TNIHCE03: echo intensity beam 3
 var = out.TNIHCE03
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'AGC'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_03'
@@ -328,10 +338,10 @@ var.attrs['data_max'] = np.nanmax(data.amp3)
 # TNIHCE04: echo intensity beam 4
 var = out.TNIHCE04
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'AGC'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::BEAM_04'
@@ -344,10 +354,10 @@ var.attrs['data_max'] = np.nanmax(data.amp4)
 # PCGDAP00 - 4: percent good beam 1-4
 var = out.PCGDAP00
 var.attrs['units'] = 'percent'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_1'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'PGd'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_01'
@@ -360,10 +370,10 @@ var.attrs['data_max'] = np.nanmax(data.Pg1)
 # PCGDAP02: percent good beam 2
 var = out.PCGDAP02
 var.attrs['units'] = 'percent'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_2'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'PGd'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_02'
@@ -376,10 +386,10 @@ var.attrs['data_max'] = np.nanmax(data.Pg2)
 # PCGDAP03: percent good beam 3
 var = out.PCGDAP03
 var.attrs['units'] = 'percent'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_3'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'PGd'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_03'
@@ -392,10 +402,10 @@ var.attrs['data_max'] = np.nanmax(data.Pg3)
 # PCGDAP03: percent good beam 4
 var = out.PCGDAP04
 var.attrs['units'] = 'percent'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_4'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'PGd'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_04'
@@ -408,7 +418,7 @@ var.attrs['data_max'] = np.nanmax(data.Pg4)
 # PTCHGP01: pitch
 var = out.PTCHGP01
 var.attrs['units'] = 'degrees'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'pitch'
 var.attrs['sensor_type'] = 'adcp'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::PTCH'
@@ -422,7 +432,7 @@ var.attrs['data_max'] = np.nanmax(data.pitch)
 # ROLLGP01: roll
 var = out.ROLLGP01
 var.attrs['units'] = 'degrees'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'roll'
 var.attrs['sensor_type'] = 'adcp'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::ROLL'
@@ -436,11 +446,11 @@ var.attrs['data_max'] = np.nanmax(data.roll)
 # DISTTRAN: height of sea surface
 var = out.DISTTRAN
 var.attrs['units'] = 'm'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'height of sea surface'
 var.attrs['generic_name'] = 'height'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::HGHT'
 var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
@@ -451,11 +461,11 @@ var.attrs['data_max'] = np.nanmax(data.dep)
 # TEMPPR01: transducer temp
 var = out.TEMPPR01
 var.attrs['units'] = 'degrees celsius'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP Transducer Temp.'
 var.attrs['generic_name'] = 'temp'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::te90'
 var.attrs['sdn_parameter_name'] = 'Temperature of the water body'
@@ -467,12 +477,12 @@ var.attrs['data_max'] = np.nanmax(data.temperature)
 # PPSAADCP: instrument depth (formerly DEPFP01)
 var = data.PPSAADCP
 var.attrs['units'] = 'm'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'instrument depth'
 var.attrs['xducer_offset_from_bottom'] = ''
 var.attrs['generic_name'] = 'depth'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::DEPH'
 var.attrs['sdn_parameter_name'] = 'Depth below surface of the water body'
@@ -505,10 +515,10 @@ for var in [data.ALATZZ01, data.latitude]:
 # HEADCM01: heading
 var = data.HEADCM01
 var.attrs['units'] = 'degrees'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'heading'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::HEAD'
 var.attrs['sdn_parameter_name'] = 'Orientation (horizontal relative to true north) of measurement device {heading}'
@@ -520,10 +530,10 @@ var.attrs['data_max'] = np.nanmax(data.heading)
 # PRESPR01: pressure
 var = data.PRESPR01
 var.attrs['units'] = 'decibars'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'pressure'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::PRES'
 var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling pressure sensor and corrected to read zero at sea level'
@@ -536,10 +546,10 @@ var.attrs['data_max'] = np.nanmax(pres)
 # SVELCV01: sound velocity
 var = data.SVELCV01
 var.attrs['units'] = 'm/sec'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'speed of sound'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::SVEL'
 var.attrs['sdn_parameter_name'] = 'Sound velocity in the water body by computation from temperature and salinity by unspecified algorithm'
@@ -561,10 +571,10 @@ var.attrs['sdn_uom_name'] = 'ISO8601'
 # CMAGZZ01-4: correlation magnitude
 var = data.CMAGZZ01
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'CM'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::CMAG_01'
@@ -574,10 +584,10 @@ var.attrs['data_max'] = np.nanmax(data.cor1)
 
 var = data.CMAGZZ02
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'CM'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::CMAG_02'
@@ -587,10 +597,10 @@ var.attrs['data_max'] = np.nanmax(data.cor2)
 
 var = data.CMAGZZ03
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'CM'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::CMAG_03'
@@ -600,10 +610,10 @@ var.attrs['data_max'] = np.nanmax(data.cor3)
 
 var = data.CMAGZZ04
 var.attrs['units'] = 'counts'
-var.attrs['_FillValue'] = '1e35'
+var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
 var.attrs['sensor_type'] = 'adcp'
-var.attrs['sensor_depth'] = '' ############################
+var.attrs['sensor_depth'] = sensor_dep
 var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['generic_name'] = 'CM'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::CMAG_04'
@@ -628,7 +638,7 @@ for key in data.sysconfig.keys():
 # Not from metadata file:
 processing_history = "Metadata read in from log sheet and combined with raw data to export as netCDF file."
 out.attrs['processing_history'] = processing_history
-out.attrs['time_coverage_duration'] = (time_sec[-1]-time_sec[0]) /60 /60 /24  #convert seconds to days
+out.attrs['time_coverage_duration'] = data.dday[-1]-data.dday[0]
 out.attrs['time_coverage_duration_units'] = "days"
 #^calculated from start and end times; in days: add time_coverage_duration_units?
 out.attrs['cdm_data_type'] = "station"
