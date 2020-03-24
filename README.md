@@ -8,6 +8,8 @@ The *ADCP_pycurrents_3.py* version contains changes to variable names (following
 
 *read_mcdcp.py* is in-progress.
 
+*ADCP_pycurrents_rdiraw.py* and *ADCP_pycurrents_rdiraw_reshape.py* use the `pycurrents.adcp.rdiraw.rawfile()` function instead of the `pycurrents.adcp.rdiraw.Multiread()` function to import raw ADCP files. Both are in-progress.
+
 ## Installation
 To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
 
