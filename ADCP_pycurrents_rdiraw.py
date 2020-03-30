@@ -109,8 +109,6 @@ meta_dict['serialNumber'] = model.upper() + meta_dict['serialNumber']
 # Add instrument model variable value here for cleanliness
 meta_dict['instrumentModel'] = '{} ADCP {}kHz ({})'.format(model_long, data.sysconfig['kHz'], meta_dict['serialNumber'])
 
-# what is a masked array? bt_depth
-
 # Calculate sensor depth of instrument based off mean instrument transducer depth
 # This is wrong because it omits the
 #sensor_dep = np.nanmean(vel.XducerDepth)
@@ -632,6 +630,7 @@ var.attrs['data_max'] = np.nanmax(vel.VL['SoundSpeed'])
 
 # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss #How to make into char dtype?
 var = out.DTUT8601
+var.encoding['dtype'] = 'U24' #24-character string
 var.attrs['note'] = 'time values as ISO8601 string, YY-MM-DD hh:mm:ss'
 var.attrs['time_zone'] = 'UTC'
 var.attrs['legency_GF3_code'] = 'SDN:GF3::time_string'
