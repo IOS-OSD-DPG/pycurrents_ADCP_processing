@@ -23,3 +23,6 @@ A description of output data format can be found in the RDI Ocean Surveyor techn
 
 ## Credits
 *ADCP_pycurrents_rdiraw.py* is based off of the gist, *RdiToNetcdf.ipynb*, by Jody Klymak (https://github.com/jklymak).
+
+## Note
+For a sample output netCDF file, please contact Hana Hourston at hana.hourston@dfo-mpo.gc.ca.
