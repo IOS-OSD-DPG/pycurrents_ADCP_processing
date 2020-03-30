@@ -7,7 +7,7 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package.
 ## Installation
 To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
 
-To download this script without having to clone the whole repository:
+To download a file from this repository without having to clone the whole repository:
 1. Open a file in a GitHub repository and click on the button "raw" in the top right corner to view the raw file in a new browser tab. Copy the url of the raw file (e.g. ht<span>tps://</span>raw.githubusercontent.com/username/reponame/path/to/file).
 2. To save this file to your computer, open a terminal window and enter
     
