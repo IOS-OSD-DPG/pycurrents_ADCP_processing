@@ -182,6 +182,7 @@ fillValue = 1e+15
 # Time
 var = out.time
 var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z" #was var.attrs but that created an error
+var.encoding['_FillValue'] = None
 # var.attrs['units'] = "seconds since 1970-01-01T00:00:00Z"
 var.attrs['long_name'] = "time"
 var.attrs['cf_role'] = "profile_id"
@@ -190,11 +191,13 @@ var.encoding['calendar'] = "gregorian" #was var.attrs but that created an error
 
 # Bin distances
 var = out.distance
+var.encoding['_FillValue'] = None
 var.attrs['units'] = "metres"
 var.attrs['long_name'] = "distance"
 
 # Station
 var = out.station
+var.encoding['_FillValue'] = None
 var.attrs['long_name'] = "station"
 var.attrs['cf_role'] = "timeseries_id"
 var.attrs['standard_name'] = "platform_name"
@@ -203,7 +206,7 @@ var.attrs['latitude'] = float(meta_dict['latitude'])
 
 # LCEWAP01: eastward velocity (vel1); all velocities have many overlapping attribute values (but not all)
 var = out.LCEWAP01
-var.encoding['dtype'] = 'float'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm/sec'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'eastward_sea_water_velocity'
@@ -227,7 +230,7 @@ var.attrs['valid_min'] = -1000
 
 # LCNSAP01: northward velocity (vel2)
 var = out.LCNSAP01
-var.encoding['dtype'] = 'float'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm/sec'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'northward_sea_water_velocity'
@@ -251,7 +254,7 @@ var.attrs['valid_min'] = -1000
 
 # LRZAAP01: vertical velocity (vel3)
 var = out.LRZAAP01
-var.encoding['dtype'] = 'float'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm/sec'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'upward_sea_water_velocity'
@@ -275,7 +278,7 @@ var.attrs['valid_min'] = -1000
 
 # LERRAP01: error velocity (vel4)
 var = out.LERRAP01
-var.encoding['dtype'] = 'float'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm/sec'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'error_velocity_in_sea_water'
@@ -343,7 +346,7 @@ var.attrs['standard_name'] = 'time'
 
 # TNIHCE01: echo intensity beam 1
 var = out.TNIHCE01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
@@ -360,7 +363,7 @@ var.attrs['data_max'] = np.nanmax(amp.amp1)
 
 # TNIHCE02: echo intensity beam 2
 var = out.TNIHCE02
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
@@ -377,7 +380,7 @@ var.attrs['data_max'] = np.nanmax(amp.amp2)
 
 # TNIHCE03: echo intensity beam 3
 var = out.TNIHCE03
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
@@ -394,7 +397,7 @@ var.attrs['data_max'] = np.nanmax(amp.amp3)
 
 # TNIHCE04: echo intensity beam 4
 var = out.TNIHCE04
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
@@ -411,7 +414,7 @@ var.attrs['data_max'] = np.nanmax(amp.amp4)
 
 # PCGDAP00 - 4: percent good beam 1-4
 var = out.PCGDAP00
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'percent'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_1'
@@ -428,7 +431,7 @@ var.attrs['data_max'] = np.nanmax(pg.pg1)
 
 # PCGDAP02: percent good beam 2
 var = out.PCGDAP02
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'percent'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_2'
@@ -445,7 +448,7 @@ var.attrs['data_max'] = np.nanmax(pg.pg2)
 
 # PCGDAP03: percent good beam 3
 var = out.PCGDAP03
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'percent'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_3'
@@ -462,7 +465,7 @@ var.attrs['data_max'] = np.nanmax(pg.pg3)
 
 # PCGDAP03: percent good beam 4
 var = out.PCGDAP04
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'percent'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'percent_good_beam_4'
@@ -479,7 +482,7 @@ var.attrs['data_max'] = np.nanmax(pg.pg4)
 
 # PTCHGP01: pitch
 var = out.PTCHGP01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'degrees'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'pitch'
@@ -494,7 +497,7 @@ var.attrs['data_max'] = np.nanmax(vel.pitch)
 
 # ROLLGP01: roll
 var = out.ROLLGP01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'degrees'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'roll'
@@ -509,7 +512,7 @@ var.attrs['data_max'] = np.nanmax(vel.roll)
 
 # DISTTRAN: height of sea surface
 var = out.DISTTRAN
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'height of sea surface'
@@ -525,7 +528,7 @@ var.attrs['data_max'] = np.nanmax(vel.dep)
 
 # TEMPPR01: transducer temp
 var = out.TEMPPR01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'degrees celsius'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP Transducer Temp.'
@@ -542,7 +545,7 @@ var.attrs['data_max'] = np.nanmax(vel.temperature)
 
 # PPSAADCP: instrument depth (formerly DEPFP01)
 var = out.PPSAADCP
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'instrument depth'
@@ -583,7 +586,7 @@ for var in [out.ALATZZ01, out.latitude]:
 
 # HEADCM01: heading
 var = out.HEADCM01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'degrees'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'heading'
@@ -599,7 +602,7 @@ var.attrs['data_max'] = np.nanmax(vel.heading)
 
 # PRESPR01: pressure
 var = out.PRESPR01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'decibars'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'pressure'
@@ -616,7 +619,7 @@ var.attrs['data_max'] = np.nanmax(vel.VL['Pressure'])
 
 # SVELCV01: sound velocity
 var = out.SVELCV01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm/sec'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'speed of sound'
@@ -643,7 +646,7 @@ var.attrs['sdn_uom_name'] = 'ISO8601'
 
 # CMAGZZ01-4: correlation magnitude
 var = out.CMAGZZ01
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
@@ -657,7 +660,7 @@ var.attrs['data_min'] = np.nanmin(cor.cor1)
 var.attrs['data_max'] = np.nanmax(cor.cor1)
 
 var = out.CMAGZZ02
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
@@ -672,7 +675,7 @@ var.attrs['data_max'] = np.nanmax(cor.cor2)
 
 var = out.CMAGZZ03
 var.attrs['units'] = 'counts'
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
 var.attrs['sensor_type'] = 'adcp'
@@ -685,7 +688,7 @@ var.attrs['data_min'] = np.nanmin(cor.cor3)
 var.attrs['data_max'] = np.nanmax(cor.cor3)
 
 var = out.CMAGZZ04
-var.encoding['dtype'] = 'float64'
+var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'counts'
 var.attrs['_FillValue'] = fillValue
 var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
