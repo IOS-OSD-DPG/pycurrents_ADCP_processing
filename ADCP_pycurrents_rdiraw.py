@@ -12,12 +12,15 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import datetime
-from pycurrents.adcp import rdiraw
+from pycurrents.adcp.rdiraw import rawfile
+from pycurrents.adcp.rdiraw import SysCfg
 from pycurrents.data import timetools
 from pycurrents.adcp.transform import heading_rotate
 # import pycurrents.adcp.adcp_nc as adcp_nc
 # from pycurrents.adcp.transform import rdi_xyz_enu
 import pycurrents.adcp.transform as transform
+import gsw
+from num2words import num2words
 
 #this prints out the FileBBWHOS() function code. rdiraw.rawfile() calls rdiraw.FileBBWHOS()
 #import inspect
@@ -76,7 +79,10 @@ if model == "":
     
 
 # Read in raw ADCP file and model type
-data = rdiraw.rawfile(inFile, model)
+data = rawfile(inFile, model)
+
+# Begin writing processing history
+processing_history = "Metadata read in from log sheet and combined with raw data to export as netCDF file."
 
 vel = data.read(varlist=['Velocity'])
 amp = data.read(varlist=['Intensity'])
@@ -104,6 +110,9 @@ station = np.array([float(meta_dict['station_number'])]) # Should dimensions be 
 # DTUT8601 should have dtype='|S23' ? this is where nchar=23 comes in?
 time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S') #don't need %Z in strftime
 
+# Add leading zero to serial numbers that have 3 digits
+if len(int(meta_dict['serialNumber'])) == 3:
+    meta_dict['serialNumber'] = '0' + str(meta_dict['serialNumber'])
 # Overwrite serial number to include the model: upper returns uppercase
 meta_dict['serialNumber'] = model.upper() + meta_dict['serialNumber']
 # Add instrument model variable value here for cleanliness
@@ -115,6 +124,17 @@ meta_dict['instrumentModel'] = '{} ADCP {}kHz ({})'.format(model_long, data.sysc
 # Assuming cut_leading_ensembles and cut_trailing_ensembles are not removed entirely, XducerDepth must be indexed
 sensor_dep = np.nanmean(vel.XducerDepth[int(meta_dict['cut_lead_ensembles']): int(meta_dict['cut_trail_ensembles'])])
 
+
+# Calculate pressure based on static instrument depth
+if model == 'bb' or model == 'nb':
+    z = meta_dict['instrument_depth']
+    p = round(gsw.conversions.p_from_z(float(meta_dict['instrument_depth']), float(meta_dict['latitude'])), ndigits=0)
+    pressure = np.repeat(p, len(vel.vel1.data))
+    processing_history = processing_history + " Pressure values calculated from static instrument depth ({} m) using " \
+                                              "the TEOS-10 75-term expression for specific volume and rounded to {} " \
+                                              "significant digits.".format(meta_dict['instrument_depth'], num2words(len(str(p))))
+else:
+    pressure = vel.VL['Pressure']
 
 # Flag velocity data based on cut_lead_ensembles and cut_trail_ensembles
 # Create QC variables containing flag arrays
@@ -166,7 +186,7 @@ out = xr.Dataset(coords={'time': time_us, 'distance': vel.dep, 'station': statio
                             'ALONZZ01': (['station'], np.array([float(meta_dict['longitude'])])),
                             'latitude': (['station'], np.array([float(meta_dict['latitude'])])),
                             'longitude': (['station'], np.array([float(meta_dict['longitude'])])),
-                            'PRESPR01': (['time'], vel.VL['Pressure']),
+                            'PRESPR01': (['time'], pressure),
                             'SVELCV01': (['time'], vel.VL['SoundSpeed']),
                             'DTUT8601': (['time'], time_DTUT8601), #removed nchar dim
                             'filename': (['station'], np.array([outname[:-3]])), #changed dim from nchar to station
@@ -182,7 +202,7 @@ fillValue = 1e+15
 # Time
 var = out.time
 var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z" #was var.attrs but that created an error
-var.encoding['_FillValue'] = None
+var.encoding['_FillValue'] = None #omits fill value from time dimension; otherwise would include with value NaN
 # var.attrs['units'] = "seconds since 1970-01-01T00:00:00Z"
 var.attrs['long_name'] = "time"
 var.attrs['cf_role'] = "profile_id"
@@ -719,6 +739,8 @@ if data.sysconfig['convex'] == True:
 else:
     beamPattern = ''
 
+# From Eric Firing#################3
+orientations = [SysCfg(fl).up for fl in data.FL['SysCfg'][::30]]
 if data.sysconfig['up'] == True:
     orientation = 'up'
 else:
@@ -726,7 +748,6 @@ else:
 
 # Create more global attributes
 # Not from metadata file:
-processing_history = "Metadata read in from log sheet and combined with raw data to export as netCDF file."
 out.attrs['processing_history'] = processing_history
 out.attrs['time_coverage_duration'] = vel.dday[-1]-vel.dday[0]
 out.attrs['time_coverage_duration_units'] = "days"
