@@ -12,13 +12,13 @@ To download a file from this repository without having to clone the whole reposi
         wget https://raw.githubusercontent.com/username/reponame/path/to/file --no-check-certificate
    
    "--no-check-certificate" allows the user to connect to GitHub insecurely and download a file successfully.  
-  
-  
-  
+&nbsp;
+&nbsp;
+&nbsp;
 The following instructions are for installing packages used in the *ADCP_pycurrents_rdiraw.py* script.  
-  
-  
-  
+&nbsp;
+&nbsp;
+&nbsp;
 To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
 
 To install the TEOS-10 `gsw` package: 
