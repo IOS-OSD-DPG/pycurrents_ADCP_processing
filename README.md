@@ -18,16 +18,12 @@ The following instructions are for installing packages used in the *ADCP_pycurre
 <br/>
 <br/>
 To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
-
+<br/>
 To install the TEOS-10 `gsw` package: 
 1. Download a .zip file of the repository at https://github.com/TEOS-10/GSW-Python and extract its contents to a folder called "GSW-Python-master"
 2. In a terminal window, activate the virtual environment (e.g., "py37") created during the installation of `pycurrents` with the command `conda activate py37`. cd to the "GSW-Python-master/" folder.
 3. Enter the command: `pip install .` to build `gsw`.
-4. Symbolically link the `gsw` directory to the Miniconda or Anaconda environment so that the python modules using the data can find it. The following assumes your Miniconda or Anaconda installation was made in the “miniconda3” or "anaconda3" subdirectory of your home directory, which is the default location:
-
- `cd ~/anaconda3`
- `ln -s ~/GSW-Python-master/`
-
+<br/>
 To install the `num2words` package:
 1. Open a terminal window and activate the virtual environment (e.g., "py37") created during the installation of `pycurrents` with the command `conda activate py37`.
 2. Install the package with the command: `pip install num2words`
