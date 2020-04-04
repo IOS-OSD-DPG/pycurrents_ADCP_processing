@@ -13,9 +13,7 @@ To download a file from this repository without having to clone the whole reposi
    
    "--no-check-certificate" allows the user to connect to GitHub insecurely and download a file successfully.<br/>
 <br/>
-<br/>
-The following instructions are for installing packages used in the *ADCP_pycurrents_rdiraw.py* script.<br/>
-<br/>
+The following instructions are for installing packages used in the *ADCP_pycurrents_rdiraw.py* script.
   
 #### `pycurrents`
 To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
@@ -31,7 +29,7 @@ To install the `num2words` package:
 1. Open a terminal window and activate the virtual environment (e.g., "py37") created during the installation of `pycurrents` with the command `conda activate py37`.
 2. Install the package with the command: `pip install num2words`
 
-## Pre-requisites
+### Pre-requisites
 * Linux (or Unix-like) environment
 * Python 3.7 environment (should be created when installing `pycurrents`)
 
