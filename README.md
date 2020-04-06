@@ -1,6 +1,6 @@
 # pycurrents_ADCP_processing
 
-For processing raw ADCP data in Python using the UHDAS `pycurrents` package.
+For processing raw ADCP data in Python using the UHDAS `pycurrents` package (https://currents.soest.hawaii.edu/docs/adcp_doc/codas_setup/index.html).
 
 *ADCP_pycurrents_rdiraw.py* is based off of Jody Klymak's script (https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09). This version contains changes to variable names (following BODC conventions), and addition of variables, variable and global attributes, and dimensions to match the netCDF ADCP files produced before using R. It uses the `pycurrents.adcp.rdiraw.rawfile()` function instead of the `pycurrents.adcp.rdiraw.Multiread()` function to import raw ADCP files.
 
