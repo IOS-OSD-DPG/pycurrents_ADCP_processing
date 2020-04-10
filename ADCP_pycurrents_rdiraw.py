@@ -167,7 +167,7 @@ else:
     pressure = vel.VL['Pressure']
 
 # Correct magnetic declination in velocities; code from Di Wan
-meta_dict['magnetic_declination'] = '' #need to know before running this script
+meta_dict['magnetic_declination'] = 16.67 #need to know before running this script ##############################
 LCEWAP01, LCNSAP01 = correct_true_north(meta_dict['magnetic_declination'], vel.vel1.data, vel.vel2.data)
 #LCEWAP01, LCNSAP01 = correct_true_north(10, vel.vel1.data, vel.vel2.data)
 processing_history += " Magnetic variation, using average applied; declination = {}.".format(str(meta_dict['magnetic_declination']))
@@ -251,18 +251,18 @@ out = xr.Dataset(coords={'time': time_us, 'distance': vel.dep, 'station': statio
                             'PCGDAP02': (['station', 'distance', 'time'], var_to3d(pg.pg2)),
                             'PCGDAP03': (['station', 'distance', 'time'], var_to3d(pg.pg3)),
                             'PCGDAP04': (['station', 'distance', 'time'], var_to3d(pg.pg4)),
-                            'PTCHGP01': (['time', 'station'], var_to2d(vel.pitch)),
-                            'HEADCM01': (['time', 'station'], var_to2d(vel.heading)),
-                            'ROLLGP01': (['time', 'station'], var_to2d(vel.roll)),
-                            'TEMPPR01': (['time', 'station'], var_to2d(vel.temperature)),
-                            'DISTTRAN': (['distance', 'station'], var_to2d(DISTTRAN)),
-                            'PPSAADCP': (['time', 'station'], var_to2d(vel.XducerDepth)),
+                            'PTCHGP01': (['station', 'time'], var_to2d(vel.pitch)),
+                            'HEADCM01': (['station', 'time'], var_to2d(vel.heading)),
+                            'ROLLGP01': (['station', 'time'], var_to2d(vel.roll)),
+                            'TEMPPR01': (['station', 'time'], var_to2d(vel.temperature)),
+                            'DISTTRAN': (['station', 'distance'], var_to2d(DISTTRAN)),
+                            'PPSAADCP': (['station', 'time'], var_to2d(vel.XducerDepth)),
                             'ALATZZ01': (['station'], np.array([float(meta_dict['latitude'])])),
                             'ALONZZ01': (['station'], np.array([float(meta_dict['longitude'])])),
                             'latitude': (['station'], np.array([float(meta_dict['latitude'])])),
                             'longitude': (['station'], np.array([float(meta_dict['longitude'])])),
-                            'PRESPR01': (['time', 'station'], var_to2d(pressure)),
-                            'SVELCV01': (['time', 'station'], var_to2d(vel.VL['SoundSpeed'])),
+                            'PRESPR01': (['station', 'time'], var_to2d(pressure)),
+                            'SVELCV01': (['station', 'time'], var_to2d(vel.VL['SoundSpeed'])),
                             'DTUT8601': (['time'], time_DTUT8601), #removed nchar dim
                             'filename': (['station'], np.array([outname[:-3]])), #changed dim from nchar to station
                             'instrument_serial_number': (['station'], np.array([meta_dict['serialNumber']])),
@@ -853,8 +853,8 @@ out.attrs['data_type'] = "adcp"
 out.attrs['pred_accuracy'] = 1 #where does this come from? velocityResolution * 1000
 out.attrs['Conventions'] = "CF-1.7"
 out.attrs['creator_type'] = "person"
-out.attrs['n_codereps'] = vel.Fl['NCodeReps']
-out.attrs['xmit_lag'] = vel.FL['LagLength']
+out.attrs['n_codereps'] = vel.FL.NCodeReps
+out.attrs['xmit_lag'] = vel.FL.TransLag
 out.attrs['time_coverage_start'] = time_DTUT8601[0]
 out.attrs['time_coverage_end'] = time_DTUT8601[-1]
 
