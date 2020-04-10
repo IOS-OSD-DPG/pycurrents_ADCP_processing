@@ -31,7 +31,6 @@ To install the `num2words` package:
 
 ### Pre-requisites
 * Linux (or Unix-like) environment
-* Python 3.7 environment (should be created when installing `pycurrents`)
 
 ## Usage
 *ADCP_pycurrents_rdiraw.py* uses the `pycurrents` package to open a raw ADCP file in Python and export it in netCDF file format. The script also uses a .csv metadata file for the raw ADCP file whose contents are combined with the raw data in the netCDF file, so that the netCDF file is self-describing. This metadata file is filled out by the user and a template can be found at https://github.com/hhourston/ADCP_processing_visualization/tree/master/ADCP_metadata_template. 
