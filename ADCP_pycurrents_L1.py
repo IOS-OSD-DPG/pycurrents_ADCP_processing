@@ -48,8 +48,9 @@ def mean_orientation(o):
         print('Warning: Number of \"up\" orientations equals number of \"down\" orientations in data subset.')
 
 
-# Di Wan's magnetic declination correction code: ADJUST ANGLE: TAKES 0 DEG FROM E-W AXIS
-def correct_true_north(mag_decl, measured_east, measured_north): #change angle to negative of itself?
+# Di Wan's magnetic declination correction code: 
+# Takes 0 degrees as from the positive E-W axis, so the function uses the negative of the mag_decl angle
+def correct_true_north(mag_decl, measured_east, measured_north): 
     angle_rad = -mag_decl * np.pi/180.
     east_true = measured_east * np.cos(angle_rad) - measured_north * np.sin(angle_rad)
     north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
