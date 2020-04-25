@@ -48,9 +48,8 @@ def mean_orientation(o):
         print('Warning: Number of \"up\" orientations equals number of \"down\" orientations in data subset.')
 
 
-# Di Wan's magnetic declination correction code: 
-# Takes 0 degrees as from the positive E-W axis, so the function uses the negative of the mag_decl angle
-def correct_true_north(mag_decl, measured_east, measured_north): 
+# Di Wan's magnetic declination correction code: ADJUST ANGLE: TAKES 0 DEG FROM E-W AXIS
+def correct_true_north(mag_decl, measured_east, measured_north): #change angle to negative of itself
     angle_rad = -mag_decl * np.pi/180.
     east_true = measured_east * np.cos(angle_rad) - measured_north * np.sin(angle_rad)
     north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
@@ -67,7 +66,7 @@ inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/callR_fromPytho
 # 2) csv metadata file
 file_meta = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/a1_20160713_20170513_0480m/P01/a1_20160713_20170513_0480m_meta_L1.csv"
 # 3) average magnetic declination over the time series
-magnetic_declination = 16.67
+magnetic_variation = 16.67
 
 
 # Begin making netCDF file
@@ -184,16 +183,17 @@ station = np.array([meta_dict['station_number']]) # Should dimensions be integer
 # DTUT8601 should have dtype='|S23' ? this is where nchar=23 comes in?
 time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S') #don't need %Z in strftime
 
-# Calculate pressure based on static instrument depth
-if model == 'bb' or model == 'nb':
+# Convert pressure
+pressure = np.array(vel.VL['Pressure'] / 1000, dtype='float32') #convert decapascal to decibars
+
+# Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
+if model == 'bb' or model == 'nb' or sum(pressure <= 0) > len(pressure)/2:
     z = meta_dict['instrument_depth']
     p = round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'], meta_dict['latitude']), ndigits=0) #depth negative because positive is up for this function
     pressure = np.repeat(p, len(vel.vel1.data))
     processing_history = processing_history + " Pressure values calculated from static instrument depth ({} m) using " \
                                               "the TEOS-10 75-term expression for specific volume and rounded to {} " \
                                               "significant digits.".format(str(meta_dict['instrument_depth']), num2words(len(str(p))))
-else:
-    pressure = np.array(vel.VL['Pressure'] / 1000, dtype='float32') #convert decapascal to decibars
 
 
 # Adjust velocity data
@@ -224,10 +224,10 @@ else:
 
 
 # Correct magnetic declination in velocities; code from Di Wan
-meta_dict['magnetic_declination'] = magnetic_declination
-LCEWAP01, LCNSAP01 = correct_true_north(meta_dict['magnetic_declination'], vel.vel1.data, vel.vel2.data)
+meta_dict['magnetic_variation'] = magnetic_variation
+LCEWAP01, LCNSAP01 = correct_true_north(meta_dict['magnetic_variation'], vel.vel1.data, vel.vel2.data)
 #LCEWAP01, LCNSAP01 = correct_true_north(10, vel.vel1.data, vel.vel2.data)
-processing_history += " Magnetic variation, using average applied; declination = {}.".format(str(meta_dict['magnetic_declination']))
+processing_history += " Magnetic variation, using average applied; declination = {}.".format(str(meta_dict['magnetic_variation']))
 
 
 # Flag velocity data based on cut_lead_ensembles and cut_trail_ensembles
@@ -912,6 +912,7 @@ out.attrs['firmware_version'] = str(vel.FL.FWV) + '.' + str(vel.FL.FWR) #firmwar
 out.attrs['frequency'] = str(data.sysconfig['kHz'])
 out.attrs['beam_pattern'] = beamPattern
 out.attrs['beam_angle'] = str(vel.FL.BeamAngle) #beamAngle
+out.attrs['systemConfiguration'] = bin(fixed_leader.FL['SysCfg'])[-8:] + '-' + bin(fixed_leader.FL['SysCfg'])[:9].replace('b', '')
 out.attrs['sensor_source'] = '{0:08b}'.format(vel.FL['EZ']) #sensorSource
 out.attrs['sensors_avail'] = '{0:08b}'.format(vel.FL['SA']) #sensors_avail
 out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper() #netCDF4 file format doesn't support booleans
