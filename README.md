@@ -18,7 +18,6 @@ To download *ADCP_pycurrents_L1.py* and *add_var2nc.py* from this repository wit
         wget https://raw.githubusercontent.com/username/reponame/path/to/file --no-check-certificate
    
    "--no-check-certificate" allows the user to connect to GitHub insecurely and download a file successfully.<br/>
-<br/>
 
 ### *ADCP_pycurrents_L1.py* dependencies
 The following instructions are for installing packages used in the *ADCP_pycurrents_L1.py* script.
