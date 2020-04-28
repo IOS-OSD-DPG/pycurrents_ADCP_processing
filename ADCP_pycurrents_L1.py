@@ -7,7 +7,7 @@ for L1 processing raw ADCP data.
 
 Contributions from: Di Wan, Eric Firing
 
-User input (3 places) needed after correct_true_north() function
+User input (4 places) needed after var_to2d() function
 """
 
 import os
@@ -18,17 +18,15 @@ import pandas as pd
 import datetime
 from pycurrents.adcp.rdiraw import rawfile
 from pycurrents.adcp.rdiraw import SysCfg
-from pycurrents.data import timetools
-from pycurrents.adcp.transform import heading_rotate
-# import pycurrents.adcp.adcp_nc as adcp_nc
-# from pycurrents.adcp.transform import rdi_xyz_enu
 import pycurrents.adcp.transform as transform
 import gsw
 from num2words import num2words
+import statistics
 
-#this prints out the FileBBWHOS() function code. rdiraw.rawfile() calls rdiraw.FileBBWHOS()
-#import inspect
-#print(inspect.getsource(rdiraw.FileBBWHOS))
+
+# This prints out the FileBBWHOS() function code. rdiraw.rawfile() calls rdiraw.FileBBWHOS()
+# import inspect
+# print(inspect.getsource(rdiraw.FileBBWHOS))
 
 
 def mean_orientation(o):
@@ -56,17 +54,29 @@ def correct_true_north(mag_decl, measured_east, measured_north): #change angle t
     return east_true, north_true
 
 
+# Reshape 3d numeric variables to include 'station' dimension
+def var_to3d(variable):
+    return np.reshape(variable.transpose(), (1, len(vel.dep), len(variable))) # (16709, 31) to (1, 31, 16709)
+
+# Reshape 2d numeric variables to include 'station' dimension
+def var_to2d(variable):
+    return np.reshape(variable, (1, len(variable)))
+
+
 # User input
+
+wd = 'your/wd/here'
+os.chdir(wd)
 
 # Specify raw ADCP file to create nc file from, along with associated csv metadata file and
 # average magnetic declination over the timeseries
 
 # 1) raw .000 file
-inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/callR_fromPython/a1_20160713_20170513_0480m.000"
+inFile = 'your/path/here'
 # 2) csv metadata file
-file_meta = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/a1_20160713_20170513_0480m/P01/a1_20160713_20170513_0480m_meta_L1.csv"
+file_meta = 'your/path/here'
 # 3) average magnetic declination over the time series
-magnetic_variation = 16.67
+magnetic_variation = ''
 
 
 # Begin making netCDF file
@@ -187,7 +197,7 @@ time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True)
 pressure = np.array(vel.VL['Pressure'] / 1000, dtype='float32') #convert decapascal to decibars
 
 # Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
-if model == 'bb' or model == 'nb' or sum(pressure <= 0) > len(pressure)/2:
+if model == 'bb' or model == 'nb' or statistics.mode(pressure) == 0:
     z = meta_dict['instrument_depth']
     p = round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'], meta_dict['latitude']), ndigits=0) #depth negative because positive is up for this function
     pressure = np.repeat(p, len(vel.vel1.data))
@@ -206,7 +216,7 @@ vel.vel4.data[vel.vel4.data == -32768.0] = np.nan
 
 
 # Rotate into earth **IF not in enu already; this makes the netCDF bigger
-if vel.trans.coordsystem != 'earth':
+if vel.trans.coordsystem != 'earth' or vel.trans.coordsystem != 'enu':
     trans = transform.Transform(angle=vel.FL.BeamAngle, geometry=beamPattern) #angle is beam angle
     xyze = trans.beam_to_xyz(vel.vel) #
     print(np.shape(xyze))
@@ -254,7 +264,7 @@ vel.vel3.data[LRZAAP01_QC == 4] = np.nan
 processing_history += " Quality control flags set based on SeaDataNet flag scheme from BODC."
 
 
-# Depth: vel.XducerDepth
+# Depth
 
 # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
 depth = -gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude']) #negative so that depth is positive; units=m
@@ -293,17 +303,6 @@ processing_history += 'Level 1 processing was performed on the dataset. This ent
                       'declination based on an average of the dataset and cleaning of the beginning and end of ' \
                       'the dataset. No QC was carried out. The leading {} ensembles and the trailing {} ensembles ' \
                       'were removed from the data set.'.format(meta_dict['cut_lead_ensembles'], meta_dict['cut_trail_ensembles'])
-
-
-# Reshape 3d and 2d numeric variables to include 'station' dimension
-
-
-def var_to3d(variable):
-    return np.reshape(variable.transpose(), (1, len(vel.dep), len(variable))) # (16709, 31) to (1, 31, 16709)
-
-
-def var_to2d(variable):
-    return np.reshape(variable, (1, len(variable)))
 
 
 # Make into netCDF file
