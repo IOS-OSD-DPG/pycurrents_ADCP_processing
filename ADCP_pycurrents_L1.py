@@ -72,9 +72,9 @@ os.chdir(wd)
 # average magnetic declination over the timeseries
 
 # 1) raw .000 file
-inFile = 'your/path/here'
+inFile = 'path/to/raw_file.000'
 # 2) csv metadata file
-file_meta = 'your/path/here'
+file_meta = 'path/to/metadata_file.csv'
 # 3) average magnetic declination over the time series
 magnetic_variation = ''
 
