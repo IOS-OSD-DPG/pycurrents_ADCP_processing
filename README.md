@@ -19,6 +19,8 @@ To download *ADCP_pycurrents_L1.py* and *add_var2nc.py* from this repository wit
    
    "--no-check-certificate" allows the user to connect to GitHub insecurely and download a file successfully.<br/>
 <br/>
+
+### *ADCP_pycurrents_L1.py* dependencies
 The following instructions are for installing packages used in the *ADCP_pycurrents_L1.py* script.
   
 #### `pycurrents`
@@ -34,6 +36,9 @@ To install the TEOS-10 `gsw` package:
 To install the `num2words` package:
 1. Open a terminal window and activate the virtual environment (e.g., "py37") created during the installation of `pycurrents` with the command `conda activate py37`.
 2. Install the package with the command: `pip install num2words`
+
+### *add_var2nc.py* dependencies
+`ios_data_transform` package: Please follow the instructions for installation at https://github.com/onedwd/cioos-siooc_data_transform.
 
 ### Pre-requisites
 * Linux (or Unix-like) environment
