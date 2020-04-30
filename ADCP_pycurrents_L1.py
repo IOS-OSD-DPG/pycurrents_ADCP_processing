@@ -65,18 +65,25 @@ def var_to2d(variable):
 
 # User input
 
-wd = 'your/wd/here'
-os.chdir(wd)
+#wd = 'your/wd/here'
+#os.chdir(wd)
 
 # Specify raw ADCP file to create nc file from, along with associated csv metadata file and
 # average magnetic declination over the timeseries
 
 # 1) raw .000 file
-inFile = 'path/to/raw_file.000'
+#inFile = 'your/path/here'
 # 2) csv metadata file
-file_meta = 'path/to/metadata_file.csv'
+#file_meta = 'your/path/here'
 # 3) average magnetic declination over the time series
-magnetic_variation = ''
+#magnetic_variation = ''
+
+# 1) raw .000 file
+inFile = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/callR_fromPython/a1_20160713_20170513_0480m.000"
+# 2) csv metadata file
+file_meta = "/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP/a1_20160713_20170513_0480m/P01/a1_20160713_20170513_0480m_meta_L1.csv"
+# 3) average magnetic declination over the time series
+magnetic_variation = 16.67
 
 
 # Begin making netCDF file
@@ -148,6 +155,10 @@ meta_dict['water_depth'] = float(meta_dict['water_depth'])
 
 # Update naming_authority from CF v52 to CF v72
 meta_dict['naming_authority'] = 'BODC, MEDS, CF v72'
+# Correct flag_meanings attribute to follow BODC SeaDataNet
+meta_dict['flag_meaning'] = 'no_quality_control, good_value, probably_good_value, probably_bad_value, bad_value, ' \
+                             'changed_value, value_below_detection, value_in_excess, interpolated_value, ' \
+                             'missing_value'
 
 # Add leading zero to serial numbers that have 3 digits
 if len(str(meta_dict['serialNumber'])) == 3:
