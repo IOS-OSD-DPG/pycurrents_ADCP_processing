@@ -2,13 +2,15 @@
 
 For processing raw ADCP data in Python using the UHDAS `pycurrents` package (https://currents.soest.hawaii.edu/docs/adcp_doc/codas_setup/index.html).
 
-*ADCP_pycurrents_L1.py* is based off of Jody Klymak's script (https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09). This version contains changes to variable names (following BODC conventions); addition of variables, variable and global attributes, and dimensions to match the netCDF ADCP files produced before using R; and minimal ("L1") processing.  
+*ADCP_pycurrents_L1.py* is based off of Jody Klymak's script (https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09). This version contains changes to variable names (following BODC conventions); addition of variables, variable and global attributes, and minimal ("L1") processing.  
 
 "L1" stands for "level 1 processing". This comprises:
 * Corrections for magnetic declination
 * Calculation of sea surface height from pressure values and latitude
 * Flagging leading and trailing ensembles from before and after deployment and setting them to nan's
 * Rotation into enu coordinates if this is not already the coordinate system of the dataset.
+
+*ADCP IOS header file.ipynb* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/mainlogin.php?refer=/). 
 
 ## Installation
 To download *ADCP_pycurrents_L1.py* and *add_var2nc.py* from this repository without having to clone the whole repository:
