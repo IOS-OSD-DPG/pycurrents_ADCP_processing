@@ -536,7 +536,7 @@ def write_history(nc):
     print("    $END")
     print()
     print("*END OF HEADER")
-    print("To get the actual data, please see .adcp.nc file")
+    print("To get the actual data, please see .adcp.L1.nc file")
 
 
 sys.stdout = open(f_output,'wt')
