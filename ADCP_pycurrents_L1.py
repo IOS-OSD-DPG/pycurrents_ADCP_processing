@@ -7,7 +7,7 @@ for L1 processing raw ADCP data.
 
 Contributions from: Di Wan, Eric Firing
 
-User input (4 places) needed after var_to2d() function
+User input (4 places) needed after ) function
 """
 
 import os
@@ -54,15 +54,6 @@ def correct_true_north(mag_decl, measured_east, measured_north): #change angle t
     return east_true, north_true
 
 
-# Reshape 3d numeric variables to include 'station' dimension
-def var_to3d(variable):
-    return np.reshape(variable.transpose(), (1, len(vel.dep), len(variable))) # (16709, 31) to (1, 31, 16709)
-
-# Reshape 2d numeric variables to include 'station' dimension
-def var_to2d(variable):
-    return np.reshape(variable, (1, len(variable)))
-
-
 # User input
 
 #wd = 'your/wd/here'
@@ -89,7 +80,7 @@ magnetic_variation = 16.67
 # Begin making netCDF file
 
 # Splice file name to get output netCDF file name
-outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'; print(outname)
+outname = os.path.basename(inFile)[:-4] + '_1.adcp.L1.nc'; print(outname)
 
 # Get model and timestamp from raw file csv metadata file
 # Instrument frequency is not included in the metadata files, so not included in "model". Frequency optional, apparently
@@ -153,13 +144,6 @@ meta_dict['longitude'] = float(meta_dict['longitude'])
 meta_dict['station_number'] = int(meta_dict['station_number'])
 meta_dict['water_depth'] = float(meta_dict['water_depth'])
 
-# Update naming_authority from CF v52 to CF v72
-meta_dict['naming_authority'] = 'BODC, MEDS, CF v72'
-# Correct flag_meanings attribute to follow BODC SeaDataNet
-meta_dict['flag_meaning'] = 'no_quality_control, good_value, probably_good_value, probably_bad_value, bad_value, ' \
-                             'changed_value, value_below_detection, value_in_excess, interpolated_value, ' \
-                             'missing_value'
-
 # Add leading zero to serial numbers that have 3 digits
 if len(str(meta_dict['serialNumber'])) == 3:
     meta_dict['serialNumber'] = '0' + str(meta_dict['serialNumber'])
@@ -195,11 +179,15 @@ data_origin = pd.Timestamp(str(data.yearbase) + '-01-01') #convert to date objec
 # convert time variable to elapsed time since 1970-01-01T00:00:00Z; dtype='datetime64[ns]'
 time_us = np.array(pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'), dtype='datetime64')
 
-# Station dimension
-station = np.array([meta_dict['station_number']]) # Should dimensions be integers or arrays?
-
 # nchar dimension; for consistency with R ADCP package -- can't add it as a dim if no variable has it as a dim
 # nchar = np.array([range(24)])
+
+# Station dimension
+#station = np.array([meta_dict['station_number']]) # Should dimensions be integers or arrays?
+station = np.array([meta_dict['station']]) # Should dimensions be integers or arrays?
+
+# Distance dimension
+distance = np.round(vel.dep.data, 2)
 
 # DTUT8601 should have dtype='|S23' ? this is where nchar=23 comes in?
 time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S') #don't need %Z in strftime
@@ -219,7 +207,7 @@ if model == 'bb' or model == 'nb' or statistics.mode(pressure) == 0:
 
 # Adjust velocity data
 
-# Set velocity values of -32768.0 to nans, since they are NAs in R but they are -32768.0 here for some reason
+# Set velocity values of -32768.0 to nans, since -32768.0 is the automatic fill_value for pycurrents
 vel.vel1.data[vel.vel1.data == -32768.0] = np.nan
 vel.vel2.data[vel.vel2.data == -32768.0] = np.nan
 vel.vel3.data[vel.vel3.data == -32768.0] = np.nan
@@ -227,17 +215,17 @@ vel.vel4.data[vel.vel4.data == -32768.0] = np.nan
 
 
 # Rotate into earth **IF not in enu already; this makes the netCDF bigger
-if vel.trans.coordsystem != 'earth' or vel.trans.coordsystem != 'enu':
+if vel.trans.coordsystem != 'earth' and vel.trans.coordsystem != 'enu':
     trans = transform.Transform(angle=vel.FL.BeamAngle, geometry=beamPattern) #angle is beam angle
-    xyze = trans.beam_to_xyz(vel.vel) #
+    xyze = trans.beam_to_xyz(np.array([vel.vel1.data, vel.vel2.data, vel.vel3.data, vel.vel4.data]))
     print(np.shape(xyze))
-    enu = transform.rdi_xyz_enu(xyze, vel.heading, vel.pitch, vel.roll, orientation='up')
+    enu = transform.rdi_xyz_enu(xyze, vel.heading, vel.pitch, vel.roll, orientation=orientation) #############3
     print(np.shape(enu))
     # Apply change in coordinates to velocities
-    vel.vel1.data = xr.DataArray(enu[:, :, 0], dims=['station', 'distance', 'time'])
-    vel.vel2.data = xr.DataArray(enu[:, :, 1], dims=['station', 'distance', 'time'])
-    vel.vel3 = xr.DataArray(enu[:, :, 2], dims=['station', 'distance', 'time'])
-    vel.vel4 = xr.DataArray(enu[:, :, 3], dims=['station', 'distance', 'time'])
+    vel.vel1.data = xr.DataArray(enu[:, :, 0], dims=['distance', 'time'])
+    vel.vel2.data = xr.DataArray(enu[:, :, 1], dims=['distance', 'time'])
+    vel.vel3.data = xr.DataArray(enu[:, :, 2], dims=['distance', 'time'])
+    vel.vel4.data = xr.DataArray(enu[:, :, 3], dims=['distance', 'time'])
     processing_history = processing_history + " The coordinate system was rotated into enu coordinates."
     meta_dict['coord_system'] = 'enu' #Add item to metadata dictionary for coordinate system
 else:
@@ -293,7 +281,7 @@ sensor_dep = np.nanmean(depth)
 processing_history += " Sensor depth and mean depth set to {} based on trimmed depth values.".format(str(sensor_dep))
 
 # Calculate height of sea surface: bin height minus sensor depth
-DISTTRAN = vel.dep - sensor_dep
+DISTTRAN = distance - sensor_dep
 
 # Limit variables (pressure, temperature, pitch, roll, heading, soundspeed) from before deployment and after recovery of ADCP
 pressure[:e1] = np.nan
@@ -319,39 +307,39 @@ processing_history += 'Level 1 processing was performed on the dataset. This ent
 # Make into netCDF file
 
 # Create xarray Dataset object containing all dimensions and variables
-out = xr.Dataset(coords={'time': time_us, 'distance': vel.dep, 'station': station},
-                 data_vars={'LCEWAP01': (['station', 'distance', 'time'], var_to3d(LCEWAP01)),
-                            'LCNSAP01': (['station', 'distance', 'time'], var_to3d(LCNSAP01)),
-                            'LRZAAP01': (['station', 'distance', 'time'], var_to3d(vel.vel3.data)),
-                            'LERRAP01': (['station', 'distance', 'time'], var_to3d(vel.vel4.data)),
-                            'LCEWAP01_QC': (['station', 'distance', 'time'], var_to3d(LCEWAP01_QC)),
-                            'LCNSAP01_QC': (['station', 'distance', 'time'], var_to3d(LCNSAP01_QC)),
-                            'LRZAAP01_QC': (['station', 'distance', 'time'], var_to3d(LRZAAP01_QC)),
-                            'ELTMEP01': (['station', 'time'], var_to2d(time_us)),
-                            'TNIHCE01': (['station', 'distance', 'time'], var_to3d(amp.amp1)),
-                            'TNIHCE02': (['station', 'distance', 'time'], var_to3d(amp.amp2)),
-                            'TNIHCE03': (['station', 'distance', 'time'], var_to3d(amp.amp3)),
-                            'TNIHCE04': (['station', 'distance', 'time'], var_to3d(amp.amp4)),
-                            'CMAGZZ01': (['station', 'distance', 'time'], var_to3d(cor.cor1)),
-                            'CMAGZZ02': (['station', 'distance', 'time'], var_to3d(cor.cor2)),
-                            'CMAGZZ03': (['station', 'distance', 'time'], var_to3d(cor.cor3)),
-                            'CMAGZZ04': (['station', 'distance', 'time'], var_to3d(cor.cor4)),
-                            'PCGDAP00': (['station', 'distance', 'time'], var_to3d(pg.pg1)),
-                            'PCGDAP02': (['station', 'distance', 'time'], var_to3d(pg.pg2)),
-                            'PCGDAP03': (['station', 'distance', 'time'], var_to3d(pg.pg3)),
-                            'PCGDAP04': (['station', 'distance', 'time'], var_to3d(pg.pg4)),
-                            'PTCHGP01': (['station', 'time'], var_to2d(vel.pitch)),
-                            'HEADCM01': (['station', 'time'], var_to2d(vel.heading)),
-                            'ROLLGP01': (['station', 'time'], var_to2d(vel.roll)),
-                            'TEMPPR01': (['station', 'time'], var_to2d(vel.temperature)),
-                            'DISTTRAN': (['station', 'distance'], var_to2d(DISTTRAN)),
-                            'PPSAADCP': (['station', 'time'], var_to2d(depth)),
+out = xr.Dataset(coords={'time': time_us, 'distance': distance, 'station': station},
+                 data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
+                            'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
+                            'LRZAAP01': (['distance', 'time'], vel.vel3.data.transpose()),
+                            'LERRAP01': (['distance', 'time'], vel.vel4.data.transpose()),
+                            'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
+                            'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
+                            'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
+                            'ELTMEP01': (['time'], time_us),
+                            'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
+                            'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
+                            'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
+                            'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
+                            'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
+                            'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
+                            'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
+                            'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
+                            'PCGDAP00': (['distance', 'time'], pg.pg1.transpose()),
+                            'PCGDAP02': (['distance', 'time'], pg.pg2.transpose()),
+                            'PCGDAP03': (['distance', 'time'], pg.pg3.transpose()),
+                            'PCGDAP04': (['distance', 'time'], pg.pg4.transpose()),
+                            'PTCHGP01': (['time'], vel.pitch),
+                            'HEADCM01': (['time'], vel.heading),
+                            'ROLLGP01': (['time'], vel.roll),
+                            'TEMPPR01': (['time'], vel.temperature),
+                            'DISTTRAN': (['distance'], DISTTRAN),
+                            'PPSAADCP': (['time'], depth),
                             'ALATZZ01': (['station'], np.array([float(meta_dict['latitude'])])),
                             'ALONZZ01': (['station'], np.array([float(meta_dict['longitude'])])),
                             'latitude': (['station'], np.array([float(meta_dict['latitude'])])),
                             'longitude': (['station'], np.array([float(meta_dict['longitude'])])),
-                            'PRESPR01': (['station', 'time'], var_to2d(pressure)),
-                            'SVELCV01': (['station', 'time'], var_to2d(vel.VL['SoundSpeed'])),
+                            'PRESPR01': (['time'], pressure),
+                            'SVELCV01': (['time'], vel.VL['SoundSpeed']),
                             'DTUT8601': (['time'], time_DTUT8601), #removed nchar dim
                             'filename': (['station'], np.array([outname[:-3]])), #changed dim from nchar to station
                             'instrument_serial_number': (['station'], np.array([meta_dict['serialNumber']])),
@@ -383,7 +371,8 @@ var.attrs['long_name'] = "bin_distances_from_ADCP_transducer_along_measurement_a
 # Station
 var = out.station
 var.encoding['_FillValue'] = None
-var.encoding['dtype'] = 'd' #double type
+#var.encoding['dtype'] = 'd' #double type
+var.encoding['dtype'] = 'str'
 var.attrs['long_name'] = "station"
 var.attrs['cf_role'] = "timeseries_id"
 var.attrs['standard_name'] = "platform_name"
@@ -696,7 +685,7 @@ var.attrs['standard_name'] = 'platform_roll_angle'
 var.attrs['data_min'] = np.nanmin(vel.roll)
 var.attrs['data_max'] = np.nanmax(vel.roll)
 
-# DISTTRAN: height of sea surface
+# DISTTRAN: height of sea surface (hght)
 var = out.DISTTRAN
 var.encoding['dtype'] = 'float32'
 var.attrs['units'] = 'm'
@@ -709,8 +698,8 @@ var.attrs['serial_number'] = meta_dict['serialNumber']
 var.attrs['legency_GF3_code'] = 'SDN:GF3::HGHT'
 var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
 var.attrs['sdn_uom_name'] = 'Metres'
-var.attrs['data_min'] = np.nanmin(vel.dep)
-var.attrs['data_max'] = np.nanmax(vel.dep)
+var.attrs['data_min'] = np.nanmin(DISTTRAN)
+var.attrs['data_max'] = np.nanmax(DISTTRAN)
 
 # TEMPPR01: transducer temp
 var = out.TEMPPR01
@@ -951,11 +940,11 @@ out.attrs['orientation'] = orientation
 
 # sensor_depth is a variable attribute, not a global attribute
 if out.attrs['orientation'] == 'up':
-    out.attrs['geospatial_vertical_min'] = sensor_dep - np.nanmax(vel.dep)
-    out.attrs['geospatial_vertical_max'] = sensor_dep - np.nanmin(vel.dep)
+    out.attrs['geospatial_vertical_min'] = sensor_dep - np.nanmax(distance)
+    out.attrs['geospatial_vertical_max'] = sensor_dep - np.nanmin(distance)
 elif out.attrs['orientation'] == 'down':
-    out.attrs['geospatial_vertical_min'] = sensor_dep + np.nanmin(vel.dep)
-    out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(vel.dep)
+    out.attrs['geospatial_vertical_min'] = sensor_dep + np.nanmin(distance)
+    out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(distance)
 
 # Add select meta_dict items as global attributes
 for k, v in meta_dict.items():
