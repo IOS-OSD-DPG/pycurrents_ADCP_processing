@@ -183,8 +183,7 @@ time_us = np.array(pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=Tr
 # nchar = np.array([range(24)])
 
 # Station dimension
-#station = np.array([meta_dict['station_number']]) # Should dimensions be integers or arrays?
-station = np.array([meta_dict['station']]) # Should dimensions be integers or arrays?
+#station = np.array([meta_dict['station_number']])
 
 # Distance dimension
 distance = np.round(vel.dep.data, 2)
@@ -307,7 +306,7 @@ processing_history += 'Level 1 processing was performed on the dataset. This ent
 # Make into netCDF file
 
 # Create xarray Dataset object containing all dimensions and variables
-out = xr.Dataset(coords={'time': time_us, 'distance': distance, 'station': station},
+out = xr.Dataset(coords={'time': time_us, 'distance': distance},
                  data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
                             'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
                             'LRZAAP01': (['distance', 'time'], vel.vel3.data.transpose()),
@@ -334,16 +333,16 @@ out = xr.Dataset(coords={'time': time_us, 'distance': distance, 'station': stati
                             'TEMPPR01': (['time'], vel.temperature),
                             'DISTTRAN': (['distance'], DISTTRAN),
                             'PPSAADCP': (['time'], depth),
-                            'ALATZZ01': (['station'], np.array([float(meta_dict['latitude'])])),
-                            'ALONZZ01': (['station'], np.array([float(meta_dict['longitude'])])),
-                            'latitude': (['station'], np.array([float(meta_dict['latitude'])])),
-                            'longitude': (['station'], np.array([float(meta_dict['longitude'])])),
+                            'ALATZZ01': ([], np.array([float(meta_dict['latitude'])])),
+                            'ALONZZ01': ([], np.array([float(meta_dict['longitude'])])),
+                            'latitude': ([], np.array([float(meta_dict['latitude'])])),
+                            'longitude': ([], np.array([float(meta_dict['longitude'])])),
                             'PRESPR01': (['time'], pressure),
                             'SVELCV01': (['time'], vel.VL['SoundSpeed']),
                             'DTUT8601': (['time'], time_DTUT8601), #removed nchar dim
-                            'filename': (['station'], np.array([outname[:-3]])), #changed dim from nchar to station
-                            'instrument_serial_number': (['station'], np.array([meta_dict['serialNumber']])),
-                            'instrument_model': (['station'], np.array([meta_dict['instrumentModel']]))})
+                            'filename': ([], np.array([outname[:-3]])), #changed dim from nchar to station
+                            'instrument_serial_number': ([], np.array([meta_dict['serialNumber']])),
+                            'instrument_model': ([], np.array([meta_dict['instrumentModel']]))})
 
 
 # Add attributes to each variable
@@ -369,15 +368,15 @@ var.attrs['units'] = "metres"
 var.attrs['long_name'] = "bin_distances_from_ADCP_transducer_along_measurement_axis"
 
 # Station
-var = out.station
-var.encoding['_FillValue'] = None
-#var.encoding['dtype'] = 'd' #double type
-var.encoding['dtype'] = 'str'
-var.attrs['long_name'] = "station"
-var.attrs['cf_role'] = "timeseries_id"
-var.attrs['standard_name'] = "platform_name"
-var.attrs['longitude'] = float(meta_dict['longitude'])
-var.attrs['latitude'] = float(meta_dict['latitude'])
+# var = out.station
+# var.encoding['_FillValue'] = None
+# #var.encoding['dtype'] = 'd' #double type
+# var.encoding['dtype'] = 'str'
+# var.attrs['long_name'] = "station"
+# var.attrs['cf_role'] = "timeseries_id"
+# var.attrs['standard_name'] = "platform_name"
+# var.attrs['longitude'] = float(meta_dict['longitude'])
+# var.attrs['latitude'] = float(meta_dict['latitude'])
 
 # LCEWAP01: eastward velocity (vel1); all velocities have many overlapping attribute values (but not all)
 var = out.LCEWAP01
