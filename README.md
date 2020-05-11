@@ -12,7 +12,7 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
 * Flagging leading and trailing ensembles from before and after deployment and setting them to nan's
 * Rotation into enu coordinates if this is not already the coordinate system of the dataset.
 
-*ADCP IOS header file.ipynb* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/mainlogin.php?refer=/). 
+*ADCP IOS header file.py* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/mainlogin.php?refer=/). 
 
 ## Installation
 To download *ADCP_pycurrents_L1.py* and *add_var2nc.py* from this repository without having to clone the whole repository:
