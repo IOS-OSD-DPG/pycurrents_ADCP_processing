@@ -18,6 +18,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import datetime
+import warnings
+from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime
 from pycurrents.adcp.rdiraw import rawfile
 from pycurrents.adcp.rdiraw import SysCfg
 from pycurrents.adcp.rdiraw import FileBBWHOS
@@ -194,17 +196,24 @@ def nc_create_L1(inFile, file_meta):
     # Set up dimensions and variables
 
     # convert time variable to elapsed time since 1970-01-01T00:00:00Z; dtype='datetime64[ns]'
-    # Watch out for incorrect times: can get error
-    #   pandas._libs.tslibs.np_datetime.OutOfBoundsDatetime: cannot convert input -809584.6920560185 with the unit 'D'
-    time_us = np.array(
-        pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'),
-        dtype='datetime64')
+    # 'us' stands for microseconds
+    try:
+        time_us = np.array(
+            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'),
+            dtype='datetime64[s]')
+    except OutOfBoundsDatetime:
+        time_us = np.array(
+            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True,
+                           errors='coerce').strftime('%Y-%m-%d %H:%M:%S.%f'), dtype='datetime64[s]')
+        processing_history = processing_history + ' OutOfBoundsDateTime exception triggered; set out-of-bounds ' \
+                                                  'timestamps to nans.'
+        print('OutOfBoundsDateTime exception triggered; set out-of-bounds timestamps to nans.')
 
     # Distance dimension
     distance = np.round(vel.dep.data, decimals=2)
 
-    # DTUT8601 should have dtype='|S23' ? this is where nchar=23 comes in?
-    time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime(
+    # DTUT8601 (time strings)
+    time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True, errors='coerce').strftime(
         '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
 
     # Convert SoundSpeed from int16 to float32
@@ -230,6 +239,15 @@ def nc_create_L1(inFile, file_meta):
                                                   "significant digits.".format(str(meta_dict['instrument_depth']),
                                                                                num2words(len(str(p))))
         print('Pressure values calculated from static instrument depth')
+
+    # Check instrument_depth from metadata csv file: compare with pressure values
+    depths_check = np.mean(pressure[:]) - distance
+    inst_depth_check = (depths_check[0] + distance[0])[0]
+    abs_difference = np.absolute(inst_depth_check-meta_dict['instrument_depth'])
+    # Calculate percent difference in relation to total water depth
+    if (abs_difference / meta_dict['water_depth'] * 100) > 0.05:
+        warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
+                              "exceeds 0.05% of the total water depth", category=UserWarning)
 
     # Adjust velocity data
 
@@ -838,7 +856,7 @@ def nc_create_L1(inFile, file_meta):
     var.attrs['data_min'] = np.nanmin(sound_speed)
     var.attrs['data_max'] = np.nanmax(sound_speed)
 
-    # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss #How to make into char dtype?
+    # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss
     var = out.DTUT8601
     var.encoding['dtype'] = 'U24'  # 24-character string
     var.attrs['note'] = 'time values as ISO8601 string, YY-MM-DD hh:mm:ss'
