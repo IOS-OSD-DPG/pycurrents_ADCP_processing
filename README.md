@@ -15,34 +15,17 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
 *ADCP IOS header file.py* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/mainlogin.php?refer=/). 
 
 ## Installation
-To download *ADCP_pycurrents_L1.py* and *add_var2nc.py* from this repository without having to clone the whole repository:
-1. Open a file in a GitHub repository and click on the button "raw" in the top right corner to view the raw file in a new browser tab. Copy the url of the raw file (e.g. ht<span>tps://</span>raw.githubusercontent.com/username/reponame/path/to/file).
-2. To save this file to your computer, open a terminal window and enter
-    
-        wget https://raw.githubusercontent.com/username/reponame/path/to/file --no-check-certificate
-   
-   "--no-check-certificate" allows the user to connect to GitHub insecurely and download a file successfully.<br/>
-
-### *ADCP_pycurrents_L1.py* dependencies
-The following instructions are for installing packages used in the *ADCP_pycurrents_L1.py* script.
-  
-#### `pycurrents`
-To install the Python package `pycurrents`, follow the instructions at https://currents.soest.hawaii.edu/ocn_data_analysis/installation.html.
-  
-#### `gsw`
-To install the TEOS-10 `gsw` package: 
-1. Download a .zip file of the repository at https://github.com/TEOS-10/GSW-Python and extract its contents to a folder called "GSW-Python-master"
-2. In a terminal window, activate the virtual environment (e.g., "py37") created during the installation of `pycurrents` with the command `conda activate py37`. cd to the "GSW-Python-master/" folder.
-3. Enter the command: `pip install .` to build `gsw`.
-  
-#### `num2words`
-To install the `num2words` package:
-1. Open a terminal window and activate the virtual environment (e.g., "py37") created during the installation of `pycurrents` with the command `conda activate py37`.
-2. Install the package with the command: `pip install num2words`
-
-### *add_var2nc.py* dependencies
-`ios_data_transform` package: Please follow the instructions for installation at https://github.com/onedwd/cioos-siooc_data_transform.
-
+1. Before creating a virtual environment for the package, create a folder for the virtual environment and enter the folder in terminal, e.g. "test"
+2. Create a virtual environment called "adcp37" with Python version 3.7:
+        `conda create -n adcp37 python=3.7`
+3. Activate the virtual environment:
+        `conda activate adcp37`
+4. Install required packages:
+        `conda install numpy scipy pip pandas netCDF4 gsw xarray`
+        `pip install datetime`
+5. Clone this repository with git:
+        `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`
+        
 ### Pre-requisites
 * Linux (or Unix-like) environment
 
