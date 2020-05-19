@@ -25,7 +25,7 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
         `pip install -e ./pycurrents`
 6. Clone this repository with git:
         `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`
-    
+
 ### Pre-requisites
 * Linux (or Unix-like) environment
 
