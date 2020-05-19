@@ -82,7 +82,7 @@ raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 
 
 def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
-    
+
     # Splice file name to get output netCDF file name
     outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
     print(outname)
@@ -129,10 +129,10 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                   'in metadata file', UserWarning)
                 else:
                     continue
-    
+
     if model == "":
         ValueError("No valid instrumentSubtype value detected")
-        
+
     print('Read in csv metadata file')
 
     # Read in data and start processing
@@ -186,8 +186,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         orientations = [SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
         orientation = mean_orientation(orientations)
     except IndexError:
-        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range', 
-                      UserWarning)        
+        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range',
+                      UserWarning)
         orientation = 'up' if data.sysconfig['up'] else 'down'
 
     # Retrieve beam pattern
@@ -1024,7 +1024,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Export the 'out' object as a netCDF file
     print(outname)
 
-    out.to_netcdf(outname, mode='w', format='NETCDF4')
+    out.to_netcdf('./ncdata/'+outname, mode='w', format='NETCDF4')
     out.close()
 
     return
@@ -1032,4 +1032,3 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
 # Call function
 nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
-
