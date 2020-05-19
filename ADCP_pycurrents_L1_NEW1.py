@@ -81,10 +81,8 @@ file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 magnetic_variation = 16.67
 
 
-def nc_create_L1(inFile, file_meta):
-    inFile = '/home/hourstonh/Documents/data/ADCP_Roy/Mooring_Data_Processed_FINAL_Aquaculture_Part1/Aquaculture07/ADCP/kis_20080326_20080912_0048m.000'
-    file_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/kis_20080326_20080912_0048m/P01/kis_20080326_20080912_0048m_meta_L1.csv'
-
+def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
+    
     # Splice file name to get output netCDF file name
     outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
     print(outname)
@@ -118,23 +116,32 @@ def nc_create_L1(inFile, file_meta):
                         model = "sv"
                         model_long = "RDI SV"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Multi-Cell Doppler Current Profiler":
-                        model = ""
-                        model_long = "Sontek MC DCP"
-                        manufacturer = 'sontek'
+                    elif row[1] == 'Ocean Surveyor' or row[1] == 'ocean surveyor':
+                        model = "os"
+                        model_long = "RDI OS"
+                        manufacturer = "teledyne rdi"
                     else:
                         continue
+                elif row[0] == '' and row[1] == '':
+                    warnings.warn('Metadata file contains a blank row; skipping this row', UserWarning)
+                elif row[0] != '' and row[1] == '':
+                    warnings.warn('Metadata item in csv file has blank value; skipping this row '
+                                  'in metadata file', UserWarning)
                 else:
                     continue
+    
     if model == "":
-        print("No valid instrumentSubtype detected")
+        ValueError("No valid instrumentSubtype value detected")
 
     print('Read in csv metadata file')
 
     # Read in data and start processing
 
     # Read in raw ADCP file and model type
-    data = rawfile(inFile, model, trim=True)
+    if model == 'nb':
+        data = rawfile(inFile, model, trim=True, yearbase=start_year)
+    else:
+        data = rawfile(inFile, model, trim=True)
     print('Read in raw data')
 
     # Extract multidimensional variables from data object: fixed leader, velocity, amplitude intensity, correlation magnitude, and percent good
@@ -179,7 +186,8 @@ def nc_create_L1(inFile, file_meta):
         orientations = [SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
         orientation = mean_orientation(orientations)
     except IndexError:
-        print('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range')
+        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range', 
+                      UserWarning)        
         orientation = 'up' if data.sysconfig['up'] else 'down'
 
     # Retrieve beam pattern
@@ -199,38 +207,48 @@ def nc_create_L1(inFile, file_meta):
     # 'us' stands for microseconds
     try:
         time_us = np.array(
-            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S.%f'),
+            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
             dtype='datetime64[s]')
-    except OutOfBoundsDatetime:
-        time_us = np.array(
-            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True,
-                           errors='coerce').strftime('%Y-%m-%d %H:%M:%S.%f'), dtype='datetime64[s]')
-        processing_history = processing_history + ' OutOfBoundsDateTime exception triggered; set out-of-bounds ' \
-                                                  'timestamps to nans.'
-        print('OutOfBoundsDateTime exception triggered; set out-of-bounds timestamps to nans.')
+    except OutOfBoundsDatetime or OverflowError:
+        print('Using user-created time range')
+        time_s = np.zeros(shape=data.nprofs, dtype='datetime64[s]')
+        time_DTUT8601 = np.empty(shape=data.nprofs, dtype='<U100')
+        with open(time_file) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            # Skip headers
+            next(csv_reader, None)
+            for count, row in enumerate(csv_reader):
+                if row[0] == '':
+                    pass
+                else:
+                    time_s[count] = np.datetime64(pd.to_datetime(row[0], utc=True).strftime(
+                        '%Y-%m-%d %H:%M:%S'))
+                    time_DTUT8601[count] = pd.to_datetime(row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
+
+        processing_history = processing_history + ' OutOfBoundsDateTime exception triggered; used user-' \
+                                                  'generated time range as time data.'
 
     # Distance dimension
     distance = np.round(vel.dep.data, decimals=2)
 
-    # DTUT8601 (time strings)
-    time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True, errors='coerce').strftime(
-        '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
+    # Continue setting up variables
 
     # Convert SoundSpeed from int16 to float32
     sound_speed = np.float32(vel.VL['SoundSpeed'])
 
     # Convert pressure
-    pressure = np.array(vel.VL['Pressure'] / 1000, dtype='float32')  # convert decapascal to decibars
+    if model == 'wh' or model == 'os' or model == 'sv':
+        pressure = np.array(vel.VL['Pressure'] / 1000, dtype='float32')  # convert decapascal to decibars
 
-    # Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
-    # Handle no unique modes from statistics.mode(pressure)
-    pressure_unique, counts = np.unique(pressure, return_counts=True)
-    index_of_zero = np.where(pressure_unique == 0)
-    print('np.max(counts):', np.max(counts), sep=' ')
-    print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
-    print('serial number:', meta_dict['serialNumber'])
+        # Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
+        # Handle no unique modes from statistics.mode(pressure)
+        pressure_unique, counts = np.unique(pressure, return_counts=True)
+        index_of_zero = np.where(pressure_unique == 0)
+        print('np.max(counts):', np.max(counts), sep=' ')
+        print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
+        print('serial number:', meta_dict['serialNumber'])
+
     if model == 'bb' or model == 'nb' or np.max(counts) == counts[index_of_zero]:  # if zero is a mode of pressure
-        z = meta_dict['instrument_depth']
         p = np.round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'], meta_dict['latitude']),
                      decimals=0)  # depth negative because positive is up for this function
         pressure = np.repeat(p, len(vel.vel1.data))
@@ -238,7 +256,7 @@ def nc_create_L1(inFile, file_meta):
                                                   "the TEOS-10 75-term expression for specific volume and rounded to {} " \
                                                   "significant digits.".format(str(meta_dict['instrument_depth']),
                                                                                num2words(len(str(p))))
-        print('Pressure values calculated from static instrument depth')
+        warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
 
     # Check instrument_depth from metadata csv file: compare with pressure values
     depths_check = np.mean(pressure[:]) - distance
@@ -1013,5 +1031,5 @@ def nc_create_L1(inFile, file_meta):
 # Call function
 raw_file = '/home/hourstonh/Documents/data/ADCP_Roy/Mooring_Data_Processed_FINAL_Aquaculture_Part1/Aquaculture07/ADCP/kis_20080326_20080912_0048m.000'
 raw_file_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/kis_20080326_20080912_0048m/P01/kis_20080326_20080912_0048m_meta_L1.csv'
-nc_create_L1(inFile=raw_file, file_meta=raw_file_meta)
+nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
 
