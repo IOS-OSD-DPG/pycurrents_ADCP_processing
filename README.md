@@ -18,12 +18,17 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
         `conda create -n adcp37 python=3.7`
 3. Activate the virtual environment:  
         `conda activate adcp37`
+4. Add the conda-forge to your channel (needed to install the `gsw` package with conda):
+        `conda config --add channels conda-forge`
+        `conda config --set channel_priority strict`
 4. Install required packages:  
-        `conda install numpy scipy pip pandas netCDF4 gsw xarray`  
-        `pip install datetime`
-5. Install pycurrents:  
+        `conda install numpy scipy pip pandas netCDF4 xarray`  
+        `pip install datetime` 
+5. Clone pycurrents:
+        `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`
+6. Install pycurrents:  
         `pip install -e ./pycurrents`  
-6. Clone this repository with git:  
+6. Clone this `pycurrents_ADCP_processing` repository with git:  
         `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`  
 
 ### Pre-requisites
