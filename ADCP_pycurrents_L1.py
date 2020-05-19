@@ -74,9 +74,9 @@ def correct_true_north(mag_decl, measured_east, measured_north):  # change angle
 # magnetic_variation = ''
 
 # 1) raw .000 file
-inFile = "./sample_data/a1_20050503_20050504_0221m.000"
+raw_file = "./sample_data/a1_20050503_20050504_0221m.000"
 # 2) csv metadata file
-file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
+raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 # 3) average magnetic declination over the time series
 magnetic_variation = 16.67
 
