@@ -77,11 +77,14 @@ def correct_true_north(mag_decl, measured_east, measured_north):  # change angle
 raw_file = "./sample_data/a1_20050503_20050504_0221m.000"
 # 2) csv metadata file
 raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
-# 3) average magnetic declination over the time series
-magnetic_variation = 16.67
+
+# If your raw file came from a NarrowBand instrument, you must also use the start_year optional kwarg (int type)
+
+# If your raw file has time values out of range, you must also use the time_file optionalkwarg
+# This should be a csv file with time entries spanning the range of deployment
 
 
-def nc_create_L1(inFile, file_meta, mag_var=None, start_year=None, time_file=None):
+def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     
     # Splice file name to get output netCDF file name
     outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
@@ -132,10 +135,6 @@ def nc_create_L1(inFile, file_meta, mag_var=None, start_year=None, time_file=Non
     
     if model == "":
         ValueError("No valid instrumentSubtype value detected")
-    
-    # Add magnetic_variation to meta_dict if read into function as kwarg
-    if mag_var is not None:
-        meta_dict['magnetic_variation'] = mag_var
         
     print('Read in csv metadata file')
 
@@ -1035,5 +1034,5 @@ def nc_create_L1(inFile, file_meta, mag_var=None, start_year=None, time_file=Non
 
 
 # Call function
-nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, mag_var=magnetic_variation, start_year=None, time_file=None)
+nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
 
