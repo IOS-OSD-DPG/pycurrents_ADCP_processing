@@ -279,7 +279,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Rotate into earth if not in enu already; this makes the netCDF bigger
     if vel.trans.coordsystem != 'earth' and vel.trans.coordsystem != 'enu':
-        trans = transform.Transform(angle=vel.FL.BeamAngle, geometry=beamPattern)  # angle is beam angle
+        trans = transform.Transform(angle=fixed_leader.sysconfig['angle'], geometry=beamPattern)  # angle is beam angle
         xyze = trans.beam_to_xyz(np.array([vel.vel1.data, vel.vel2.data, vel.vel3.data, vel.vel4.data]))
         print(np.shape(xyze))
         enu = transform.rdi_xyz_enu(xyze, vel.heading, vel.pitch, vel.roll, orientation=orientation)
