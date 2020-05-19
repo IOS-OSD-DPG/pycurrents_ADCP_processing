@@ -2,8 +2,6 @@
 
 For processing raw ADCP data in Python using the UHDAS `pycurrents` package (https://currents.soest.hawaii.edu/docs/adcp_doc/codas_setup/index.html).
 
-*ADCP_pycurrents_L1_NEW1.py* uses the rawfile() kwarg "trim"=True to remove "garbage" from the ends of files as well as an instrument_depth check against pressure values, exception handling for the instrument orientation decoder (SysCfg().up) and exception handling for cutting trailing ensembles from after deployment.
-
 *ADCP_pycurrents_L1.py* is based off of Jody Klymak's script (https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09). This version contains changes to variable names (following BODC conventions); addition of variables, variable and global attributes, and minimal ("L1") processing.  
 
 "L1" stands for "level 1 processing". This comprises:
