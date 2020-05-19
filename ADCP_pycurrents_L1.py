@@ -7,7 +7,7 @@ for L1 processing raw ADCP data.
 
 Contributions from: Di Wan, Eric Firing
 
-User input (4 places) needed after ) function
+User input (3 places) needed after correct_true_north() function
 """
 
 import os
@@ -64,11 +64,6 @@ def correct_true_north(mag_decl, measured_east, measured_north):  # change angle
 # os.chdir(wd)
 
 # Specify raw ADCP file to create nc file from, along with associated csv metadata file
-
-# 1) raw .000 file
-# inFile = 'your/path/here'
-# 2) csv metadata file
-# file_meta = 'your/path/here'
 
 # 1) raw .000 file
 raw_file = "./sample_data/a1_20050503_20050504_0221m.000"

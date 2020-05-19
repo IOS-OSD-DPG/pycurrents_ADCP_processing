@@ -40,3 +40,4 @@ variable_code_reference,BODC P01,The variable code reference for the netCDF file
 water_depth,499,Water depth in meters,Required,
 instrumentSubtype,Workhorse,The instrument subtype,Required,
 serialNumber,2281,The serial number of the instrument,Required,
+magnetic_variation,18.75,The average magnetic variation of the timeseries,Required,
