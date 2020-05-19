@@ -203,12 +203,14 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Set up dimensions and variables
 
-    # convert time variable to elapsed time since 1970-01-01T00:00:00Z; dtype='datetime64[ns]'
-    # 'us' stands for microseconds
     try:
+        # convert time variable to elapsed time since 1970-01-01T00:00:00Z
         time_us = np.array(
             pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
             dtype='datetime64[s]')
+        # DTUT8601 variable: time strings
+        time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True, errors='coerce').strftime(
+            '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
         print('Using user-created time range')
         time_s = np.zeros(shape=data.nprofs, dtype='datetime64[s]')
