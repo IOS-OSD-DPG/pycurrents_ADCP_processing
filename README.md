@@ -13,18 +13,23 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
 *ADCP IOS header file.py* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/mainlogin.php?refer=/). 
 
 ## Installation
-1. Before creating a virtual environment for the package, create a folder for the virtual environment and enter the folder in terminal, e.g. "test"
-2. Create a virtual environment called "adcp37" with Python version 3.7:
+1. Before creating a virtual environment for the package, create a folder for the virtual environment and enter the folder in terminal, e.g. "test"  
+2. Create a virtual environment called "adcp37" with Python version 3.7:  
         `conda create -n adcp37 python=3.7`
-3. Activate the virtual environment:
+3. Activate the virtual environment:  
         `conda activate adcp37`
-4. Install required packages:
-        `conda install numpy scipy pip pandas netCDF4 gsw xarray`
-        `pip install datetime`
-5. Install pycurrents:
-        `pip install -e ./pycurrents`
-6. Clone this repository with git:
-        `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`
+4. Add the conda-forge to your channel:  
+        `conda config --add channels conda-forge`  
+        `conda config --set channel_priority strict`
+4. Install required packages:  
+        `conda install numpy scipy pip pandas netCDF4 xarray`  
+        `pip install datetime`  
+5. Clone pycurrents:  
+        `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`  
+6. Install pycurrents:  
+        `pip install -e ./pycurrents`  
+6. Clone this `pycurrents_ADCP_processing` repository with git:  
+        `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`  
 
 ### Pre-requisites
 * Linux (or Unix-like) environment
