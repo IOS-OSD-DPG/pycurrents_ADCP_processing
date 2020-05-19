@@ -260,7 +260,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Check instrument_depth from metadata csv file: compare with pressure values
     depths_check = np.mean(pressure[:]) - distance
-    inst_depth_check = (depths_check[0] + distance[0])[0]
+    inst_depth_check = depths_check[0] + distance[0]
     abs_difference = np.absolute(inst_depth_check-meta_dict['instrument_depth'])
     # Calculate percent difference in relation to total water depth
     if (abs_difference / meta_dict['water_depth'] * 100) > 0.05:
