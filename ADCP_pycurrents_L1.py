@@ -1031,7 +1031,5 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
 
 # Call function
-raw_file = '/home/hourstonh/Documents/data/ADCP_Roy/Mooring_Data_Processed_FINAL_Aquaculture_Part1/Aquaculture07/ADCP/kis_20080326_20080912_0048m.000'
-raw_file_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/kis_20080326_20080912_0048m/P01/kis_20080326_20080912_0048m_meta_L1.csv'
 nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
 
