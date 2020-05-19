@@ -19,7 +19,7 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
 3. Activate the virtual environment:
         `conda activate adcp37`
 4. Install required packages:
-        `conda install numpy scipy pip pandas netCDF4 gsw xarray`
+        `conda install numpy scipy pip pandas netCDF4 gsw xarray`  
         `pip install datetime`
 5. Install pycurrents:
         `pip install -e ./pycurrents`
