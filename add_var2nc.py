@@ -5,6 +5,7 @@ import glob as glob
 import sys
 import os
 import utils as utils
+# library detail: https://github.com/cioos-siooc/cioos-siooc_data_transform/tree/master/cioos_data_transform/ios_data_transform
 from shapely.geometry import Point
 
 
