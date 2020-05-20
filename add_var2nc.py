@@ -6,7 +6,7 @@ import sys
 import os
 import utils as utils
 # Library detail: https://github.com/cioos-siooc/cioos-siooc_data_transform/tree/master/cioos_data_transform/ios_data_transform
-# Credit: CIOOS Pacific
+# Credit: Pramod Thupaki
 from shapely.geometry import Point
 
 
