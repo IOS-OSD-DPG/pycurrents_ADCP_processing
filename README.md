@@ -22,7 +22,7 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
         `conda config --add channels conda-forge`  
         `conda config --set channel_priority strict`
 4. Install required packages:  
-        `conda install numpy scipy pip pandas netCDF4 xarray`  
+        `conda install numpy scipy pip pandas netCDF4 xarray gsw`  
         `pip install datetime`  
 5. Clone pycurrents:  
         `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`  
