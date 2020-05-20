@@ -22,15 +22,8 @@ import warnings
 from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime
 from pycurrents.adcp.rdiraw import rawfile
 from pycurrents.adcp.rdiraw import SysCfg
-from pycurrents.adcp.rdiraw import FileBBWHOS
 import pycurrents.adcp.transform as transform
 import gsw
-from num2words import num2words
-import inspect
-
-
-# This prints out the FileBBWHOS() function code
-# print(inspect.getsource(FileBBWHOS))
 
 
 def mean_orientation(o):
@@ -275,32 +268,33 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Adjust velocity data
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic fill_value for pycurrents
-    vel.vel1.data[vel.vel1.data == -32768.0] = np.nan
-    vel.vel2.data[vel.vel2.data == -32768.0] = np.nan
-    vel.vel3.data[vel.vel3.data == -32768.0] = np.nan
-    vel.vel4.data[vel.vel4.data == -32768.0] = np.nan
+    vel.vel.data[vel.vel.data == -32768.0] = np.nan
 
     # Rotate into earth if not in enu already; this makes the netCDF bigger
     if vel.trans.coordsystem != 'earth' and vel.trans.coordsystem != 'enu':
-        trans = transform.Transform(angle=fixed_leader.sysconfig['angle'], geometry=beamPattern)  # angle is beam angle
-        xyze = trans.beam_to_xyz(np.array([vel.vel1.data, vel.vel2.data, vel.vel3.data, vel.vel4.data]))
+        trans = transform.Transform(angle=fixed_leader.sysconfig['angle'], geometry=beamPattern)  #angle is beam angle
+        xyze = trans.beam_to_xyz(vel.vel.data)
         print(np.shape(xyze))
         enu = transform.rdi_xyz_enu(xyze, vel.heading, vel.pitch, vel.roll, orientation=orientation)
         print(np.shape(enu))
         # Apply change in coordinates to velocities
-        vel.vel1.data = xr.DataArray(enu[:, :, 0], dims=['distance', 'time'])
-        vel.vel2.data = xr.DataArray(enu[:, :, 1], dims=['distance', 'time'])
-        vel.vel3.data = xr.DataArray(enu[:, :, 2], dims=['distance', 'time'])
-        vel.vel4.data = xr.DataArray(enu[:, :, 3], dims=['distance', 'time'])
+        vel1 = xr.DataArray(enu[:, :, 0], dims=['time', 'distance'])
+        vel2 = xr.DataArray(enu[:, :, 1], dims=['time', 'distance'])
+        vel3 = xr.DataArray(enu[:, :, 2], dims=['time', 'distance'])
+        vel4 = xr.DataArray(enu[:, :, 3], dims=['time', 'distance'])
         processing_history = processing_history + " The coordinate system was rotated into enu coordinates."
         meta_dict['coord_system'] = 'enu'  # Add item to metadata dictionary for coordinate system
         print('Coordinate system rotated from {} to enu'.format(vel.trans.coordsystem))
     else:
+        vel1 = vel.vel1
+        vel2 = vel.vel2
+        vel3 = vel.vel3
+        vel4 = vel.vel4
         meta_dict['coord_system'] = 'enu'
 
     # Correct magnetic declination in velocities
     # meta_dict['magnetic_variation'] = magnetic_variation
-    LCEWAP01, LCNSAP01 = correct_true_north(meta_dict['magnetic_variation'], vel.vel1.data, vel.vel2.data)
+    LCEWAP01, LCNSAP01 = correct_true_north(meta_dict['magnetic_variation'], vel1.data, vel2.data)
     processing_history += " Magnetic variation, using average applied; declination = {}.".format(
         str(meta_dict['magnetic_variation']))
 
@@ -313,7 +307,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Create QC variables containing flag arrays
     LCEWAP01_QC = np.zeros(shape=LCEWAP01.shape, dtype='float32')
     LCNSAP01_QC = np.zeros(shape=LCNSAP01.shape, dtype='float32')
-    LRZAAP01_QC = np.zeros(shape=vel.vel3.data.shape, dtype='float32')
+    LRZAAP01_QC = np.zeros(shape=vel3.data.shape, dtype='float32')
 
     for qc in [LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC]:
         # 0=no_quality_control, 4=value_seems_erroneous
@@ -325,7 +319,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Apply the flags to the data and set bad data to NAs
     LCEWAP01[LCEWAP01_QC == 4] = np.nan
     LCNSAP01[LCNSAP01_QC == 4] = np.nan
-    vel.vel3.data[LRZAAP01_QC == 4] = np.nan
+    vel3.data[LRZAAP01_QC == 4] = np.nan
     processing_history += " Quality control flags set based on SeaDataNet flag scheme from BODC."
 
     # Depth
@@ -381,8 +375,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out = xr.Dataset(coords={'time': time_us, 'distance': distance},
                      data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
                                 'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
-                                'LRZAAP01': (['distance', 'time'], vel.vel3.data.transpose()),
-                                'LERRAP01': (['distance', 'time'], vel.vel4.data.transpose()),
+                                'LRZAAP01': (['distance', 'time'], vel3.data.transpose()),
+                                'LERRAP01': (['distance', 'time'], vel4.data.transpose()),
                                 'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
                                 'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
                                 'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
@@ -508,8 +502,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
     var.attrs['standard_name'] = 'upward_sea_water_velocity'
-    var.attrs['data_max'] = np.nanmax(vel.vel3)
-    var.attrs['data_min'] = np.nanmin(vel.vel3)
+    var.attrs['data_max'] = np.nanmax(vel3)
+    var.attrs['data_min'] = np.nanmin(vel3)
     var.attrs['valid_max'] = uvw_vel_max
     var.attrs['valid_min'] = uvw_vel_min
 
@@ -531,8 +525,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                       'profiler (ADCP)'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['data_max'] = np.nanmax(vel.vel4)
-    var.attrs['data_min'] = np.nanmin(vel.vel4)
+    var.attrs['data_max'] = np.nanmax(vel4)
+    var.attrs['data_min'] = np.nanmin(vel4)
     var.attrs['valid_max'] = 2 * uvw_vel_max
     var.attrs['valid_min'] = 2 * uvw_vel_min
 
