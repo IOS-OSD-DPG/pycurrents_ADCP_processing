@@ -5,7 +5,8 @@ import glob as glob
 import sys
 import os
 import utils as utils
-# library detail: https://github.com/cioos-siooc/cioos-siooc_data_transform/tree/master/cioos_data_transform/ios_data_transform
+# Library detail: https://github.com/cioos-siooc/cioos-siooc_data_transform/tree/master/cioos_data_transform/ios_data_transform
+# Credit: CIOOS Pacific
 from shapely.geometry import Point
 
 
@@ -17,6 +18,7 @@ def add_geo(ncfile):
 
     data_xr.attrs['_FillValue'] = 1e35
     # Geojson definitions for IOS
+    
     json_file = './pyutils/ios_polygons.geojson'
     polygons_dict = utils.read_geojson(json_file)
     data_xr['geographic_area'] = utils.find_geographic_area(polygons_dict, Point(lon, lat))
@@ -42,3 +44,4 @@ archive_dir_test = './ncdata/'
 
 # Add geographic areas to the ncfile
 get_files(archive_dir_test)
+
