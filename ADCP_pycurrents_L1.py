@@ -57,7 +57,6 @@ def correct_true_north(mag_decl, measured_east, measured_north):  # change angle
 # Specify raw ADCP file to create nc file from, along with associated csv metadata file
 
 # 2) raw .000 file
->>>>>>> 074a9604fb24aa1574ea7a12252b6c373c169fa7
 raw_file = "./sample_data/a1_20050503_20050504_0221m.000"
 # 3) csv metadata file
 raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
