@@ -54,19 +54,6 @@ def correct_true_north(mag_decl, measured_east, measured_north):  # change angle
 # 1) wd = 'your/wd/here'
 # os.chdir(wd)
 
-<<<<<<< HEAD
-# Specify raw ADCP file to create nc file from, along with associated csv metadata file and
-# average magnetic declination over the timeseries
-
-# 1) raw .000 file
-# inFile = 'your/path/here'
-# 2) csv metadata file
-# file_meta = 'your/path/here'
-# 3) average magnetic declination over the time series
-# magnetic_variation = ''
-
-# 1) raw .000 file
-=======
 # Specify raw ADCP file to create nc file from, along with associated csv metadata file
 
 # 2) raw .000 file
@@ -77,14 +64,9 @@ raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 
 # If your raw file came from a NarrowBand instrument, you must also use the start_year optional kwarg (int type)
 
-<<<<<<< HEAD
-# If your raw file has time values out of range, you must also use the time_file optionalkwarg
-# This should be a csv file with time entries spanning the range of deployment
-=======
 # If your raw file has time values out of range, you must also use the time_file optional kwarg
 # Use it to read in a csv file containing time entries spanning the range of deployment and following the
 # instrument sampling interval
->>>>>>> 074a9604fb24aa1574ea7a12252b6c373c169fa7
 
 
 def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
