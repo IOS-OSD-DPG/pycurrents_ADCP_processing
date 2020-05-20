@@ -281,6 +281,12 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         vel2 = xr.DataArray(enu[:, :, 1], dims=['time', 'distance'])
         vel3 = xr.DataArray(enu[:, :, 2], dims=['time', 'distance'])
         vel4 = xr.DataArray(enu[:, :, 3], dims=['time', 'distance'])
+        # Round each velocity to 3 decimal places to match the original data
+        vel1.data = np.round(vel1.data, decimals=3)
+        vel2.data = np.round(vel2.data, decimals=3)
+        vel3.data = np.round(vel3.data, decimals=3)
+        vel4.data = np.round(vel4.data, decimals=3)
+        # Make note in processing_history
         processing_history = processing_history + " The coordinate system was rotated into enu coordinates."
         meta_dict['coord_system'] = 'enu'  # Add item to metadata dictionary for coordinate system
         print('Coordinate system rotated from {} to enu'.format(vel.trans.coordsystem))
