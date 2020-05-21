@@ -247,6 +247,13 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                                                                num2words(len(str(p))))
         warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
 
+     # Depth
+
+    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
+    # negative so that depth is positive; units=m
+    depth = -gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude'])
+    print('Calculated sea surface height from sea pressure using gsw package')
+    
     # Check instrument_depth from metadata csv file: compare with pressure values
     depths_check = np.mean(pressure[:]) - distance
     inst_depth_check = depths_check[0] + distance[0]
@@ -256,6 +263,14 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
                               "exceeds 0.05% of the total water depth", category=UserWarning)
 
+    # Calculate sensor depth of instrument based off mean instrument transducer depth
+    sensor_dep = np.nanmean(depth)
+    processing_history += " Sensor depth and mean depth set to {} based on trimmed depth values.".format(
+        str(sensor_dep))
+
+    # Calculate height of sea surface: bin height minus sensor depth
+    DISTTRAN = distance - sensor_dep    
+    
     # Adjust velocity data
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic fill_value for pycurrents
@@ -305,30 +320,35 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     LCEWAP01_QC = np.zeros(shape=LCEWAP01.shape, dtype='float32')
     LCNSAP01_QC = np.zeros(shape=LCNSAP01.shape, dtype='float32')
     LRZAAP01_QC = np.zeros(shape=vel3.data.shape, dtype='float32')
-
+    PRESPR01_QC = np.zeros(shape=pressure.shape, dtype='float32')
+    
+    # Flag measurements from before deployment and after recovery using e1 and e2
     for qc in [LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC]:
         # 0=no_quality_control, 4=value_seems_erroneous
-        for b in range(data.NCells):
-            qc[:e1, b] = 4
+        for bin_num in range(data.NCells):
+            qc[:e1, bin_num] = 4
             if e2 != 0:
-                qc[-e2:, b] = 4  # if e2==0, the slice [-0:] would index the whole array
+                qc[-e2:, bin_num] = 4  # if e2==0, the slice [-0:] would index the whole array
 
+    PRESPR01_QC[:e1] = 4
+    if e2!= 0:
+        PRESPR01_QC[-e2:] = 4
+    
+    # Flag negative pressure values
+    for i in range(len(pressure)):
+        if pressure[i] < 0:
+            PRESPR01_QC[i] = 4  #"bad_data"
+    
     # Apply the flags to the data and set bad data to NAs
     LCEWAP01[LCEWAP01_QC == 4] = np.nan
     LCNSAP01[LCNSAP01_QC == 4] = np.nan
     vel3.data[LRZAAP01_QC == 4] = np.nan
+    pressure[PRESPR01_QC == 4] = np.nan
     processing_history += " Quality control flags set based on SeaDataNet flag scheme from BODC."
+    processing_history += " Negative pressure values flagged as \"bad_data\" and set to nan\'s."
 
-    # Depth
-
-    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
-    # negative so that depth is positive; units=m
-    depth = -gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude'])
-    print('Calculated height from sea pressure using gsw package')
-
-    # Limit variables (depth, pressure, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
+    # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
     depth[:e1] = np.nan
-    pressure[:e1] = np.nan
     vel.temperature[:e1] = np.nan
     vel.pitch[:e1] = np.nan
     vel.roll[:e1] = np.nan
@@ -336,27 +356,18 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     sound_speed[:e1] = np.nan
     if e2 != 0:
         depth[-e2:] = np.nan
-        pressure[-e2:] = np.nan
         vel.temperature[-e2:] = np.nan
         vel.pitch[-e2:] = np.nan
         vel.roll[-e2:] = np.nan
         vel.heading[-e2:] = np.nan
         sound_speed[-e2:] = np.nan
 
-        processing_history += " Depth pressure, temperature, pitch, roll, heading, and sound_speed limited by " \
+        processing_history += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
                               "deployment ({} UTC) and recovery ({} UTC) " \
                               "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
     else:
-        processing_history += " Depth pressure, temperature, pitch, roll, heading, and sound_speed limited by " \
+        processing_history += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
                               "deployment ({} UTC) time.".format(time_DTUT8601[e1])
-
-    # Calculate sensor depth of instrument based off mean instrument transducer depth
-    sensor_dep = np.nanmean(depth)
-    processing_history += " Sensor depth and mean depth set to {} based on trimmed depth values.".format(
-        str(sensor_dep))
-
-    # Calculate height of sea surface: bin height minus sensor depth
-    DISTTRAN = distance - sensor_dep
 
     processing_history += ' Level 1 processing was performed on the dataset. This entailed corrections for magnetic ' \
                           'declination based on an average of the dataset and cleaning of the beginning and end of ' \
@@ -401,6 +412,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                 'latitude': ([], meta_dict['latitude']),
                                 'longitude': ([], meta_dict['longitude']),
                                 'PRESPR01': (['time'], pressure),
+                                'PRESPR01_QC': (['time'], PRESPR01_QC),
                                 'SVELCV01': (['time'], sound_speed),
                                 'DTUT8601': (['time'], time_DTUT8601),
                                 'filename': ([], outname[:-3]),
@@ -852,6 +864,18 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['data_min'] = np.nanmin(pressure)
     var.attrs['data_max'] = np.nanmax(pressure)
 
+    # PRESPR01_QC: pressure quality flag
+    var.encoding['dtype'] = 'int'
+    var.attrs['_FillValue'] = 0
+    var.attrs['long_name'] = 'quality flag for PRESPR01'
+    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
+                           'identification of negative pressure values'
+    var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+    var.attrs['flag_values'] = meta_dict['flag_values']
+    var.attrs['References'] = meta_dict['flag_references']
+    var.attrs['data_max'] = np.nanmax(PRESPR01_QC)
+    var.attrs['data_min'] = np.nanmin(PRESPR01_QC)
+    
     # SVELCV01: sound velocity
     var = out.SVELCV01
     var.encoding['dtype'] = 'float32'
