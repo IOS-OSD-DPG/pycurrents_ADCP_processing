@@ -855,6 +855,10 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_dep
     var.attrs['serial_number'] = meta_dict['serialNumber']
+    var.attrs['ancillary_variables'] = 'PRESPR01_QC'
+    var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+    var.attrs['flag_values'] = meta_dict['flag_values']
+    var.attrs['References'] = meta_dict['flag_references']
     var.attrs['legency_GF3_code'] = 'SDN:GF3::PRES'
     var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
                                       'pressure sensor and corrected to read zero at sea level'
