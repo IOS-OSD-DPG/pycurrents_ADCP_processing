@@ -244,7 +244,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         processing_history = processing_history + " Pressure values calculated from static instrument depth ({} m) using " \
                                                   "the TEOS-10 75-term expression for specific volume and rounded to {} " \
                                                   "significant digits.".format(str(meta_dict['instrument_depth']),
-                                                                               num2words(len(str(p))))
+                                                                               str(len(str(p))))
         warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
 
      # Depth
