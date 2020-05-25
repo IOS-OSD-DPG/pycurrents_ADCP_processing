@@ -7,7 +7,7 @@ for L1 processing raw ADCP data.
 
 Contributions from: Di Wan, Eric Firing
 
-User input (4 places) needed after ) function
+User input (3 places) needed after correct_true_north() function
 """
 
 import os
