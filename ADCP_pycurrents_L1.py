@@ -87,23 +87,23 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                 meta_dict[row[0]] = row[1]
                 # create variables for model
                 if row[0] == "instrumentSubtype":
-                    if row[1] == "Workhorse":
+                    if row[1].upper() == "WORKHORSE":
                         model = "wh"
                         model_long = "RDI WH Long Ranger"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Broadband":
+                    elif row[1].upper() == "BROADBAND":
                         model = "bb"
                         model_long = "RDI BB"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Narrowband":
+                    elif row[1].upper() == "NARROWBAND":
                         model = "nb"
                         model_long = "RDI NB"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Sentinel V":  # missing from documentation
+                    elif row[1].upper() == "SENTINEL V":  # missing from documentation
                         model = "sv"
                         model_long = "RDI SV"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == 'Ocean Surveyor' or row[1] == 'ocean surveyor':
+                    elif row[1].upper() == 'OCEAN SURVEYOR':
                         model = "os"
                         model_long = "RDI OS"
                         manufacturer = "teledyne rdi"
