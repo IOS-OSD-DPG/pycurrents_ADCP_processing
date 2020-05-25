@@ -869,6 +869,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['data_max'] = np.nanmax(pressure)
 
     # PRESPR01_QC: pressure quality flag
+    var = out.PRESPR01_QC
     var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = 0
     var.attrs['long_name'] = 'quality flag for PRESPR01'
