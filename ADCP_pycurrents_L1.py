@@ -196,7 +196,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
             pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
             dtype='datetime64[s]')
         # DTUT8601 variable: time strings
-        time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True, errors='coerce').strftime(
+        time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime(
             '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
         print('Using user-created time range')
