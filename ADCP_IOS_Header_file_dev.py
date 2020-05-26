@@ -155,7 +155,10 @@ def write_file(nc):
     print('{:>8}'.format('28') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
         nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
         '%.6E' % nc.PRESPR01.attrs["data_max"]))
-    print('{:>8}'.format('29') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
+    print('{:>8}'.format('29') + " " + '{:35}'.format(nc.PRESPR01_QC.long_name.title()) + '{:15}'.format(
+        ' ') + '{:>17}'.format('%.6E' % nc.PRESPR01_QC.attrs["data_min"]) + '{:>17}'.format(
+        '%.6E' % nc.PRESPR01_QC.attrs["data_max"]))
+    print('{:>8}'.format('30') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
         nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
         '%.6E' % nc.SVELCV01.attrs["data_max"]))
 
@@ -507,8 +510,8 @@ def write_history(nc, f_name):
     process_1 = "ADCP2NC "
     process_1_ver = str(nc.attrs["pred_accuracy"])
     date_time_1 = nc.attrs["date_modified"]
-    # Recs_in_1 =  Hana??
-    Recs_in_1 = " "
+    digits_in_process_hist = [int(s) for s in nc.attrs['processing_history'].split() if s.isdigit()] #H.Hourston May 27, 2020
+    Recs_in_1 = str(digits_in_process_hist[-2] + digits_in_process_hist[-1] + nc.coords["time"].size)
     Recs_out_1 = str(nc.coords["time"].size)
     process_2 = "NC2IOS "
     process_2_ver = "1.0"
