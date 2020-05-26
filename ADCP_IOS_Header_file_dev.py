@@ -572,5 +572,5 @@ def main_header(f):
 
 
 # Input
-in_file = 'C:/Users/GuanL/Desktop//Projects/ADCP/bp1_20180819_20190802_0104m.adcp.L1.nc'
+in_file = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
 main_header(f=in_file)
