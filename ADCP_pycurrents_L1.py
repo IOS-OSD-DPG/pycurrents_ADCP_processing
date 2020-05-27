@@ -71,8 +71,11 @@ raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     
     # Splice file name to get output netCDF file name
-    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
-    print(outname)
+    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'; print(outname)
+
+    # Get full file path
+    cwd = os.getcwd(); print(cwd)
+    outname_full = cwd + '/' + outname
 
     # Get model and timestamp from raw file csv metadata file
     # Instrument frequency is not included in the metadata files, so not included in "model". Frequency optional, apparently
@@ -1098,9 +1101,9 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out.to_netcdf(outname, mode='w', format='NETCDF4')
     out.close()
 
-    return
+    return outname_full
 
 
 # Call function
-nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
+nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
 
