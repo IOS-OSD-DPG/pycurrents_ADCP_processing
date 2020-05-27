@@ -7,7 +7,7 @@ for L1 processing raw ADCP data.
 
 Contributions from: Di Wan, Eric Firing
 
-User input (4 places) needed after ) function
+User input (3 places) needed after correct_true_north() function
 """
 
 import os
@@ -71,8 +71,11 @@ raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     
     # Splice file name to get output netCDF file name
-    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
-    print(outname)
+    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'; print(outname)
+
+    # Get full file path
+    cwd = os.getcwd(); print(cwd)
+    outname_full = cwd + '/' + outname
 
     # Get model and timestamp from raw file csv metadata file
     # Instrument frequency is not included in the metadata files, so not included in "model". Frequency optional, apparently
@@ -87,23 +90,23 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                 meta_dict[row[0]] = row[1]
                 # create variables for model
                 if row[0] == "instrumentSubtype":
-                    if row[1] == "Workhorse":
+                    if row[1].upper() == "WORKHORSE":
                         model = "wh"
                         model_long = "RDI WH Long Ranger"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Broadband":
+                    elif row[1].upper() == "BROADBAND":
                         model = "bb"
                         model_long = "RDI BB"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Narrowband":
+                    elif row[1].upper() == "NARROWBAND":
                         model = "nb"
                         model_long = "RDI NB"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == "Sentinel V":  # missing from documentation
+                    elif row[1].upper() == "SENTINEL V":  # missing from documentation
                         model = "sv"
                         model_long = "RDI SV"
                         manufacturer = 'teledyne rdi'
-                    elif row[1] == 'Ocean Surveyor' or row[1] == 'ocean surveyor':
+                    elif row[1].upper() == 'OCEAN SURVEYOR':
                         model = "os"
                         model_long = "RDI OS"
                         manufacturer = "teledyne rdi"
@@ -137,6 +140,13 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     amp = data.read(varlist=['Intensity'])
     cor = data.read(varlist=['Correlation'])
     pg = data.read(varlist=['PercentGood'])
+
+    # Create flag if pg data is missing
+    flag_pg = 0
+    try:
+        print(pg.pg1.data[:5])
+    except AttributeError:
+        flag_pg += 1
 
     # Metadata value corrections
 
@@ -196,7 +206,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
             pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
             dtype='datetime64[s]')
         # DTUT8601 variable: time strings
-        time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True, errors='coerce').strftime(
+        time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime(
             '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
         print('Using user-created time range')
@@ -244,9 +254,16 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         processing_history = processing_history + " Pressure values calculated from static instrument depth ({} m) using " \
                                                   "the TEOS-10 75-term expression for specific volume and rounded to {} " \
                                                   "significant digits.".format(str(meta_dict['instrument_depth']),
-                                                                               num2words(len(str(p))))
+                                                                               str(len(str(p))))
         warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
 
+     # Depth
+
+    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
+    # negative so that depth is positive; units=m
+    depth = -gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude'])
+    print('Calculated sea surface height from sea pressure using gsw package')
+    
     # Check instrument_depth from metadata csv file: compare with pressure values
     depths_check = np.mean(pressure[:]) - distance
     inst_depth_check = depths_check[0] + distance[0]
@@ -256,6 +273,14 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
                               "exceeds 0.05% of the total water depth", category=UserWarning)
 
+    # Calculate sensor depth of instrument based off mean instrument transducer depth
+    sensor_dep = np.nanmean(depth)
+    processing_history += " Sensor depth and mean depth set to {} based on trimmed depth values.".format(
+        str(sensor_dep))
+
+    # Calculate height of sea surface: bin height minus sensor depth
+    DISTTRAN = distance - sensor_dep    
+    
     # Adjust velocity data
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic fill_value for pycurrents
@@ -305,30 +330,35 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     LCEWAP01_QC = np.zeros(shape=LCEWAP01.shape, dtype='float32')
     LCNSAP01_QC = np.zeros(shape=LCNSAP01.shape, dtype='float32')
     LRZAAP01_QC = np.zeros(shape=vel3.data.shape, dtype='float32')
-
+    PRESPR01_QC = np.zeros(shape=pressure.shape, dtype='float32')
+    
+    # Flag measurements from before deployment and after recovery using e1 and e2
     for qc in [LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC]:
         # 0=no_quality_control, 4=value_seems_erroneous
-        for b in range(data.NCells):
-            qc[:e1, b] = 4
+        for bin_num in range(data.NCells):
+            qc[:e1, bin_num] = 4
             if e2 != 0:
-                qc[-e2:, b] = 4  # if e2==0, the slice [-0:] would index the whole array
+                qc[-e2:, bin_num] = 4  # if e2==0, the slice [-0:] would index the whole array
 
+    PRESPR01_QC[:e1] = 4
+    if e2!= 0:
+        PRESPR01_QC[-e2:] = 4
+    
+    # Flag negative pressure values
+    for i in range(len(pressure)):
+        if pressure[i] < 0:
+            PRESPR01_QC[i] = 4  #"bad_data"
+    
     # Apply the flags to the data and set bad data to NAs
     LCEWAP01[LCEWAP01_QC == 4] = np.nan
     LCNSAP01[LCNSAP01_QC == 4] = np.nan
     vel3.data[LRZAAP01_QC == 4] = np.nan
+    pressure[PRESPR01_QC == 4] = np.nan
     processing_history += " Quality control flags set based on SeaDataNet flag scheme from BODC."
+    processing_history += " Negative pressure values flagged as \"bad_data\" and set to nan\'s."
 
-    # Depth
-
-    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
-    # negative so that depth is positive; units=m
-    depth = -gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude'])
-    print('Calculated height from sea pressure using gsw package')
-
-    # Limit variables (depth, pressure, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
+    # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
     depth[:e1] = np.nan
-    pressure[:e1] = np.nan
     vel.temperature[:e1] = np.nan
     vel.pitch[:e1] = np.nan
     vel.roll[:e1] = np.nan
@@ -336,27 +366,18 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     sound_speed[:e1] = np.nan
     if e2 != 0:
         depth[-e2:] = np.nan
-        pressure[-e2:] = np.nan
         vel.temperature[-e2:] = np.nan
         vel.pitch[-e2:] = np.nan
         vel.roll[-e2:] = np.nan
         vel.heading[-e2:] = np.nan
         sound_speed[-e2:] = np.nan
 
-        processing_history += " Depth pressure, temperature, pitch, roll, heading, and sound_speed limited by " \
+        processing_history += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
                               "deployment ({} UTC) and recovery ({} UTC) " \
                               "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
     else:
-        processing_history += " Depth pressure, temperature, pitch, roll, heading, and sound_speed limited by " \
+        processing_history += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
                               "deployment ({} UTC) time.".format(time_DTUT8601[e1])
-
-    # Calculate sensor depth of instrument based off mean instrument transducer depth
-    sensor_dep = np.nanmean(depth)
-    processing_history += " Sensor depth and mean depth set to {} based on trimmed depth values.".format(
-        str(sensor_dep))
-
-    # Calculate height of sea surface: bin height minus sensor depth
-    DISTTRAN = distance - sensor_dep
 
     processing_history += ' Level 1 processing was performed on the dataset. This entailed corrections for magnetic ' \
                           'declination based on an average of the dataset and cleaning of the beginning and end of ' \
@@ -367,45 +388,83 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     print('Finished QCing data; making netCDF object next')
 
     # Make into netCDF file
-
+    
     # Create xarray Dataset object containing all dimensions and variables
-    out = xr.Dataset(coords={'time': time_us, 'distance': distance},
-                     data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
-                                'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
-                                'LRZAAP01': (['distance', 'time'], vel3.data.transpose()),
-                                'LERRAP01': (['distance', 'time'], vel4.data.transpose()),
-                                'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
-                                'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
-                                'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
-                                'ELTMEP01': (['time'], time_us),
-                                'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
-                                'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
-                                'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
-                                'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
-                                'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
-                                'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
-                                'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
-                                'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
-                                'PCGDAP00': (['distance', 'time'], pg.pg1.transpose()),
-                                'PCGDAP02': (['distance', 'time'], pg.pg2.transpose()),
-                                'PCGDAP03': (['distance', 'time'], pg.pg3.transpose()),
-                                'PCGDAP04': (['distance', 'time'], pg.pg4.transpose()),
-                                'PTCHGP01': (['time'], vel.pitch),
-                                'HEADCM01': (['time'], vel.heading),
-                                'ROLLGP01': (['time'], vel.roll),
-                                'TEMPPR01': (['time'], vel.temperature),
-                                'DISTTRAN': (['distance'], DISTTRAN),
-                                'PPSAADCP': (['time'], depth),
-                                'ALATZZ01': ([], meta_dict['latitude']),
-                                'ALONZZ01': ([], meta_dict['longitude']),
-                                'latitude': ([], meta_dict['latitude']),
-                                'longitude': ([], meta_dict['longitude']),
-                                'PRESPR01': (['time'], pressure),
-                                'SVELCV01': (['time'], sound_speed),
-                                'DTUT8601': (['time'], time_DTUT8601),
-                                'filename': ([], outname[:-3]),
-                                'instrument_serial_number': ([], meta_dict['serialNumber']),
-                                'instrument_model': ([], meta_dict['instrumentModel'])})
+    # Sentinel V instruments don't have percent good ('pg') variables
+    if flag_pg == 1:
+        out = xr.Dataset(coords={'time': time_us, 'distance': distance},
+                        data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
+                                    'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
+                                    'LRZAAP01': (['distance', 'time'], vel3.data.transpose()),
+                                    'LERRAP01': (['distance', 'time'], vel4.data.transpose()),
+                                    'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
+                                    'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
+                                    'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
+                                    'ELTMEP01': (['time'], time_us),
+                                    'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
+                                    'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
+                                    'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
+                                    'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
+                                    'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
+                                    'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
+                                    'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
+                                    'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
+                                    'PTCHGP01': (['time'], vel.pitch),
+                                    'HEADCM01': (['time'], vel.heading),
+                                    'ROLLGP01': (['time'], vel.roll),
+                                    'TEMPPR01': (['time'], vel.temperature),
+                                    'DISTTRAN': (['distance'], DISTTRAN),
+                                    'PPSAADCP': (['time'], depth),
+                                    'ALATZZ01': ([], meta_dict['latitude']),
+                                    'ALONZZ01': ([], meta_dict['longitude']),
+                                    'latitude': ([], meta_dict['latitude']),
+                                    'longitude': ([], meta_dict['longitude']),
+                                    'PRESPR01': (['time'], pressure),
+                                    'PRESPR01_QC': (['time'], PRESPR01_QC),
+                                    'SVELCV01': (['time'], sound_speed),
+                                    'DTUT8601': (['time'], time_DTUT8601),
+                                    'filename': ([], outname[:-3]),
+                                    'instrument_serial_number': ([], meta_dict['serialNumber']),
+                                    'instrument_model': ([], meta_dict['instrumentModel'])})
+    else:
+        out = xr.Dataset(coords={'time': time_us, 'distance': distance},
+                        data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
+                                    'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
+                                    'LRZAAP01': (['distance', 'time'], vel3.data.transpose()),
+                                    'LERRAP01': (['distance', 'time'], vel4.data.transpose()),
+                                    'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
+                                    'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
+                                    'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
+                                    'ELTMEP01': (['time'], time_us),
+                                    'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
+                                    'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
+                                    'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
+                                    'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
+                                    'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
+                                    'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
+                                    'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
+                                    'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
+                                    'PCGDAP00': (['distance', 'time'], pg.pg1.transpose()),
+                                    'PCGDAP02': (['distance', 'time'], pg.pg2.transpose()),
+                                    'PCGDAP03': (['distance', 'time'], pg.pg3.transpose()),
+                                    'PCGDAP04': (['distance', 'time'], pg.pg4.transpose()),
+                                    'PTCHGP01': (['time'], vel.pitch),
+                                    'HEADCM01': (['time'], vel.heading),
+                                    'ROLLGP01': (['time'], vel.roll),
+                                    'TEMPPR01': (['time'], vel.temperature),
+                                    'DISTTRAN': (['distance'], DISTTRAN),
+                                    'PPSAADCP': (['time'], depth),
+                                    'ALATZZ01': ([], meta_dict['latitude']),
+                                    'ALONZZ01': ([], meta_dict['longitude']),
+                                    'latitude': ([], meta_dict['latitude']),
+                                    'longitude': ([], meta_dict['longitude']),
+                                    'PRESPR01': (['time'], pressure),
+                                    'PRESPR01_QC': (['time'], PRESPR01_QC),
+                                    'SVELCV01': (['time'], sound_speed),
+                                    'DTUT8601': (['time'], time_DTUT8601),
+                                    'filename': ([], outname[:-3]),
+                                    'instrument_serial_number': ([], meta_dict['serialNumber']),
+                                    'instrument_model': ([], meta_dict['instrumentModel'])})
 
     # Add attributes to each variable
 
@@ -643,73 +702,77 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['data_max'] = np.nanmax(amp.amp4)
 
     # PCGDAP00 - 4: percent good beam 1-4
-    var = out.PCGDAP00
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'percent'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['long_name'] = 'percent_good_beam_1'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_dep
-    var.attrs['serial_number'] = meta_dict['serialNumber']
-    var.attrs['generic_name'] = 'PGd'
-    var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_01'
-    var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                      'current profiler (ADCP) beam 1'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-    var.attrs['sdn_uom_name'] = 'Percent'
-    var.attrs['data_min'] = np.nanmin(pg.pg1)
-    var.attrs['data_max'] = np.nanmax(pg.pg1)
+    if flag_pg == 1:
+        # omit percent good beam data, since it isn't available
+        pass
+    else:
+        var = out.PCGDAP00
+        var.encoding['dtype'] = 'float32'
+        var.attrs['units'] = 'percent'
+        var.attrs['_FillValue'] = fillValue
+        var.attrs['long_name'] = 'percent_good_beam_1'
+        var.attrs['sensor_type'] = 'adcp'
+        var.attrs['sensor_depth'] = sensor_dep
+        var.attrs['serial_number'] = meta_dict['serialNumber']
+        var.attrs['generic_name'] = 'PGd'
+        var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_01'
+        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+                                        'current profiler (ADCP) beam 1'
+        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['data_min'] = np.nanmin(pg.pg1)
+        var.attrs['data_max'] = np.nanmax(pg.pg1)
 
-    var = out.PCGDAP02
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'percent'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['long_name'] = 'percent_good_beam_2'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_dep
-    var.attrs['serial_number'] = meta_dict['serialNumber']
-    var.attrs['generic_name'] = 'PGd'
-    var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_02'
-    var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                      'current profiler (ADCP) beam 2'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-    var.attrs['sdn_uom_name'] = 'Percent'
-    var.attrs['data_min'] = np.nanmin(pg.pg2)
-    var.attrs['data_max'] = np.nanmax(pg.pg2)
+        var = out.PCGDAP02
+        var.encoding['dtype'] = 'float32'
+        var.attrs['units'] = 'percent'
+        var.attrs['_FillValue'] = fillValue
+        var.attrs['long_name'] = 'percent_good_beam_2'
+        var.attrs['sensor_type'] = 'adcp'
+        var.attrs['sensor_depth'] = sensor_dep
+        var.attrs['serial_number'] = meta_dict['serialNumber']
+        var.attrs['generic_name'] = 'PGd'
+        var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_02'
+        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+                                        'current profiler (ADCP) beam 2'
+        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['data_min'] = np.nanmin(pg.pg2)
+        var.attrs['data_max'] = np.nanmax(pg.pg2)
 
-    var = out.PCGDAP03
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'percent'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['long_name'] = 'percent_good_beam_3'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_dep
-    var.attrs['serial_number'] = meta_dict['serialNumber']
-    var.attrs['generic_name'] = 'PGd'
-    var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_03'
-    var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                      'current profiler (ADCP) beam 3'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-    var.attrs['sdn_uom_name'] = 'Percent'
-    var.attrs['data_min'] = np.nanmin(pg.pg3)
-    var.attrs['data_max'] = np.nanmax(pg.pg3)
+        var = out.PCGDAP03
+        var.encoding['dtype'] = 'float32'
+        var.attrs['units'] = 'percent'
+        var.attrs['_FillValue'] = fillValue
+        var.attrs['long_name'] = 'percent_good_beam_3'
+        var.attrs['sensor_type'] = 'adcp'
+        var.attrs['sensor_depth'] = sensor_dep
+        var.attrs['serial_number'] = meta_dict['serialNumber']
+        var.attrs['generic_name'] = 'PGd'
+        var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_03'
+        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+                                        'current profiler (ADCP) beam 3'
+        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['data_min'] = np.nanmin(pg.pg3)
+        var.attrs['data_max'] = np.nanmax(pg.pg3)
 
-    var = out.PCGDAP04
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'percent'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['long_name'] = 'percent_good_beam_4'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_dep
-    var.attrs['serial_number'] = meta_dict['serialNumber']
-    var.attrs['generic_name'] = 'PGd'
-    var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_04'
-    var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                      'current profiler (ADCP) beam 4'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-    var.attrs['sdn_uom_name'] = 'Percent'
-    var.attrs['data_min'] = np.nanmin(pg.pg4)
-    var.attrs['data_max'] = np.nanmax(pg.pg4)
+        var = out.PCGDAP04
+        var.encoding['dtype'] = 'float32'
+        var.attrs['units'] = 'percent'
+        var.attrs['_FillValue'] = fillValue
+        var.attrs['long_name'] = 'percent_good_beam_4'
+        var.attrs['sensor_type'] = 'adcp'
+        var.attrs['sensor_depth'] = sensor_dep
+        var.attrs['serial_number'] = meta_dict['serialNumber']
+        var.attrs['generic_name'] = 'PGd'
+        var.attrs['legency_GF3_code'] = 'SDN:GF3::PGDP_04'
+        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+                                        'current profiler (ADCP) beam 4'
+        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['data_min'] = np.nanmin(pg.pg4)
+        var.attrs['data_max'] = np.nanmax(pg.pg4)
 
     # PTCHGP01: pitch
     var = out.PTCHGP01
@@ -843,6 +906,10 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_dep
     var.attrs['serial_number'] = meta_dict['serialNumber']
+    var.attrs['ancillary_variables'] = 'PRESPR01_QC'
+    var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+    var.attrs['flag_values'] = meta_dict['flag_values']
+    var.attrs['References'] = meta_dict['flag_references']
     var.attrs['legency_GF3_code'] = 'SDN:GF3::PRES'
     var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
                                       'pressure sensor and corrected to read zero at sea level'
@@ -852,6 +919,19 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     var.attrs['data_min'] = np.nanmin(pressure)
     var.attrs['data_max'] = np.nanmax(pressure)
 
+    # PRESPR01_QC: pressure quality flag
+    var = out.PRESPR01_QC
+    var.encoding['dtype'] = 'int'
+    var.attrs['_FillValue'] = 0
+    var.attrs['long_name'] = 'quality flag for PRESPR01'
+    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
+                           'identification of negative pressure values'
+    var.attrs['flag_meanings'] = meta_dict['flag_meaning']
+    var.attrs['flag_values'] = meta_dict['flag_values']
+    var.attrs['References'] = meta_dict['flag_references']
+    var.attrs['data_max'] = np.nanmax(PRESPR01_QC)
+    var.attrs['data_min'] = np.nanmin(PRESPR01_QC)
+    
     # SVELCV01: sound velocity
     var = out.SVELCV01
     var.encoding['dtype'] = 'float32'
@@ -1021,9 +1101,9 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out.to_netcdf(outname, mode='w', format='NETCDF4')
     out.close()
 
-    return
+    return outname_full
 
 
 # Call function
-nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
+nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
 
