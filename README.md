@@ -7,8 +7,10 @@ For processing raw ADCP data in Python using the UHDAS `pycurrents` package (htt
 "L1" stands for "level 1 processing". This comprises:
 * Corrections for magnetic declination
 * Calculation of sea surface height from pressure values and latitude
+* Rotation into enu coordinates if this is not already the coordinate system of the dataset
 * Flagging leading and trailing ensembles from before and after deployment and setting them to nan's
-* Rotation into enu coordinates if this is not already the coordinate system of the dataset.
+* Flagging negative pressure values
+
 
 *ADCP IOS header file.py* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/mainlogin.php?refer=/). 
 
