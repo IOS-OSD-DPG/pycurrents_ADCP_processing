@@ -701,7 +701,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # PCGDAP00 - 4: percent good beam 1-4
     if flag_pg == 1:
         # omit percent good beam data, since it isn't available
-        continue
+        pass
     else:
         var = out.PCGDAP00
         var.encoding['dtype'] = 'float32'
