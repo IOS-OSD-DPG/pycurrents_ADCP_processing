@@ -7,7 +7,7 @@ for L1 processing raw ADCP data.
 
 Contributions from: Di Wan, Eric Firing
 
-User input (3 places) needed after correct_true_north() function
+User input (3 places) needed
 """
 
 import os
@@ -47,6 +47,75 @@ def correct_true_north(mag_decl, measured_east, measured_north):  # change angle
     east_true = measured_east * np.cos(angle_rad) - measured_north * np.sin(angle_rad)
     north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
     return east_true, north_true
+
+
+def convert_time_var(time_var, history):
+    # Includes exception handling for bad times
+    try:
+        # convert time variable to elapsed time since 1970-01-01T00:00:00Z
+        t_s = np.array(
+            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
+            dtype='datetime64[s]')
+        # DTUT8601 variable: time strings
+        t_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime(
+            '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
+    except OutOfBoundsDatetime or OverflowError:
+        print('Using user-created time range')
+        t_s = np.zeros(shape=data.nprofs, dtype='datetime64[s]')
+        t_DTUT8601 = np.empty(shape=data.nprofs, dtype='<U100')
+        with open(time_file) as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter=',')
+            # Skip headers
+            next(csv_reader, None)
+            for count, row in enumerate(csv_reader):
+                if row[0] == '':
+                    pass
+                else:
+                    t_s[count] = np.datetime64(pd.to_datetime(row[0], utc=True).strftime(
+                        '%Y-%m-%d %H:%M:%S'))
+                    t_DTUT8601[count] = pd.to_datetime(row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
+
+        history = history + ' OutOfBoundsDateTime exception triggered; used user-' \
+                            'generated time range as time data.'
+    return t_s, t_DTUT8601, history
+
+
+def assign_pres(vel_var, metadata_dict, model_type, history):
+    # Assign pressure and calculate it froms static instrument depth if ADCP missing pressure sensor
+    if model == 'wh' or model == 'os' or model == 'sv':
+        pres = np.array(vel_var.VL['Pressure'] / 1000, dtype='float32')  # convert decapascal to decibars
+
+        # Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
+        # Handle no unique modes from statistics.mode(pressure)
+        pressure_unique, counts = np.unique(pres, return_counts=True)
+        index_of_zero = np.where(pressure_unique == 0)
+        print('np.max(counts):', np.max(counts), sep=' ')
+        print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
+        print('serial number:', metadata_dict['serialNumber'])
+
+    if model_type == 'bb' or model_type == 'nb' or np.max(counts) == counts[index_of_zero]:  # if zero is a mode of pressure
+        p = np.round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'], meta_dict['latitude']),
+                     decimals=0)  # depth negative because positive is up for this function
+        pres = np.repeat(p, len(vel.vel1.data))
+        history = history + " Pressure values calculated from static instrument depth ({} m) using " \
+                            "the TEOS-10 75-term expression for specific volume and rounded to {} " \
+                            "significant digits.".format(str(meta_dict['instrument_depth']), str(len(str(p))))
+        warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
+    
+    return pres, history
+
+
+def check_depths(pres, dist, instr_depth, water_depth):
+     # Check user-entered instrument_depth and compare with pressure values
+
+    depths_check = np.mean(pres[:]) - dist
+    inst_depth_check = depths_check[0] + dist[0]
+    abs_difference = np.absolute(inst_depth_check-instr_depth)
+    # Calculate percent difference in relation to total water depth
+    if (abs_difference / water_depth * 100) > 0.05:
+        warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
+                              "exceeds 0.05% of the total water depth", category=UserWarning)
+    return
 
 
 # User input
@@ -200,32 +269,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Set up dimensions and variables
 
-    try:
-        # convert time variable to elapsed time since 1970-01-01T00:00:00Z
-        time_us = np.array(
-            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
-            dtype='datetime64[s]')
-        # DTUT8601 variable: time strings
-        time_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime(
-            '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
-    except OutOfBoundsDatetime or OverflowError:
-        print('Using user-created time range')
-        time_s = np.zeros(shape=data.nprofs, dtype='datetime64[s]')
-        time_DTUT8601 = np.empty(shape=data.nprofs, dtype='<U100')
-        with open(time_file) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            # Skip headers
-            next(csv_reader, None)
-            for count, row in enumerate(csv_reader):
-                if row[0] == '':
-                    pass
-                else:
-                    time_s[count] = np.datetime64(pd.to_datetime(row[0], utc=True).strftime(
-                        '%Y-%m-%d %H:%M:%S'))
-                    time_DTUT8601[count] = pd.to_datetime(row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
-
-        processing_history = processing_history + ' OutOfBoundsDateTime exception triggered; used user-' \
-                                                  'generated time range as time data.'
+    time_s, time_DTUT8601, processing_history = convert_time_var(vel.dday, processing_history)
 
     # Distance dimension
     distance = np.round(vel.dep.data, decimals=2)
@@ -236,28 +280,9 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     sound_speed = np.float32(vel.VL['SoundSpeed'])
 
     # Convert pressure
-    if model == 'wh' or model == 'os' or model == 'sv':
-        pressure = np.array(vel.VL['Pressure'] / 1000, dtype='float32')  # convert decapascal to decibars
-
-        # Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
-        # Handle no unique modes from statistics.mode(pressure)
-        pressure_unique, counts = np.unique(pressure, return_counts=True)
-        index_of_zero = np.where(pressure_unique == 0)
-        print('np.max(counts):', np.max(counts), sep=' ')
-        print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
-        print('serial number:', meta_dict['serialNumber'])
-
-    if model == 'bb' or model == 'nb' or np.max(counts) == counts[index_of_zero]:  # if zero is a mode of pressure
-        p = np.round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'], meta_dict['latitude']),
-                     decimals=0)  # depth negative because positive is up for this function
-        pressure = np.repeat(p, len(vel.vel1.data))
-        processing_history = processing_history + " Pressure values calculated from static instrument depth ({} m) using " \
-                                                  "the TEOS-10 75-term expression for specific volume and rounded to {} " \
-                                                  "significant digits.".format(str(meta_dict['instrument_depth']),
-                                                                               str(len(str(p))))
-        warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
-
-     # Depth
+    pressure, processing_history = assign_pres(vel, meta_dict, model, processing_history)
+    
+    # Depth
 
     # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
     # negative so that depth is positive; units=m
@@ -265,13 +290,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     print('Calculated sea surface height from sea pressure using gsw package')
     
     # Check instrument_depth from metadata csv file: compare with pressure values
-    depths_check = np.mean(pressure[:]) - distance
-    inst_depth_check = depths_check[0] + distance[0]
-    abs_difference = np.absolute(inst_depth_check-meta_dict['instrument_depth'])
-    # Calculate percent difference in relation to total water depth
-    if (abs_difference / meta_dict['water_depth'] * 100) > 0.05:
-        warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
-                              "exceeds 0.05% of the total water depth", category=UserWarning)
+    check_depths(pressure, distance, meta_dict['instrment_depth'], meta_dict['water_depth']) 
 
     # Calculate sensor depth of instrument based off mean instrument transducer depth
     sensor_dep = np.nanmean(depth)
