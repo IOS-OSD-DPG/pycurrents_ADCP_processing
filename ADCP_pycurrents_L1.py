@@ -64,7 +64,7 @@ def correct_true_north(measured_east, measured_north, metadata_dict):  # change 
     # mag_decl: magnetic declination value; float type
     # measured_east: measured Eastward velocity data; array type
     # measured_north: measured Northward velocity data; array type
-    angle_rad = -meta_dict['magnetic_variation'] * np.pi / 180.
+    angle_rad = -metadata_dict['magnetic_variation'] * np.pi / 180.
     east_true = measured_east * np.cos(angle_rad) - measured_north * np.sin(angle_rad)
     north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
     
@@ -74,13 +74,16 @@ def correct_true_north(measured_east, measured_north, metadata_dict):  # change 
     return east_true, north_true
 
 
-def convert_time_var(time_var, number_of_profiles, metadata_dict):
+def convert_time_var(time_var, number_of_profiles, metadata_dict, origin_year, time_csv):
     # Includes exception handling for bad times
     # time_var: vel.dday; time variable with units in days since the beginning of the year in which measurements 
     #           started being taken by the instrument
     # number_of_profiles: the number of profiles (ensembles) recorded by the instrument over the time series
     # metadata_dict: dictionary object of metadata items
     
+    # data.yearbase is an integer of the year that the timeseries starts (e.g., 2016)
+    data_origin = pd.Timestamp(str(origin_year) + '-01-01')  # convert to date object
+
     try:
         # convert time variable to elapsed time since 1970-01-01T00:00:00Z
         t_s = np.array(
@@ -151,8 +154,8 @@ def check_depths(pres, dist, instr_depth, water_depth):
     abs_difference = np.absolute(inst_depth_check-instr_depth)
     # Calculate percent difference in relation to total water depth
     if (abs_difference / water_depth * 100) > 0.05:
-        warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
-                              "exceeds 0.05% of the total water depth", UserWarning)
+        warnings.warn("Difference between calculated instrument depth and metadata instrument_depth " \
+                      "exceeds 0.05% of the total water depth", UserWarning)
     return
 
 
@@ -190,7 +193,7 @@ def flag_pressure(pres, ens1, ens2, metadata_dict):
         # ens2: number of trailing bad ensembles from after instrument deployment; int type
         # metadata_dict: dictionary object of metadata items
 
-        PRESPR01_QC_var = np.zeros(shape=pressure.shape, dtype='float32')
+        PRESPR01_QC_var = np.zeros(shape=pres.shape, dtype='float32')
          # 2/2 pressure
         PRESPR01_QC_var[:ens1] = 4
         if ens2!= 0:
@@ -222,12 +225,12 @@ def flag_velocity(v1, v2, v3, ens1, ens2, number_of_cells):
         LCNSAP01_QC_var = np.zeros(shape=v2.shape, dtype='float32')
         LRZAAP01_QC_var = np.zeros(shape=v3.shape, dtype='float32')
 
-        for qc in [LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC]:
-        # 0=no_quality_control, 4=value_seems_erroneous
-        for bin_num in range(data.NCells):
-            qc[:ens1, bin_num] = 4
-            if ens2 != 0:
-                qc[-ens2:, bin_num] = 4  # if ens2==0, the slice [-0:] would index the whole array
+        for qc in [LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var]:
+            # 0=no_quality_control, 4=value_seems_erroneous
+            for bin_num in range(number_of_cells):
+                qc[:ens1, bin_num] = 4
+                if ens2 != 0:
+                    qc[-ens2:, bin_num] = 4  # if ens2==0, the slice [-0:] would index the whole array
 
         # Apply the flags to the data and set bad data to NAs
         v1[LCEWAP01_QC_var == 4] = np.nan
@@ -237,17 +240,16 @@ def flag_velocity(v1, v2, v3, ens1, ens2, number_of_cells):
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
 
 
-def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
+def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue):
     # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
     # metadata_dict: dictionary object of metadata items
     # sensor_depth: sensor depth recorded by instrument
 
-    fillValue = 1e+15
     uvw_vel_min = -1000
     uvw_vel_max = 1000
 
     # Time
-    var = out.time
+    var = out_obj.time
     var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
     var.encoding['_FillValue'] = None  # omits fill value from time dim; otherwise would be included with value NaN
     var.attrs['long_name'] = "time"
@@ -255,7 +257,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.encoding['calendar'] = "gregorian"
     
     # Bin distances
-    var = out.distance
+    var = out_obj.distance
     var.encoding['_FillValue'] = None
     var.attrs['units'] = "metres"
     # var.attrs['long_name'] = "distance"
@@ -263,7 +265,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     
     # LCEWAP01: eastward velocity (vel1)
     # all velocities have many of the same attribute values, but not all, so each velocity is done separately
-    var = out.LCEWAP01   
+    var = out_obj.LCEWAP01   
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm/sec'
     var.attrs['_FillValue'] = fillValue
@@ -288,7 +290,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['valid_min'] = uvw_vel_min
     
     # LCNSAP01: northward velocity (vel2)
-    var = out.LCNSAP01
+    var = out_obj.LCNSAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm/sec'
     var.attrs['_FillValue'] = fillValue
@@ -313,7 +315,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['valid_min'] = uvw_vel_min
     
     # LRZAAP01: vertical velocity (vel3)
-    var = out.LRZAAP01
+    var = out_obj.LRZAAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm/sec'
     var.attrs['_FillValue'] = fillValue
@@ -338,7 +340,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['valid_min'] = uvw_vel_min
     
     # LERRAP01: error velocity (vel4)
-    var = out.LERRAP01
+    var = out_obj.LERRAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm/sec'
     var.attrs['_FillValue'] = fillValue
@@ -361,7 +363,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['valid_min'] = 2 * uvw_vel_min
     
     # Velocity variable quality flags
-    var = out.LCEWAP01_QC
+    var = out_obj.LCEWAP01_QC
     var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = 0
     var.attrs['long_name'] = 'quality flag for LCEWAP01'
@@ -372,7 +374,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     
-    var = out.LCNSAP01_QC
+    var = out_obj.LCNSAP01_QC
     var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = 0
     var.attrs['long_name'] = 'quality flag for LCNSAP01'
@@ -383,7 +385,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
 
-    var = out.LRZAAP01_QC
+    var = out_obj.LRZAAP01_QC
     var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = 0
     var.attrs['long_name'] = 'quality flag for LRZAAP01'
@@ -395,7 +397,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
 
     # ELTMEP01: seconds since 1970
-    var = out.ELTMEP01
+    var = out_obj.ELTMEP01
     var.encoding['dtype'] = 'd'
     var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
     var.attrs['_FillValue'] = fillValue
@@ -407,7 +409,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['standard_name'] = 'time'
     
     # TNIHCE01-4: echo intensity beam 1-4
-    var = out.TNIHCE01
+    var = out_obj.TNIHCE01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -424,7 +426,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    var = out.TNIHCE02
+    var = out_obj.TNIHCE02
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -441,7 +443,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    var = out.TNIHCE03
+    var = out_obj.TNIHCE03
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -458,7 +460,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    var = out.TNIHCE04
+    var = out_obj.TNIHCE04
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -480,7 +482,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         # omit percent good beam data, since it isn't available
         pass
     else:
-        var = out.PCGDAP00
+        var = out_obj.PCGDAP00
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = fillValue
@@ -497,7 +499,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
-        var = out.PCGDAP02
+        var = out_obj.PCGDAP02
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = fillValue
@@ -514,7 +516,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
-        var = out.PCGDAP03
+        var = out_obj.PCGDAP03
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = fillValue
@@ -531,7 +533,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
-        var = out.PCGDAP04
+        var = out_obj.PCGDAP04
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = fillValue
@@ -549,7 +551,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         var.attrs['data_max'] = np.nanmax(var.data)
 
     # PTCHGP01: pitch
-    var = out.PTCHGP01
+    var = out_obj.PTCHGP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degrees'
     var.attrs['_FillValue'] = fillValue
@@ -564,7 +566,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # ROLLGP01: roll
-    var = out.ROLLGP01
+    var = out_obj.ROLLGP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degrees'
     var.attrs['_FillValue'] = fillValue
@@ -579,7 +581,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # DISTTRAN: height of sea surface (hght)
-    var = out.DISTTRAN
+    var = out_obj.DISTTRAN
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm'
     var.attrs['_FillValue'] = fillValue
@@ -595,7 +597,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # TEMPPR01: transducer temp
-    var = out.TEMPPR01
+    var = out_obj.TEMPPR01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degrees celsius'
     var.attrs['_FillValue'] = fillValue
@@ -612,13 +614,13 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PPSAADCP: instrument depth (formerly DEPFP01)
-    var = out.PPSAADCP
+    var = out_obj.PPSAADCP
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'instrument depth'
     var.attrs['xducer_offset_from_bottom'] = ''
-    var.attrs['bin_size'] = data.CellSize  # bin size
+    var.attrs['bin_size'] = cell_size  # bin size
     var.attrs['generic_name'] = 'depth'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -632,7 +634,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # ALONZZ01, longitude
-    for var in [out.ALONZZ01, out.longitude]:
+    for var in [out_obj.ALONZZ01, out_obj.longitude]:
         var.encoding['_FillValue'] = None
         var.encoding['dtype'] = 'd'
         var.attrs['units'] = 'degrees_east'
@@ -644,7 +646,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         var.attrs['standard_name'] = 'longitude'
 
     # ALATZZ01, latitude
-    for var in [out.ALATZZ01, out.latitude]:
+    for var in [out_obj.ALATZZ01, out_obj.latitude]:
         var.encoding['_FillValue'] = None
         var.encoding['dtype'] = 'd'
         var.attrs['units'] = 'degrees_north'
@@ -656,7 +658,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
         var.attrs['standard_name'] = 'latitude'
 
     # HEADCM01: heading
-    var = out.HEADCM01
+    var = out_obj.HEADCM01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degrees'
     var.attrs['_FillValue'] = fillValue
@@ -672,7 +674,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PRESPR01: pressure
-    var = out.PRESPR01
+    var = out_obj.PRESPR01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'decibars'
     var.attrs['_FillValue'] = fillValue
@@ -694,7 +696,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PRESPR01_QC: pressure quality flag
-    var = out.PRESPR01_QC
+    var = out_obj.PRESPR01_QC
     var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = 0
     var.attrs['long_name'] = 'quality flag for PRESPR01'
@@ -707,7 +709,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     
     # SVELCV01: sound velocity
-    var = out.SVELCV01
+    var = out_obj.SVELCV01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm/sec'
     var.attrs['_FillValue'] = fillValue
@@ -725,7 +727,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss
-    var = out.DTUT8601
+    var = out_obj.DTUT8601
     var.encoding['dtype'] = 'U24'  # 24-character string
     var.attrs['note'] = 'time values as ISO8601 string, YY-MM-DD hh:mm:ss'
     var.attrs['time_zone'] = 'UTC'
@@ -736,7 +738,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['sdn_uom_name'] = 'ISO8601'
 
     # CMAGZZ01-4: correlation magnitude
-    var = out.CMAGZZ01
+    var = out_obj.CMAGZZ01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -751,7 +753,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    var = out.CMAGZZ02
+    var = out_obj.CMAGZZ02
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -766,7 +768,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    var = out.CMAGZZ03
+    var = out_obj.CMAGZZ03
     var.attrs['units'] = 'counts'
     var.encoding['dtype'] = 'float32'
     var.attrs['_FillValue'] = fillValue
@@ -781,7 +783,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    var = out.CMAGZZ04
+    var = out_obj.CMAGZZ04
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = fillValue
@@ -853,7 +855,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         model_long = "RDI OS"
         meta_dict['manufacturer'] = "teledyne rdi"
     else:
-        continue
+        pass
 
     # Check if model was read into dictionary correctly
     if 'model' not in meta_dict:
@@ -923,14 +925,10 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     else:
         meta_dict['beam_pattern'] = ''
 
-    # Get timestamp from "data" object just created
-    # In R, the start time was obtained from the "adp" object created within R
-    # data.yearbase is an integer of the year that the timeseries starts (e.g., 2016)
-    data_origin = pd.Timestamp(str(data.yearbase) + '-01-01')  # convert to date object
-
     # Set up dimensions and variables
 
-    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs, meta_dict)
+    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs, metadata_dict=meta_dict, 
+                                             origin_year=data.yearbase, time_csv=time_file)
 
     # Distance dimension
     distance = np.round(vel.dep.data, decimals=2)
@@ -1092,7 +1090,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                     'instrument_model': ([], meta_dict['instrumentModel'])})
 
     # Add attributes to each variable
-    add_attrs2_vars(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep)
+    fill_value = 1e+15
+    add_attrs2_vars(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize, fillValue=fill_value)
 
     # Global attributes
 
@@ -1125,7 +1124,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out.attrs['source'] = "R code: adcpProcess, github:"
     now = datetime.datetime.now()
     out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
-    out.attrs['_FillValue'] = str(fillValue)
+    out.attrs['_FillValue'] = str(fill_value)
     out.attrs['featureType'] = "profileTimeSeries"
     out.attrs['firmware_version'] = str(vel.FL.FWV) + '.' + str(vel.FL.FWR)  # firmwareVersion
     out.attrs['frequency'] = str(data.sysconfig['kHz'])
