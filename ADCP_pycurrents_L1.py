@@ -96,7 +96,7 @@ def convert_time_var(time_var, number_of_profiles, metadata_dict, origin_year, t
         print('Using user-created time range')
         t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[s]')
         t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
-        with open(time_file) as csv_file:
+        with open(time_csv) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             # Skip headers
             next(csv_reader, None)
@@ -240,7 +240,7 @@ def flag_velocity(v1, v2, v3, ens1, ens2, number_of_cells):
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
 
 
-def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue):
+def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, p_good_flag):
     # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
     # metadata_dict: dictionary object of metadata items
     # sensor_depth: sensor depth recorded by instrument
@@ -478,7 +478,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue):
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PCGDAP00 - 4: percent good beam 1-4
-    if flag_pg == 1:
+    if p_good_flag == 1:
         # omit percent good beam data, since it isn't available
         pass
     else:
@@ -1091,7 +1091,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Add attributes to each variable
     fill_value = 1e+15
-    add_attrs2_vars(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize, fillValue=fill_value)
+    add_attrs2_vars(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize, fillValue=fill_value, p_good_flag=flag_pg)
 
     # Global attributes
 
