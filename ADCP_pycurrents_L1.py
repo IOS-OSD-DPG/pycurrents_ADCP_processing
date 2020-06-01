@@ -949,7 +949,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     print('Calculated sea surface height from sea pressure using gsw package')
     
     # Check instrument_depth from metadata csv file: compare with pressure values
-    check_depths(pressure, distance, meta_dict['instrment_depth'], meta_dict['water_depth']) 
+    check_depths(pressure, distance, meta_dict['instrument_depth'], meta_dict['water_depth']) 
 
     # Calculate sensor depth of instrument based off mean instrument transducer depth
     sensor_dep = np.nanmean(depth)
@@ -995,16 +995,17 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         if e2 != 0:
             variable[-e2:] = np.nan
 
-            meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
-                                               "deployment ({} UTC) and recovery ({} UTC) " \
-                                               "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
-        else:
-            meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
-                                               "deployment ({} UTC) time.".format(time_DTUT8601[e1])
+    if e2 != 0:
+        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
+                                           "deployment ({} UTC) and recovery ({} UTC) " \
+                                           "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
+    else:
+        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
+                                           "deployment ({} UTC) time.".format(time_DTUT8601[e1])
 
     meta_dict['processing_history'] += ' Level 1 processing was performed on the dataset. This entailed corrections for magnetic ' \
                                        'declination based on an average of the dataset and cleaning of the beginning and end of ' \
-                                       'the dataset. No QC was carried out. The leading {} ensembles and the trailing {} ensembles ' \
+                                       'the dataset. The leading {} ensembles and the trailing {} ensembles ' \
                                        'were removed from the data set.'.format(meta_dict['cut_lead_ensembles'],
                                                                                 meta_dict['cut_trail_ensembles'])
 
