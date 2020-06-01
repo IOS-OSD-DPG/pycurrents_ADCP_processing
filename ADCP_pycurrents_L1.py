@@ -43,7 +43,7 @@ raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 
 
 def mean_orientation(o):
-    # orientation is an array
+    # orientation, o, is an array
     up = 0
     down = 0
     for i in range(len(o)):
@@ -56,31 +56,43 @@ def mean_orientation(o):
     elif down > up:
         return 'down'
     else:
-        print('Warning: Number of \"up\" orientations equals number of \"down\" orientations in data subset.')
+        ValueError('Number of \"up\" orientations equals number of \"down\" orientations in data subset')
 
 
-# Di Wan's magnetic declination correction code: Takes 0 DEG from E-W axis
-def correct_true_north(mag_decl, measured_east, measured_north):  # change angle to negative of itself
-    angle_rad = -mag_decl * np.pi / 180.
+def correct_true_north(measured_east, measured_north, metadata_dict):  # change angle to negative of itself
+    # Di Wan's magnetic declination correction code: Takes 0 DEG from E-W axis
+    # mag_decl: magnetic declination value; float type
+    # measured_east: measured Eastward velocity data; array type
+    # measured_north: measured Northward velocity data; array type
+    angle_rad = -meta_dict['magnetic_variation'] * np.pi / 180.
     east_true = measured_east * np.cos(angle_rad) - measured_north * np.sin(angle_rad)
     north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
+    
+    metadata_dict['processing_history'] += " Magnetic variation, using average applied; declination = {}.".format(
+        str(metadata_dict['magnetic_variation']))
+    
     return east_true, north_true
 
 
-def convert_time_var(time_var, metadata_dict):
+def convert_time_var(time_var, number_of_profiles, metadata_dict):
     # Includes exception handling for bad times
+    # time_var: vel.dday; time variable with units in days since the beginning of the year in which measurements 
+    #           started being taken by the instrument
+    # number_of_profiles: the number of profiles (ensembles) recorded by the instrument over the time series
+    # metadata_dict: dictionary object of metadata items
+    
     try:
         # convert time variable to elapsed time since 1970-01-01T00:00:00Z
         t_s = np.array(
-            pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
+            pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
             dtype='datetime64[s]')
         # DTUT8601 variable: time strings
-        t_DTUT8601 = pd.to_datetime(vel.dday, unit='D', origin=data_origin, utc=True).strftime(
+        t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime(
             '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
         print('Using user-created time range')
-        t_s = np.zeros(shape=data.nprofs, dtype='datetime64[s]')
-        t_DTUT8601 = np.empty(shape=data.nprofs, dtype='<U100')
+        t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[s]')
+        t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
         with open(time_file) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             # Skip headers
@@ -98,8 +110,11 @@ def convert_time_var(time_var, metadata_dict):
     return t_s, t_DTUT8601
 
 
-def assign_pres(vel_var, metadata_dict, metadata_dict):
+def assign_pres(vel_var, metadata_dict):
     # Assign pressure and calculate it froms static instrument depth if ADCP missing pressure sensor
+    # vel_var: "vel" variable created from BBWHOS class object, using the command: data.read(varlist=['vel'])
+    # metadata_dict: dictionary object of metadata items
+
     if metadata_dict['model'] == 'wh' or metadata_dict['model'] == 'os' or metadata_dict['model'] == 'sv':
         pres = np.array(vel_var.VL['Pressure'] / 1000, dtype='float32')  # convert decapascal to decibars
 
@@ -113,19 +128,23 @@ def assign_pres(vel_var, metadata_dict, metadata_dict):
 
     # Check if model is type missing pressure sensor or if zero is a mode of pressure
     if metadata_dict['model'] == 'bb' or metadata_dict['model'] == 'nb' or np.max(counts) == counts[index_of_zero]:
-        p = np.round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'], meta_dict['latitude']),
+        p = np.round(gsw.conversions.p_from_z(-metadata_dict['instrument_depth'], metadata_dict['latitude']),
                      decimals=0)  # depth negative because positive is up for this function
-        pres = np.repeat(p, len(vel.vel1.data))
+        pres = np.repeat(p, len(vel_var.vel1.data))
         metadata_dict['processing_history'] += " Pressure values calculated from static instrument depth ({} m) using " \
                                                "the TEOS-10 75-term expression for specific volume and rounded to {} " \
-                                               "significant digits.".format(str(meta_dict['instrument_depth']), str(len(str(p))))
+                                               "significant digits.".format(str(metadata_dict['instrument_depth']), str(len(str(p))))
         warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
     
     return pres
 
 
 def check_depths(pres, dist, instr_depth, water_depth):
-     # Check user-entered instrument_depth and compare with pressure values
+    # Check user-entered instrument_depth and compare with pressure values
+    # pres: pressure variable; array type
+    # dist: distance variable (contains distance of each bin from ADCP); array type
+    # instr_depth: depth of the instrument
+    # water_depth: depth of the water
 
     depths_check = np.mean(pres[:]) - dist
     inst_depth_check = depths_check[0] + dist[0]
@@ -133,11 +152,15 @@ def check_depths(pres, dist, instr_depth, water_depth):
     # Calculate percent difference in relation to total water depth
     if (abs_difference / water_depth * 100) > 0.05:
         warnings.warn(message="Difference between calculated instrument depth and metadata instrument_depth "
-                              "exceeds 0.05% of the total water depth", category=UserWarning)
+                              "exceeds 0.05% of the total water depth", UserWarning)
     return
 
 
 def convert_coordsystem(vel_var, fixed_leader_var, metadata_dict):
+    # vel_var: "vel" variable created from BBWHOS class object, using the command: data.read(varlist=['vel'])
+    # fixed_leader_var: "fixed_leader" variable created from BBWHOS class object, using the command: data.read(varlist=['FixedLeader'])
+    # metadata_dict: dictionary object of metadata items
+
     trans = transform.Transform(angle=fixed_leader_var.sysconfig['angle'], geometry=metadata_dict['beam_pattern'])  #angle is beam angle
     xyze = trans.beam_to_xyz(vel_var.vel.data)
     print(np.shape(xyze))
@@ -154,14 +177,71 @@ def convert_coordsystem(vel_var, fixed_leader_var, metadata_dict):
     velocity3.data = np.round(velocity3.data, decimals=3)
     velocity4.data = np.round(velocity4.data, decimals=3)
     # Make note in processing_history
-    meta_dict['processing_history'] += " The coordinate system was rotated into enu coordinates."
+    metadata_dict['processing_history'] += " The coordinate system was rotated into enu coordinates."
     metadata_dict['coord_system'] = 'enu'  # Add item to metadata dictionary for coordinate system
     print('Coordinate system rotated from {} to enu'.format(vel_var.trans.coordsystem))
     
     return velocity1, velocity2, velocity3, velocity4
 
 
+def flag_pressure(pres, ens1, ens2, metadata_dict):
+        # pres: pressure variable; array type
+        # ens1: number of leading bad ensembles from before instrument deployment; int type
+        # ens2: number of trailing bad ensembles from after instrument deployment; int type
+        # metadata_dict: dictionary object of metadata items
+
+        PRESPR01_QC_var = np.zeros(shape=pressure.shape, dtype='float32')
+         # 2/2 pressure
+        PRESPR01_QC_var[:ens1] = 4
+        if ens2!= 0:
+            PRESPR01_QC_var[-ens2:] = 4
+    
+        # Flag negative pressure values
+        for i in range(len(pres)):
+            if pres[i] < 0:
+                PRESPR01_QC_var[i] = 4  #"bad_data"
+        
+        pres[PRESPR01_QC_var == 4] = np.nan
+
+        metadata_dict['processing_history'] += " Quality control flags set based on SeaDataNet flag scheme from BODC."
+        metadata_dict['processing_history'] += " Negative pressure values flagged as \"bad_data\" and set to nan\'s."
+
+        return PRESPR01_QC_var
+
+
+def flag_velocity(v1, v2, v3, ens1, ens2, number_of_cells):
+        # Create QC variables containing flag arrays
+        # v1: Eastward velocity with magnetic declination applied
+        # v2: Northward velocity with magnetic declination applied
+        # v3: Upwards velocity
+        # ens1: number of leading bad ensembles from before instrument deployment; int type
+        # ens2: number of trailing bad ensembles from after instrument deployment; int type
+        # number_of_cells: number of bins
+
+        LCEWAP01_QC_var = np.zeros(shape=v1.shape, dtype='float32')
+        LCNSAP01_QC_var = np.zeros(shape=v2.shape, dtype='float32')
+        LRZAAP01_QC_var = np.zeros(shape=v3.shape, dtype='float32')
+
+        for qc in [LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC]:
+        # 0=no_quality_control, 4=value_seems_erroneous
+        for bin_num in range(data.NCells):
+            qc[:ens1, bin_num] = 4
+            if ens2 != 0:
+                qc[-ens2:, bin_num] = 4  # if ens2==0, the slice [-0:] would index the whole array
+
+        # Apply the flags to the data and set bad data to NAs
+        v1[LCEWAP01_QC_var == 4] = np.nan
+        v2[LCNSAP01_QC_var == 4] = np.nan
+        v3[LRZAAP01_QC_var == 4] = np.nan
+
+        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
+
+
 def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
+    # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
+    # metadata_dict: dictionary object of metadata items
+    # sensor_depth: sensor depth recorded by instrument
+
     fillValue = 1e+15
     uvw_vel_min = -1000
     uvw_vel_max = 1000
@@ -265,7 +345,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['long_name'] = 'error_velocity_in_sea_water'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'e'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
     var.attrs['flag_values'] = metadata_dict['flag_values']
@@ -599,7 +679,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth):
     var.attrs['long_name'] = 'pressure'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['ancillary_variables'] = 'PRESPR01_QC'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
     var.attrs['flag_values'] = metadata_dict['flag_values']
@@ -777,8 +857,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Check if model was read into dictionary correctly
     if 'model' not in meta_dict:
-        print(meta_dict['instrumentSubtype'])
-        ValueError("No valid instrumentSubtype value detected")
+        ValueError("instrumentSubtype value of \"{}\" not valid".format(meta_dict['instrumentSubtype']))
         
     print('Read in csv metadata file')
 
@@ -791,7 +870,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         data = rawfile(inFile, meta_dict['model'], trim=True)
     print('Read in raw data')
 
-    # Extract multidimensional variables from data object: fixed leader, velocity, amplitude intensity, correlation magnitude, and percent good
+    # Extract multidimensional variables from data object: 
+    # fixed leader, velocity, amplitude intensity, correlation magnitude, and percent good
     fixed_leader = data.read(varlist=['FixedLeader'])
     vel = data.read(varlist=['Velocity'])
     amp = data.read(varlist=['Intensity'])
@@ -809,15 +889,9 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Convert numeric values to numerics
     meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
-    meta_dict['instrument_depth'] = float(meta_dict['instrument_depth'])
-    meta_dict['latitude'] = float(meta_dict['latitude'])
-    meta_dict['longitude'] = float(meta_dict['longitude'])
-    meta_dict['water_depth'] = float(meta_dict['water_depth'])
-    if 'magnetic_variation' in meta_dict:
-        meta_dict['magnetic_variation'] = float(meta_dict['magnetic_variation'])
-    else:
-        pass
-        #meta_dict['magnetic_variation'] = float(magnetic_variation)
+    
+    for key in ['instrument_depth', 'latitude', 'longitude', 'water_depth', 'magnetic_variation']:
+        meta_dict[key] = float(meta_dict[key])
 
     # Add leading zero to serial numbers that have 3 digits
     if len(str(meta_dict['serialNumber'])) == 3:
@@ -835,7 +909,6 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Orientation code from Eric Firing
     # Orientation values such as 65535 and 231 cause SysCfg().up to generate an IndexError: list index out of range
-    # Such values include 65535 and 231
     try:
         orientations = [SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
         meta_dict['orientation'] = mean_orientation(orientations)
@@ -857,7 +930,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Set up dimensions and variables
 
-    time_s, time_DTUT8601 = convert_time_var(vel.dday, meta_dict)
+    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs, meta_dict)
 
     # Distance dimension
     distance = np.round(vel.dep.data, decimals=2)
@@ -868,7 +941,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     sound_speed = np.float32(vel.VL['SoundSpeed'])
 
     # Convert pressure
-    pressure = assign_pres(vel, meta_dict, meta_dict)
+    pressure = assign_pres(vel_var=vel, metadata_dict=meta_dict)
     
     # Depth
 
@@ -904,69 +977,32 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         meta_dict['coord_system'] = 'enu'
 
     # Correct magnetic declination in velocities
-    # meta_dict['magnetic_variation'] = magnetic_variation
-    LCEWAP01, LCNSAP01 = correct_true_north(meta_dict['magnetic_variation'], vel1.data, vel2.data)
-    meta_dict['processing_history'] += " Magnetic variation, using average applied; declination = {}.".format(
-        str(meta_dict['magnetic_variation']))
+    LCEWAP01, LCNSAP01 = correct_true_north(vel1.data, vel2.data, meta_dict)
 
-    # Flag velocity data based on cut_lead_ensembles and cut_trail_ensembles
+    # Flag data based on cut_lead_ensembles and cut_trail_ensembles
 
     # Set start and end indices
     e1 = int(meta_dict['cut_lead_ensembles'])  # "ensemble 1"
     e2 = int(meta_dict['cut_trail_ensembles'])  # "ensemble 2"
 
-    # Create QC variables containing flag arrays
-    LCEWAP01_QC = np.zeros(shape=LCEWAP01.shape, dtype='float32')
-    LCNSAP01_QC = np.zeros(shape=LCNSAP01.shape, dtype='float32')
-    LRZAAP01_QC = np.zeros(shape=vel3.data.shape, dtype='float32')
-    PRESPR01_QC = np.zeros(shape=pressure.shape, dtype='float32')
-    
     # Flag measurements from before deployment and after recovery using e1 and e2
-    for qc in [LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC]:
-        # 0=no_quality_control, 4=value_seems_erroneous
-        for bin_num in range(data.NCells):
-            qc[:e1, bin_num] = 4
-            if e2 != 0:
-                qc[-e2:, bin_num] = 4  # if e2==0, the slice [-0:] would index the whole array
-
-    PRESPR01_QC[:e1] = 4
-    if e2!= 0:
-        PRESPR01_QC[-e2:] = 4
+        
+    PRESPR01_QC = flag_pressure(pres=pressure, ens1=e1, ens2=e2, metadata_dict=meta_dict)
     
-    # Flag negative pressure values
-    for i in range(len(pressure)):
-        if pressure[i] < 0:
-            PRESPR01_QC[i] = 4  #"bad_data"
-    
-    # Apply the flags to the data and set bad data to NAs
-    LCEWAP01[LCEWAP01_QC == 4] = np.nan
-    LCNSAP01[LCNSAP01_QC == 4] = np.nan
-    vel3.data[LRZAAP01_QC == 4] = np.nan
-    pressure[PRESPR01_QC == 4] = np.nan
-    meta_dict['processing_history'] += " Quality control flags set based on SeaDataNet flag scheme from BODC."
-    meta_dict['processing_history'] += " Negative pressure values flagged as \"bad_data\" and set to nan\'s."
+    LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC = flag_velocity(LCEWAP01, LCNSAP01, vel3.data, e1, e2, data.NCells)
 
     # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
-    depth[:e1] = np.nan
-    vel.temperature[:e1] = np.nan
-    vel.pitch[:e1] = np.nan
-    vel.roll[:e1] = np.nan
-    vel.heading[:e1] = np.nan
-    sound_speed[:e1] = np.nan
-    if e2 != 0:
-        depth[-e2:] = np.nan
-        vel.temperature[-e2:] = np.nan
-        vel.pitch[-e2:] = np.nan
-        vel.roll[-e2:] = np.nan
-        vel.heading[-e2:] = np.nan
-        sound_speed[-e2:] = np.nan
+    for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
+        variable[:e1] = np.nan
+        if e2 != 0:
+            variable[-e2:] = np.nan
 
-        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
-                                           "deployment ({} UTC) and recovery ({} UTC) " \
-                                           "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
-    else:
-        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
-                                           "deployment ({} UTC) time.".format(time_DTUT8601[e1])
+            meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
+                                               "deployment ({} UTC) and recovery ({} UTC) " \
+                                               "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
+        else:
+            meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and sound_speed limited by " \
+                                               "deployment ({} UTC) time.".format(time_DTUT8601[e1])
 
     meta_dict['processing_history'] += ' Level 1 processing was performed on the dataset. This entailed corrections for magnetic ' \
                                        'declination based on an average of the dataset and cleaning of the beginning and end of ' \
