@@ -57,6 +57,13 @@ def write_file(nc):
     nc.PTCHGP01.attrs["units"]
     nan = -99
 
+    # Test if the PCGPAP00-4 variables exist
+    flag_pg = 0
+    try:
+        print(nc.PCGDAP00.data_max)
+    except AttributeError:
+        flag_pg = 1
+
     print("*FILE")
     print("    " + '{:20}'.format('START TIME') + ": UTC " + start_time)
     print("    " + '{:20}'.format('END TIME') + ": UTC " + end_time)
@@ -121,43 +128,76 @@ def write_file(nc):
     print('{:>8}'.format('17') + " " + '{:35}'.format(nc.CMAGZZ04.long_name.title()) + '{:15}'.format(
         nc.CMAGZZ04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ04.attrs["data_min"]) + '{:>17}'.format(
         '%.6E' % nc.CMAGZZ04.attrs["data_max"]))
-    print('{:>8}'.format('18') + " " + '{:35}'.format(nc.PCGDAP00.long_name.title()) + '{:15}'.format(
-        nc.PCGDAP00.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP00.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.PCGDAP00.attrs["data_max"]))
-    print('{:>8}'.format('19') + " " + '{:35}'.format(nc.PCGDAP02.long_name.title()) + '{:15}'.format(
-        nc.PCGDAP02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP02.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.PCGDAP02.attrs["data_max"]))
-    print('{:>8}'.format('20') + " " + '{:35}'.format(nc.PCGDAP03.long_name.title()) + '{:15}'.format(
-        nc.PCGDAP03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP03.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.PCGDAP03.attrs["data_max"]))
-    print('{:>8}'.format('21') + " " + '{:35}'.format(nc.PCGDAP04.long_name.title()) + '{:15}'.format(
-        nc.PCGDAP04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP04.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.PCGDAP04.attrs["data_max"]))
-    print('{:>8}'.format('22') + " " + '{:35}'.format(nc.PTCHGP01.long_name.title()) + '{:15}'.format(
+    if flag_pg == 1:
+        print('{:>8}'.format('18') + " " + '{:35}'.format(nc.PTCHGP01.long_name.title()) + '{:15}'.format(
         nc.PTCHGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PTCHGP01.attrs["data_min"]) + '{:>17}'.format(
         '%.6E' % nc.PTCHGP01.attrs["data_max"]))
-    print('{:>8}'.format('23') + " " + '{:35}'.format(nc.HEADCM01.long_name.title()) + '{:15}'.format(
-        nc.HEADCM01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.HEADCM01.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.HEADCM01.attrs["data_max"]))
-    print('{:>8}'.format('24') + " " + '{:35}'.format(nc.ROLLGP01.long_name.title()) + '{:15}'.format(
-        nc.ROLLGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.ROLLGP01.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.ROLLGP01.attrs["data_max"]))
-    print('{:>8}'.format('25') + " " + '{:35}'.format(nc.TEMPPR01.long_name.title()) + '{:15}'.format(
-        nc.TEMPPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TEMPPR01.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.TEMPPR01.attrs["data_max"]))
-    print('{:>8}'.format('26') + " " + '{:35}'.format(nc.DISTTRAN.long_name.title()) + '{:15}'.format(
-        nc.DISTTRAN.attrs["units"]) + '{:>17}'.format('%.6E' % nc.DISTTRAN.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.DISTTRAN.attrs["data_max"]))
-    print('{:>8}'.format('27') + " " + '{:35}'.format(nc.PPSAADCP.long_name.title()) + '{:15}'.format(
-        nc.PPSAADCP.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PPSAADCP.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.PPSAADCP.attrs["data_max"]))
-    # print('{:>8}'.format('27') + " " + '{:35}'.format(nc.DEPFP01.long_name.title()) + '{:15}'.format(nc.DEPFP01.attrs["units"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_min"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_max"]))
-    print('{:>8}'.format('28') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
-        nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.PRESPR01.attrs["data_max"]))
-    print('{:>8}'.format('29') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
-        nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
-        '%.6E' % nc.SVELCV01.attrs["data_max"]))
+        print('{:>8}'.format('19') + " " + '{:35}'.format(nc.HEADCM01.long_name.title()) + '{:15}'.format(
+            nc.HEADCM01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.HEADCM01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.HEADCM01.attrs["data_max"]))
+        print('{:>8}'.format('20') + " " + '{:35}'.format(nc.ROLLGP01.long_name.title()) + '{:15}'.format(
+            nc.ROLLGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.ROLLGP01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.ROLLGP01.attrs["data_max"]))
+        print('{:>8}'.format('21') + " " + '{:35}'.format(nc.TEMPPR01.long_name.title()) + '{:15}'.format(
+            nc.TEMPPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TEMPPR01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.TEMPPR01.attrs["data_max"]))
+        print('{:>8}'.format('22') + " " + '{:35}'.format(nc.DISTTRAN.long_name.title()) + '{:15}'.format(
+            nc.DISTTRAN.attrs["units"]) + '{:>17}'.format('%.6E' % nc.DISTTRAN.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.DISTTRAN.attrs["data_max"]))
+        print('{:>8}'.format('23') + " " + '{:35}'.format(nc.PPSAADCP.long_name.title()) + '{:15}'.format(
+            nc.PPSAADCP.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PPSAADCP.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PPSAADCP.attrs["data_max"]))
+        # print('{:>8}'.format('27') + " " + '{:35}'.format(nc.DEPFP01.long_name.title()) + '{:15}'.format(nc.DEPFP01.attrs["units"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_min"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_max"]))
+        print('{:>8}'.format('24') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
+            nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PRESPR01.attrs["data_max"]))
+        print('{:>8}'.format('25') + " " + '{:35}'.format(nc.PRESPR01_QC.long_name.title()) + '{:15}'.format(
+            ' ') + '{:>17}'.format('%.6E' % nc.PRESPR01_QC.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PRESPR01_QC.attrs["data_max"]))
+        print('{:>8}'.format('26') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
+            nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.SVELCV01.attrs["data_max"]))
+    else:
+        print('{:>8}'.format('18') + " " + '{:35}'.format(nc.PCGDAP00.long_name.title()) + '{:15}'.format(
+            nc.PCGDAP00.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP00.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PCGDAP00.attrs["data_max"]))
+        print('{:>8}'.format('19') + " " + '{:35}'.format(nc.PCGDAP02.long_name.title()) + '{:15}'.format(
+            nc.PCGDAP02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP02.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PCGDAP02.attrs["data_max"]))
+        print('{:>8}'.format('20') + " " + '{:35}'.format(nc.PCGDAP03.long_name.title()) + '{:15}'.format(
+            nc.PCGDAP03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP03.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PCGDAP03.attrs["data_max"]))
+        print('{:>8}'.format('21') + " " + '{:35}'.format(nc.PCGDAP04.long_name.title()) + '{:15}'.format(
+            nc.PCGDAP04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP04.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PCGDAP04.attrs["data_max"]))
+        print('{:>8}'.format('22') + " " + '{:35}'.format(nc.PTCHGP01.long_name.title()) + '{:15}'.format(
+            nc.PTCHGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PTCHGP01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PTCHGP01.attrs["data_max"]))
+        print('{:>8}'.format('23') + " " + '{:35}'.format(nc.HEADCM01.long_name.title()) + '{:15}'.format(
+            nc.HEADCM01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.HEADCM01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.HEADCM01.attrs["data_max"]))
+        print('{:>8}'.format('24') + " " + '{:35}'.format(nc.ROLLGP01.long_name.title()) + '{:15}'.format(
+            nc.ROLLGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.ROLLGP01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.ROLLGP01.attrs["data_max"]))
+        print('{:>8}'.format('25') + " " + '{:35}'.format(nc.TEMPPR01.long_name.title()) + '{:15}'.format(
+            nc.TEMPPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TEMPPR01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.TEMPPR01.attrs["data_max"]))
+        print('{:>8}'.format('26') + " " + '{:35}'.format(nc.DISTTRAN.long_name.title()) + '{:15}'.format(
+            nc.DISTTRAN.attrs["units"]) + '{:>17}'.format('%.6E' % nc.DISTTRAN.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.DISTTRAN.attrs["data_max"]))
+        print('{:>8}'.format('27') + " " + '{:35}'.format(nc.PPSAADCP.long_name.title()) + '{:15}'.format(
+            nc.PPSAADCP.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PPSAADCP.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PPSAADCP.attrs["data_max"]))
+        # print('{:>8}'.format('27') + " " + '{:35}'.format(nc.DEPFP01.long_name.title()) + '{:15}'.format(nc.DEPFP01.attrs["units"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_min"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_max"]))
+        print('{:>8}'.format('28') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
+            nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PRESPR01.attrs["data_max"]))
+        print('{:>8}'.format('29') + " " + '{:35}'.format(nc.PRESPR01_QC.long_name.title()) + '{:15}'.format(
+            ' ') + '{:>17}'.format('%.6E' % nc.PRESPR01_QC.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.PRESPR01_QC.attrs["data_max"]))
+        print('{:>8}'.format('30') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
+            nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
+            '%.6E' % nc.SVELCV01.attrs["data_max"]))
 
     # Add in table of Channel summary
     print('{:>8}'.format('$END'))
@@ -507,8 +547,8 @@ def write_history(nc, f_name):
     process_1 = "ADCP2NC "
     process_1_ver = str(nc.attrs["pred_accuracy"])
     date_time_1 = nc.attrs["date_modified"]
-    # Recs_in_1 =  Hana??
-    Recs_in_1 = " "
+    digits_in_process_hist = [int(s) for s in nc.attrs['processing_history'].split() if s.isdigit()] #H.Hourston May 27, 2020
+    Recs_in_1 = str(digits_in_process_hist[-2] + digits_in_process_hist[-1] + nc.coords["time"].size)
     Recs_out_1 = str(nc.coords["time"].size)
     process_2 = "NC2IOS "
     process_2_ver = "1.0"
@@ -569,5 +609,5 @@ def main_header(f):
 
 
 # Input
-in_file = 'C:/Users/GuanL/Desktop//Projects/ADCP/bp1_20180819_20190802_0104m.adcp.L1.nc'
+in_file = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
 main_header(f=in_file)
