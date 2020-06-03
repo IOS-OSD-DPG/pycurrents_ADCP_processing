@@ -40,7 +40,7 @@ Level 1 (L1) processing comprises:
 *ADCP_pycurrents_L1.py* uses the `pycurrents` package to open a raw ADCP file in Python and export it in netCDF file format. The script also uses a .csv metadata file for the raw ADCP file whose contents are combined with the raw data in the netCDF file, so that the netCDF file is self-describing. This metadata file is filled out by the user and a template can be found at https://github.com/hhourston/ADCP_processing_visualization/tree/master/ADCP_metadata_template. 
 
 ## Credits
-*ADCP_pycurrents_L1.py* is based off of the gist, *RdiToNetcdf.ipynb*, by Jody Klymak (https://github.com/jklymak), and includes contributions from Di Wan (https://github.com/onedwd) and Eric Firing (https://github.com/efiring). *add_var2nc.py* was written by Di Wan. 
+*ADCP_pycurrents_L1.py* is based off of the gist, *RdiToNetcdf.ipynb*, by Jody Klymak (https://github.com/jklymak), and includes contributions from Di Wan (https://github.com/onedwd) and Eric Firing (https://github.com/efiring). *add_var2nc.py* was written by Di Wan. *ADCP_IOS_Header_file.py* was written by Lu Guan (https://github.com/guanlu129).
 
 ## Helpful links
 Documentation:
