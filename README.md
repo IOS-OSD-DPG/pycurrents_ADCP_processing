@@ -48,7 +48,7 @@ Documentation:
 * `ncdf4` documentation: https://cran.r-project.org/web/packages/ncdf4/ncdf4.pdf
 * netCDF documentation: https://www.unidata.ucar.edu/software/netcdf/docs/index.html 
 * RDI Ocean Surveyor technical manual: http://www.teledynemarine.com/Documents/Brand%20Support/RD%20INSTRUMENTS/Technical%20Resources/Manuals%20and%20Guides/Ocean%20Surveyor_Observer/Ocean%20Surveyor%20Technical%20Manual_Apr18.pdf
-    * Raw data variable terminology starts on page 148; `pycurrents` outputs variables following these names
+    * Raw data variable terminology starts on page 148; `pycurrents` outputs variables with these names
 
 Conventions:
 * BODC SeaDataNet quality flags: https://www.bodc.ac.uk/data/documents/series/37006/#QCflags
