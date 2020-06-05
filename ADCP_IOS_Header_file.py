@@ -269,6 +269,7 @@ def write_file(nc):
 
     # Add in table of Channel detail summary
     print('{:>8}'.format('$END'))
+    print()
 
 
 # define function to write administation section
@@ -341,6 +342,7 @@ def write_location(nc):
     print("    " + '{:20}'.format('LONGITUDE') + ": " + lon_string + "  ! (deg min)")
     print("    " + '{:20}'.format('WATER DEPTH') + ": " + str(water_depth))
     print("    " + '{:20}'.format('MAGNETIC DECLINATION') + ": " + str(mag_declination))
+    print()
 
 
 # define function to write deployment & recovery info
@@ -376,6 +378,7 @@ def write_deployment_recovery(nc):
         print("    " + '{:20}'.format('TIME ANCHOR RELEASED') + ": " + anchor_release_time)
     else:
         print("    " + '{:20}'.format('TIME ANCHOR RELEASED') + ": UTC " + anchor_release_time + ".000")
+    print()
 
 
 
@@ -407,6 +410,7 @@ def write_instrument(nc):
     print("    $REMARKS")
     print("        Instrument depth in meters.")
     print("    $END")
+    print()
 
 
 # define function to find out time increment
@@ -540,6 +544,7 @@ def write_raw(nc):
         print('{:>14}'.format(Bin_depth))
 
     print("    $END")
+    print()
 
 
 # define function to write raw info
