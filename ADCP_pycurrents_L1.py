@@ -278,7 +278,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, 
     # all velocities have many of the same attribute values, but not all, so each velocity is done separately
     var = out_obj.LCEWAP01   
     var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm/sec'
+    var.attrs['units'] = 'm/s'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'eastward_sea_water_velocity'
     var.attrs['ancillary_variables'] = 'LCEWAP01_QC'
@@ -303,7 +303,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, 
     # LCNSAP01: northward velocity (vel2)
     var = out_obj.LCNSAP01
     var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm/sec'
+    var.attrs['units'] = 'm/s'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'northward_sea_water_velocity'
     var.attrs['ancillary_variables'] = 'LCNSAP01_QC'
@@ -328,7 +328,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, 
     # LRZAAP01: vertical velocity (vel3)
     var = out_obj.LRZAAP01
     var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm/sec'
+    var.attrs['units'] = 'm/s'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'upward_sea_water_velocity'
     var.attrs['ancillary_variables'] = 'LRZAAP01_QC'
@@ -353,7 +353,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, 
     # LERRAP01: error velocity (vel4)
     var = out_obj.LERRAP01
     var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm/sec'
+    var.attrs['units'] = 'm/s'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'error_velocity_in_sea_water'
     var.attrs['sensor_type'] = 'adcp'
@@ -722,7 +722,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, 
     # SVELCV01: sound velocity
     var = out_obj.SVELCV01
     var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm/sec'
+    var.attrs['units'] = 'm/s'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'speed of sound'
     var.attrs['sensor_type'] = 'adcp'
@@ -814,7 +814,7 @@ def add_attrs2_vars(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, 
     if metadata_dict['model'] == 'sv':
         var = out_obj.VB_VELCTY
         var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'm/sec'
+        var.attrs['units'] = 'm/s'
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'vertical_beam_sea_water_velocity'
         var.attrs['ancillary_variables'] = 'VB_VELCTY_QC'
@@ -1269,7 +1269,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper()  # netCDF4 file format doesn't support bool
     out.attrs['valid_correlation_range'] = vel.FL['LowCorrThresh']  # lowCorrThresh
     out.attrs['minmax_percent_good'] = "100"  # hardcoded in oceNc_create()
-    out.attrs['error_velocity_threshold'] = "2000 m/sec"
+    out.attrs['error_velocity_threshold'] = "2000 m/s"
     out.attrs['false_target_reject_values'] = 50  # falseTargetThresh
     out.attrs['data_type'] = "adcp"
     out.attrs['pred_accuracy'] = 1  # velocityResolution * 1000
