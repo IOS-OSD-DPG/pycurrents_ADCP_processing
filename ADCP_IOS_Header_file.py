@@ -13,10 +13,11 @@ from datetime import datetime
 from datetime import timedelta
 from decimal import Decimal
 
-
 ## File Section+_updated
-# define function to find out time increment
+
+
 def convert_timedelta(duration):
+    # define function to find out time increment
     days, seconds = duration.days, duration.seconds
     hours = days * 24 + seconds // 3600
     minutes = (seconds % 3600) // 60
@@ -25,8 +26,8 @@ def convert_timedelta(duration):
     return str(days) + " " + str(hours) + " " + str(minutes) + " " + str(seconds) + " " + str(m_seconds)
 
 
-# define function to find out time units
 def unit(duration):
+    # define function to find out time units
     days, seconds = duration.days, duration.seconds
     if days != 0:
         time_units = "Days"
@@ -42,8 +43,8 @@ def unit(duration):
     return time_units
 
 
-# define function to write file section
 def write_file(nc):
+    # define function to write file section
     start_time = pd.to_datetime(nc.coords["time"].values[1]).strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
     end_time = pd.to_datetime(nc.coords["time"].values[-1]).strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
     time_increment_2 = nc.coords["time"].values[2].astype('M8[ms]').astype('O')
@@ -272,8 +273,8 @@ def write_file(nc):
     print()
 
 
-# define function to write administation section
 def write_admin(nc):
+    # define function to write administration section
     agency = nc.attrs["agency"]
     country = nc.attrs["country"]
     project = nc.attrs["project"]
@@ -288,22 +289,20 @@ def write_admin(nc):
     print()
 
 
-# define function to write administation section
-
-# Function to convert decimal defree to degree & minuts
-def decimalDegrees2DMS(value, type):
+def decimalDegrees2DMS(value, lon_or_lat):
+    # Function to convert decimal degree to degree & minutes
     degrees = int(value)
     submin = abs((Decimal(str(value)) - int(Decimal(str(value)))) * 60)
     minutes = str(submin)
     direction = ""
-    if type == "Longitude":
+    if lon_or_lat == "Longitude":
         if degrees < 0:
             direction = "W"
         elif degrees > 0:
             direction = "E"
         else:
             direction = ""
-    elif type == "Latitude":
+    elif lon_or_lat == "Latitude":
         if degrees < 0:
             direction = "S"
         elif degrees > 0:
@@ -323,6 +322,7 @@ def decimalDegrees2DMS(value, type):
 
 
 def write_location(nc):
+    # Function to define geographic location
     geo_area = str(nc.geographic_area.values)
     station = nc.attrs["station"]
     lat = nc.attrs["latitude"]
@@ -345,8 +345,8 @@ def write_location(nc):
     print()
 
 
-# define function to write deployment & recovery info
 def write_deployment_recovery(nc):
+    # define function to write deployment & recovery info
     mission_deployment = nc.attrs["deployment_cruise_number"]
     deployment_type = nc.attrs["deployment_type"]
     if type(nc.attrs["anchor_drop_time"]) == str:
@@ -359,7 +359,6 @@ def write_deployment_recovery(nc):
         anchor_release_time = nc.attrs["anchor_release_time"]
     else:
         anchor_release_time = nc.attrs["anchor_release_time"][:-4]
-
 
     print("*DEPLOYMENT")
     print("    " + '{:20}'.format('MISSION') + ": " + mission_deployment)
@@ -381,9 +380,8 @@ def write_deployment_recovery(nc):
     print()
 
 
-
-# define function to write instrument info
 def write_instrument(nc):
+    # define function to write instrument info
     data_type = nc.attrs["data_type"].upper()
     model = nc.attrs["instrumentSubtype"] + "-" + nc.attrs["instrumentType"]
     if hasattr(nc, 'serial_number'):
@@ -413,8 +411,8 @@ def write_instrument(nc):
     print()
 
 
-# define function to find out time increment
 def convert_timedelta(duration):
+    # define function to find out time increment
     days, seconds = duration.days, duration.seconds
     hours = days * 24 + seconds // 3600
     minutes = (seconds % 3600) // 60
@@ -423,8 +421,8 @@ def convert_timedelta(duration):
     return str(days) + " " + str(hours) + " " + str(minutes) + " " + str(seconds) + " " + str(m_seconds)
 
 
-# define function to write raw info
 def write_raw(nc):
+    # define function to write raw info
     time_start = str(nc.coords["time"].values[0].astype('M8[s]')).replace("T", " ")
     time_first_good = nc.attrs["time_coverage_start"][:-4]
     time_end = nc.attrs["time_coverage_end"][:-4]
@@ -488,7 +486,8 @@ def write_raw(nc):
     print("    " + '{:20}'.format('NUMBER OF RECORDS') + ": " + number_records)
     print("    $REMARKS")
     print("        " + "The data and following metadata were extracted from the raw ADCP binary file using")
-    print("        " + "R script provided by Emily Chisholm to perform the processing and netCDF file output")
+    #print("        " + "R script provided by Emily Chisholm to perform the processing and netCDF file output")
+    print("        " + "a Python script adapted from Jody Klymak to perform the processing and netCDF file output")
     print()
     print("        " + '{:29}'.format('name:') + name)
     print("        " + '{:29}'.format('sourceprog:') + sourceprog)
@@ -547,8 +546,8 @@ def write_raw(nc):
     print()
 
 
-# define function to write raw info
 def write_history(nc, f_name):
+    # define function to write raw info
     process_1 = "ADCP2NC "
     process_1_ver = str(nc.attrs["pred_accuracy"])
     date_time_1 = nc.attrs["date_modified"]
@@ -578,7 +577,7 @@ def write_history(nc, f_name):
         print("         " + nc.history.split(". ")[i] + ".")
         # print("         " + nc.processing_history.split(". ")[i] + ".")
     # print("         " + '{:100}'.format(nc.history.split(". ")[i]))
-    # adding more processing content, check withe Hana
+    # adding more processing content, check with Hana
     print("        -" + process_2 + " processing: " + date_time_2)
     print("         " + "NetCDF file converted to IOSShell format.")
 

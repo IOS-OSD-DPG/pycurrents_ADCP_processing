@@ -1,8 +1,6 @@
 # pycurrents_ADCP_processing
 
-For processing raw ADCP data in Python using the UHDAS `pycurrents` package (https://currents.soest.hawaii.edu/docs/adcp_doc/codas_setup/index.html).
-
-*ADCP_pycurrents_L1.py* is based off of Jody Klymak's script (https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09). This version contains changes to variable names (following BODC conventions); addition of variables, variable and global attributes, and minimal, "level 1" processing.  
+For performing "level 1" processing raw ADCP data in Python using the UHDAS `pycurrents` package (https://currents.soest.hawaii.edu/docs/adcp_doc/codas_setup/index.html).
 
 Level 1 (L1) processing comprises:
 * Corrections for magnetic declination
@@ -25,7 +23,7 @@ Level 1 (L1) processing comprises:
 4. Install required packages:  
         `conda install numpy scipy pip pandas netCDF4 xarray gsw`  
         `pip install datetime`  
-5. Clone pycurrents:  
+5. Clone pycurrents with Mercurial:  
         `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`  
 6. Install pycurrents:  
         `pip install -e ./pycurrents`  
@@ -34,7 +32,7 @@ Level 1 (L1) processing comprises:
 
 ### Pre-requisites
 * Linux (or Unix-like) environment
-* Python 2.7
+* Python 3.7
 
 ## Usage
 *ADCP_pycurrents_L1.py* uses the `pycurrents` package to open a raw ADCP file in Python and export it in netCDF file format. The script also uses a .csv metadata file for the raw ADCP file whose contents are combined with the raw data in the netCDF file, so that the netCDF file is self-describing. This metadata file is filled out by the user and a template can be found at https://github.com/hhourston/ADCP_processing_visualization/tree/master/ADCP_metadata_template. 
