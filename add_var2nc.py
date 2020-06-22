@@ -39,9 +39,11 @@ def get_files(archive_dir):
         print(profile)
         add_geo(profile)
 
-# directory for all the netcdf ADCP files
-archive_dir_test = './ncdata/'
 
-# Add geographic areas to the ncfile
-get_files(archive_dir_test)
+def example_usage_geo():
+    # directory for all the netcdf ADCP files
+    archive_dir_test = './ncdata/'
+
+    # Add geographic areas to the ncfile
+    get_files(archive_dir_test)
 
