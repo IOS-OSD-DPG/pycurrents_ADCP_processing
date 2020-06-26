@@ -1,6 +1,6 @@
 # pycurrents_ADCP_processing
 
-For performing "level 1" processing raw ADCP data in Python using the UHDAS `pycurrents` package.
+For performing "level 1" processing raw moored ADCP data in Python using the UHDAS `pycurrents` package.
 
 Level 1 (L1) processing comprises:
 * Corrections for magnetic declination
