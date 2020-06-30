@@ -220,12 +220,13 @@ def flag_pressure(pres, ens1, ens2, metadata_dict):
 
 def flag_velocity(ens1, ens2, number_of_cells, v1, v2, v3, v5=None):
     # Create QC variables containing flag arrays
-    # v1: Eastward velocity with magnetic declination applied
-    # v2: Northward velocity with magnetic declination applied
-    # v3: Upwards velocity
     # ens1: number of leading bad ensembles from before instrument deployment; int type
     # ens2: number of trailing bad ensembles from after instrument deployment; int type
     # number_of_cells: number of bins
+    # v1: Eastward velocity with magnetic declination applied
+    # v2: Northward velocity with magnetic declination applied
+    # v3: Upwards velocity
+    # v5: Upwards velocity from Sentinel V vertical beam; only for Sentinel V instruments
 
     LCEWAP01_QC_var = np.zeros(shape=v1.shape, dtype='float32')
     LCNSAP01_QC_var = np.zeros(shape=v2.shape, dtype='float32')
@@ -247,13 +248,13 @@ def flag_velocity(ens1, ens2, number_of_cells, v1, v2, v3, v5=None):
     if v5 is None:
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
     else:
-        VB_VELCTY_QC_var = np.zeros(shape=v5.shape, dtype='float32')
+        LRZUVP01_QC_var = np.zeros(shape=v5.shape, dtype='float32')
         for bin_num in range(number_of_cells):
-            VB_VELCTY_QC_var[:ens1, bin_num] = 4
+            LRZUVP01_QC_var[:ens1, bin_num] = 4
             if ens2 != 0:
-                VB_VELCTY_QC_var[-ens2:, bin_num] = 4
+                LRZUVP01_QC_var[-ens2:, bin_num] = 4
 
-        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, VB_VELCTY_QC_var
+        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, LRZUVP01_QC_var
 
 
 def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, pg_flag, vb_pg_flag):
@@ -388,8 +389,8 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
     var.attrs['flag_values'] = metadata_dict['flag_values']
     var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.nanmax(var.data)
-    var.attrs['data_min'] = np.nanmin(var.data)
+    var.attrs['data_max'] = np.max(var.data)
+    var.attrs['data_min'] = np.min(var.data)
     
     var = out_obj.LCNSAP01_QC
     var.encoding['dtype'] = 'int'
@@ -399,8 +400,8 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
     var.attrs['flag_values'] = metadata_dict['flag_values']
     var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.nanmax(var.data)
-    var.attrs['data_min'] = np.nanmin(var.data)
+    var.attrs['data_max'] = np.max(var.data)
+    var.attrs['data_min'] = np.min(var.data)
 
     var = out_obj.LRZAAP01_QC
     var.encoding['dtype'] = 'int'
@@ -410,8 +411,8 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
     var.attrs['flag_values'] = metadata_dict['flag_values']
     var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.nanmax(var.data)
-    var.attrs['data_min'] = np.nanmin(var.data)
+    var.attrs['data_max'] = np.max(var.data)
+    var.attrs['data_min'] = np.min(var.data)
 
     # ELTMEP01: seconds since 1970
     var = out_obj.ELTMEP01
@@ -822,16 +823,16 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
 
     # Add Vertical Beam variable attrs for Sentinel V instruments
     if metadata_dict['model'] == 'sv':
-        var = out_obj.VB_VELCTY
+        var = out_obj.LRZUVP01
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'm s-1'
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'upward_sea_water_velocity_by_vertical_beam'
-        var.attrs['ancillary_variables'] = 'VB_VELCTY_QC'
+        var.attrs['ancillary_variables'] = 'LRZUVP01_QC'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
-        #var.attrs['generic_name'] = ''
+        var.attrs['generic_name'] = 'vv'
         var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
         var.attrs['flag_values'] = metadata_dict['flag_values']
         var.attrs['References'] = metadata_dict['flag_references']
@@ -843,16 +844,16 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['valid_max'] = uvw_vel_max
         var.attrs['valid_min'] = uvw_vel_min
 
-        var = out_obj.VB_VELCTY_QC
+        var = out_obj.LRZUVP01_QC
         var.encoding['dtype'] = 'int'
         var.attrs['_FillValue'] = 0
-        var.attrs['long_name'] = 'quality flag for VB_VELCTY'
+        var.attrs['long_name'] = 'quality flag for LRZUVP01'
         var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
         var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
         var.attrs['flag_values'] = metadata_dict['flag_values']
         var.attrs['References'] = metadata_dict['flag_references']
-        var.attrs['data_max'] = np.nanmax(var.data)
-        var.attrs['data_min'] = np.nanmin(var.data)
+        var.attrs['data_max'] = np.max(var.data)
+        var.attrs['data_min'] = np.min(var.data)
 
         var = out_obj.TNIHCE05
         var.encoding['dtype'] = 'float32'
@@ -1126,9 +1127,9 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC = flag_velocity(e1, e2, data.NCells, LCEWAP01, LCNSAP01,
                                                               vel3)
     else:
-        LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC, VB_VELCTY_QC = flag_velocity(e1, e2, data.NCells, LCEWAP01,
-                                                                            LCNSAP01, vel3,
-                                                                            vb_vel.vb_vel.data)
+        LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC, LRZUVP01_QC = flag_velocity(e1, e2, data.NCells, LCEWAP01,
+                                                                           LCNSAP01, vel3,
+                                                                           vb_vel.vb_vel.data)
 
     # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
     for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
@@ -1200,7 +1201,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         out = out.assign(PCGDAP04=(('distance', 'time'), pg.pg4.transpose()))
 
     if meta_dict['model'] == 'sv':
-        out = out.assign(VB_VELCTY=(('distance', 'time'), vb_vel.vb_vel.data.transpose()))
+        out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vb_vel.data.transpose()))
+        out = out.assign(LRZUVP01_QC=(('distance', 'time'), LRZUVP01_QC.transpose()))
         out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
         out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.VBCorrelation.transpose()))
         if flag_vb_pg == 0:
