@@ -11,21 +11,26 @@ from shapely.geometry import Point
 
 
 def add_geo(ncfile):
-   
+    # Function returns full path of the netCDF file it creates
     data_xr = xr.open_dataset(ncfile)
     lon = data_xr.ALONZZ01
     lat = data_xr.ALATZZ01
 
     data_xr.attrs['_FillValue'] = 1e35
     # Geojson definitions for IOS
-    
+
     json_file = './pyutils/ios_polygons.geojson'
     polygons_dict = utils.read_geojson(json_file)
     data_xr['geographic_area'] = utils.find_geographic_area(polygons_dict, Point(lon, lat))
     print(utils.find_geographic_area(polygons_dict, Point(lon, lat)))
     print(ncfile)
-    print('New file is located at: ', './newnc/' + ncfile[9::])
-    data_xr.to_netcdf('./newnc/' + ncfile[9::])
+    # Create subdir for new netCDF file if one doesn't exist yet
+    if not os.path.exists('./newnc/'):
+        os.makedirs('./newnc/')
+    new_name = './newnc/' + os.path.basename(ncfile)
+    print('New file is located at: ', new_name)
+    data_xr.to_netcdf(new_name)
+    return new_name
 
 
 def get_files(archive_dir):
