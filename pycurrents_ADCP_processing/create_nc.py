@@ -24,9 +24,6 @@ os.chdir('/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/scott1_
 f = './sample_data/a1_20050503_20050504_0221m.000'
 meta = './sample_data/a1_20050503_20050504_0221m_meta_L1.csv'
 
-f = 'scott1_20170706_20170711_0101m.000'
-meta = 'scott1_20170706_20170711_0101m_meta_L1.csv'
-
 # Perform L0 processing on the raw data and export as a netCDF file
 ncname_L0 = ADCP_processing_L0.nc_create_L0(f_adcp=f, f_meta=meta)
 
