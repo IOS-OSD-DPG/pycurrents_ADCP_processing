@@ -1,266 +1,26 @@
 """
 author: Hana Hourston
-date: Jan. 23, 2020
-
-about: This script is adapted from Jody Klymak's at https://gist.github.com/jklymak/b39172bd0f7d008c81e32bf0a72e2f09
-for L1 processing raw ADCP data.
-
-Contributions from: Di Wan, Eric Firing
-
-NOTES:
-# If your raw file came from a NarrowBand instrument, you must also use the create_nc_L1() start_year optional kwarg
-  (int type)
-# If your raw file has time values out of range, you must also use the create_nc_L1() time_file optional kwarg
-# Use the time_file kwarg to read in a csv file containing time entries spanning the range of deployment and using the
-  instrument sampling interval
-
+purpose: For outputting raw ADCP data in netCDF file format, without any kind of processing
+            - Original coordinate system is maintained
+            - No corrections for magnetic declination are made
 """
 
 import os
 import csv
 import numpy as np
 import xarray as xr
-import pandas as pd
 import datetime
 import warnings
-from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime
 from pycurrents.adcp.rdiraw import rawfile
 from pycurrents.adcp.rdiraw import SysCfg
-import pycurrents.adcp.transform as transform
-import gsw
-import add_var2nc
+from pycurrents_ADCP_processing.ADCP_processing_L1 import mean_orientation, convert_time_var, check_depths
+import pycurrents_ADCP_processing.add_var2nc as add_var2nc
 
 
-def mean_orientation(o):
-    # orientation, o, is an array
-    up = 0
-    down = 0
-    for i in range(len(o)):
-        if o[i]:
-            up += 1
-        else:
-            down += 1
-    if up > down:
-        return 'up'
-    elif down > up:
-        return 'down'
-    else:
-        ValueError('Number of \"up\" orientations equals number of \"down\" orientations in data subset')
-
-
-def correct_true_north(measured_east, measured_north, metadata_dict):  # change angle to negative of itself
-    # Di Wan's magnetic declination correction code: Takes 0 DEG from E-W axis
-    # mag_decl: magnetic declination value; float type
-    # measured_east: measured Eastward velocity data; array type
-    # measured_north: measured Northward velocity data; array type
-    angle_rad = -metadata_dict['magnetic_variation'] * np.pi / 180.
-    east_true = measured_east * np.cos(angle_rad) - measured_north * np.sin(angle_rad)
-    north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
-    
-    metadata_dict['processing_history'] += " Magnetic variation, using average applied; " \
-                                           "declination = {}.".format(str(metadata_dict['magnetic_variation']))
-    
-    return east_true, north_true
-
-
-def convert_time_var(time_var, number_of_profiles, metadata_dict, origin_year, time_csv):
-    # Includes exception handling for bad times
-    # time_var: vel.dday; time variable with units in days since the beginning of the year in which measurements 
-    #           started being taken by the instrument
-    # number_of_profiles: the number of profiles (ensembles) recorded by the instrument over the time series
-    # metadata_dict: dictionary object of metadata items
-    
-    # data.yearbase is an integer of the year that the timeseries starts (e.g., 2016)
-    data_origin = pd.Timestamp(str(origin_year) + '-01-01')  # convert to date object
-
-    try:
-        # convert time variable to elapsed time since 1970-01-01T00:00:00Z
-        t_s = np.array(
-            pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
-            dtype='datetime64[s]')
-        # DTUT8601 variable: time strings
-        t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime(
-            '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
-    except OutOfBoundsDatetime or OverflowError:
-        print('Using user-created time range')
-        t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[s]')
-        t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
-        with open(time_csv) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            # Skip headers
-            next(csv_reader, None)
-            for count, row in enumerate(csv_reader):
-                if row[0] == '':
-                    pass
-                else:
-                    t_s[count] = np.datetime64(pd.to_datetime(row[0], utc=True).strftime(
-                        '%Y-%m-%d %H:%M:%S'))
-                    t_DTUT8601[count] = pd.to_datetime(row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
-
-        metadata_dict['processing_history'] += ' OutOfBoundsDateTime exception triggered; used user-generated time range as time data.'
-    
-    return t_s, t_DTUT8601
-
-
-def assign_pres(vel_var, metadata_dict):
-    # Assign pressure and calculate it froms static instrument depth if ADCP missing pressure sensor
-    # vel_var: "vel" variable created from BBWHOS class object, using the command: data.read(varlist=['vel'])
-    # metadata_dict: dictionary object of metadata items
-
-    if metadata_dict['model'] == 'wh' or metadata_dict['model'] == 'os' or metadata_dict['model'] == 'sv':
-        pres = np.array(vel_var.VL['Pressure'] / 1000, dtype='float32')  # convert decapascal to decibars
-
-        # Calculate pressure based on static instrument depth if missing pressure sensor; extra condition added for zero pressure or weird pressure values
-        # Handle no unique modes from statistics.mode(pressure)
-        pressure_unique, counts = np.unique(pres, return_counts=True)
-        index_of_zero = np.where(pressure_unique == 0)
-        print('np.max(counts):', np.max(counts), sep=' ')
-        print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
-        print('serial number:', metadata_dict['serialNumber'])
-
-    # Check if model is type missing pressure sensor or if zero is a mode of pressure
-    if metadata_dict['model'] == 'bb' or metadata_dict['model'] == 'nb' or np.max(counts) == counts[index_of_zero]:
-        p = np.round(gsw.conversions.p_from_z(-metadata_dict['instrument_depth'], metadata_dict['latitude']),
-                     decimals=0)  # depth negative because positive is up for this function
-        pres = np.repeat(p, len(vel_var.vel1.data))
-        metadata_dict['processing_history'] += " Pressure values calculated from static instrument depth ({} m) using " \
-                                               "the TEOS-10 75-term expression for specific volume and rounded to {} " \
-                                               "significant digits.".format(str(metadata_dict['instrument_depth']), str(len(str(p))))
-        warnings.warn('Pressure values calculated from static instrument depth', UserWarning)
-    
-    return pres
-
-
-def check_depths(pres, dist, instr_depth, water_depth):
-    # Check user-entered instrument_depth and compare with pressure values
-    # pres: pressure variable; array type
-    # dist: distance variable (contains distance of each bin from ADCP); array type
-    # instr_depth: depth of the instrument
-    # water_depth: depth of the water
-
-    depths_check = np.mean(pres[:]) - dist
-    inst_depth_check = depths_check[0] + dist[0]
-    abs_difference = np.absolute(inst_depth_check-instr_depth)
-    # Calculate percent difference in relation to total water depth
-    if (abs_difference / water_depth * 100) > 0.05:
-        warnings.warn("Difference between calculated instrument depth and metadata instrument_depth " \
-                      "exceeds 0.05% of the total water depth", UserWarning)
-    return
-
-
-def coordsystem_2enu(vel_var, fixed_leader_var, metadata_dict):
-    # Transforms beam and xyz coordinates to enu coordinates
-    # vel_var: "vel" variable created from BBWHOS class object, using the command: data.read(varlist=['vel'])
-    # fixed_leader_var: "fixed_leader" variable created from BBWHOS class object, using the command: data.read(varlist=['FixedLeader'])
-    # metadata_dict: dictionary object of metadata items
-    # UHDAS transform functions use a three-beam solution by faking a fourth beam
-
-    if vel_var.trans.coordsystem == 'beam':
-        trans = transform.Transform(angle=fixed_leader_var.sysconfig['angle'],
-                                    geometry=metadata_dict['beam_pattern'])  #angle is beam angle
-        xyze = trans.beam_to_xyz(vel_var.vel.data)
-        print(np.shape(xyze))
-        enu = transform.rdi_xyz_enu(xyze, vel_var.heading, vel_var.pitch, vel_var.roll,
-                                    orientation=metadata_dict['orientation'])
-    elif vel_var.trans.coordsystem == 'xyz':
-        print(np.shape(vel_var.vel.data))
-        enu = transform.rdi_xyz_enu(vel_var.vel.data, vel_var.heading, vel_var.pitch, vel_var.roll,
-                                    orientation=metadata_dict['orientation'])
-        print(np.shape(enu))
-    else:
-        ValueError('vel.trans.coordsystem value of {} not recognized. Conversion to enu not available.'.format(
-            vel_var.trans.coordsystem))
-
-    print(np.shape(enu))
-    # Apply change in coordinates to velocities
-    velocity1 = xr.DataArray(enu[:, :, 0], dims=['time', 'distance'])
-    velocity2 = xr.DataArray(enu[:, :, 1], dims=['time', 'distance'])
-    velocity3 = xr.DataArray(enu[:, :, 2], dims=['time', 'distance'])
-    velocity4 = xr.DataArray(enu[:, :, 3], dims=['time', 'distance'])
-
-    # Round each velocity to 3 decimal places to match the original data
-    velocity1.data = np.round(velocity1.data, decimals=3)
-    velocity2.data = np.round(velocity2.data, decimals=3)
-    velocity3.data = np.round(velocity3.data, decimals=3)
-    velocity4.data = np.round(velocity4.data, decimals=3)
-    # Make note in processing_history
-    metadata_dict['processing_history'] += " The coordinate system was rotated from {} to enu " \
-                                           "coordinates.".format(vel_var.trans.coordsystem)
-    vel_var.trans.coordsystem = 'enu'
-    metadata_dict['coord_system'] = 'enu'  # Add item to metadata dictionary for coordinate system
-    print('Coordinate system rotated from {} to enu'.format(vel_var.trans.coordsystem))
-    
-    return velocity1, velocity2, velocity3, velocity4
-
-
-def flag_pressure(pres, ens1, ens2, metadata_dict):
-    # pres: pressure variable; array type
-    # ens1: number of leading bad ensembles from before instrument deployment; int type
-    # ens2: number of trailing bad ensembles from after instrument deployment; int type
-    # metadata_dict: dictionary object of metadata items
-
-    PRESPR01_QC_var = np.zeros(shape=pres.shape, dtype='float32')
-    # 2/2 pressure
-    PRESPR01_QC_var[:ens1] = 4
-    if ens2!= 0:
-        PRESPR01_QC_var[-ens2:] = 4
-
-    # Flag negative pressure values
-    for i in range(len(pres)):
-        if pres[i] < 0:
-            PRESPR01_QC_var[i] = 4  #"bad_data"
-
-    pres[PRESPR01_QC_var == 4] = np.nan
-
-    metadata_dict['processing_history'] += " Quality control flags set based on SeaDataNet flag scheme from BODC."
-    metadata_dict['processing_history'] += " Negative pressure values flagged as \"bad_data\" and set to nan\'s."
-
-    return PRESPR01_QC_var
-
-
-def flag_velocity(ens1, ens2, number_of_cells, v1, v2, v3, v5=None):
-    # Create QC variables containing flag arrays
-    # ens1: number of leading bad ensembles from before instrument deployment; int type
-    # ens2: number of trailing bad ensembles from after instrument deployment; int type
-    # number_of_cells: number of bins
-    # v1: Eastward velocity with magnetic declination applied
-    # v2: Northward velocity with magnetic declination applied
-    # v3: Upwards velocity
-    # v5: Upwards velocity from Sentinel V vertical beam; only for Sentinel V instruments
-
-    LCEWAP01_QC_var = np.zeros(shape=v1.shape, dtype='float32')
-    LCNSAP01_QC_var = np.zeros(shape=v2.shape, dtype='float32')
-    LRZAAP01_QC_var = np.zeros(shape=v3.shape, dtype='float32')
-
-    for qc in [LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var]:
-        # 0=no_quality_control, 4=value_seems_erroneous
-        for bin_num in range(number_of_cells):
-            qc[:ens1, bin_num] = 4
-            if ens2 != 0:
-                qc[-ens2:, bin_num] = 4  # if ens2==0, the slice [-0:] would index the whole array
-
-    # Apply the flags to the data and set bad data to NAs
-    v1[LCEWAP01_QC_var == 4] = np.nan
-    v2[LCNSAP01_QC_var == 4] = np.nan
-    v3[LRZAAP01_QC_var == 4] = np.nan
-
-    # Vertical beam velocity flagging for Sentinel V's
-    if v5 is None:
-        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
-    else:
-        LRZUVP01_QC_var = np.zeros(shape=v5.shape, dtype='float32')
-        for bin_num in range(number_of_cells):
-            LRZUVP01_QC_var[:ens1, bin_num] = 4
-            if ens2 != 0:
-                LRZUVP01_QC_var[-ens2:, bin_num] = 4
-
-        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, LRZUVP01_QC_var
-
-
-def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, pg_flag, vb_pg_flag):
+def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, cell_size, fillValue, pres_flag, pg_flag, vb_pg_flag):
     # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
     # metadata_dict: dictionary object of metadata items
-    # sensor_depth: sensor depth recorded by instrument
+    # instrument_depth: sensor depth recorded by instrument
 
     uvw_vel_min = -1000
     uvw_vel_max = 1000
@@ -272,7 +32,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = "time"
     var.attrs['cf_role'] = "profile_id"
     var.encoding['calendar'] = "gregorian"
-    
+
     # Bin distances
     var = out_obj.distance
     var.encoding['_FillValue'] = None
@@ -280,72 +40,46 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['positive'] = 'up' if metadata_dict['orientation'] == 'up' else 'down'
     # var.attrs['long_name'] = "distance"
     var.attrs['long_name'] = "bin_distances_from_ADCP_transducer_along_measurement_axis"
-    
-    # LCEWAP01: eastward velocity (vel1)
+
+    # VEL_MAGNETIC_EAST: Velocity component towards magnetic east (not corrected for magnetic declination)
     # all velocities have many of the same attribute values, but not all, so each velocity is done separately
-    var = out_obj.LCEWAP01   
+    var = out_obj.VEL_MAGNETIC_EAST
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = fillValue
-    var.attrs['long_name'] = 'eastward_sea_water_velocity'
-    var.attrs['ancillary_variables'] = 'LCEWAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
-    var.attrs['generic_name'] = 'u'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::EWCT'
-    var.attrs['sdn_parameter_name'] = 'Eastward current velocity (Eulerian measurement) in the water body by moored ' \
-                                      'acoustic doppler current profiler (ADCP)'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'eastward_sea_water_velocity'
     var.attrs['data_max'] = np.round(np.nanmax(var.data), decimals=2)
     var.attrs['data_min'] = np.round(np.nanmin(var.data), decimals=2)
     var.attrs['valid_max'] = uvw_vel_max
     var.attrs['valid_min'] = uvw_vel_min
-    
-    # LCNSAP01: northward velocity (vel2)
-    var = out_obj.LCNSAP01
+
+    # VEL_MAGNETIC_NORTH: Velocity component towards magnetic north (uncorrected for magnetic declination)
+    var = out_obj.VEL_MAGNETIC_NORTH
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'northward_sea_water_velocity'
-    var.attrs['ancillary_variables'] = 'LCNSAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
-    var.attrs['generic_name'] = 'v'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::NSCT'
-    var.attrs['sdn_parameter_name'] = 'Northward current velocity (Eulerian measurement) in the water body by moored ' \
-                                      'acoustic doppler current profiler (ADCP)'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'northward_sea_water_velocity'
     var.attrs['data_max'] = np.round(np.nanmax(var.data), decimals=2)
     var.attrs['data_min'] = np.round(np.nanmin(var.data), decimals=2)
     var.attrs['valid_max'] = uvw_vel_max
     var.attrs['valid_min'] = uvw_vel_min
-    
+
     # LRZAAP01: vertical velocity (vel3)
     var = out_obj.LRZAAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'upward_sea_water_velocity'
-    var.attrs['ancillary_variables'] = 'LRZAAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'w'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::VCSP'
     var.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) in the water body by moored ' \
                                       'acoustic doppler current profiler (ADCP)'
@@ -356,7 +90,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
     var.attrs['valid_min'] = uvw_vel_min
-    
+
     # LERRAP01: error velocity (vel4)
     var = out_obj.LERRAP01
     var.encoding['dtype'] = 'float32'
@@ -364,12 +98,8 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'error_velocity_in_sea_water'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'e'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::ERRV'
     var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current ' \
                                       'profiler (ADCP)'
@@ -377,42 +107,8 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['sdn_uom_name'] = 'Metres per second'
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['valid_max'] = 2 * uvw_vel_max
-    var.attrs['valid_min'] = 2 * uvw_vel_min
-    
-    # Velocity variable quality flags
-    var = out_obj.LCEWAP01_QC
-    var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
-    var.attrs['long_name'] = 'quality flag for LCEWAP01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.max(var.data)
-    var.attrs['data_min'] = np.min(var.data)
-    
-    var = out_obj.LCNSAP01_QC
-    var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
-    var.attrs['long_name'] = 'quality flag for LCNSAP01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.max(var.data)
-    var.attrs['data_min'] = np.min(var.data)
-
-    var = out_obj.LRZAAP01_QC
-    var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
-    var.attrs['long_name'] = 'quality flag for LRZAAP01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.max(var.data)
-    var.attrs['data_min'] = np.min(var.data)
+    var.attrs['valid_max'] = 2 * uvw_vel_max  # To agree with the R package "ADCP"
+    var.attrs['valid_min'] = 2 * uvw_vel_min  # To agree with the R package "ADCP"
 
     # ELTMEP01: seconds since 1970
     var = out_obj.ELTMEP01
@@ -425,7 +121,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UTBB'
     var.attrs['sdn_uom_name'] = 'Seconds'
     var.attrs['standard_name'] = 'time'
-    
+
     # TNIHCE01-4: echo intensity beam 1-4
     var = out_obj.TNIHCE01
     var.encoding['dtype'] = 'float32'
@@ -433,7 +129,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_01'
@@ -450,7 +145,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_02'
@@ -467,7 +161,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_03'
@@ -484,7 +177,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_04'
@@ -506,7 +198,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'percent_good_beam_1'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_01'
@@ -523,7 +214,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'percent_good_beam_2'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_02'
@@ -540,7 +230,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'percent_good_beam_3'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_03'
@@ -557,7 +246,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'percent_good_beam_4'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_04'
@@ -599,23 +287,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    # DISTTRAN: height of sea surface (hght)
-    var = out_obj.DISTTRAN
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['positive'] = 'up'
-    var.attrs['long_name'] = 'height of sea surface'
-    var.attrs['generic_name'] = 'height'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::HGHT'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
-    var.attrs['sdn_uom_name'] = 'Metres'
-    var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['data_max'] = np.nanmax(var.data)
-
     # TEMPPR01: transducer temp
     var = out_obj.TEMPPR01
     var.encoding['dtype'] = 'float32'
@@ -624,33 +295,11 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP Transducer Temp.'
     var.attrs['generic_name'] = 'temp'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::te90'
     var.attrs['sdn_parameter_name'] = 'Temperature of the water body'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UPAA'
     var.attrs['sdn_uom_name'] = 'Celsius degree'
-    var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['data_max'] = np.nanmax(var.data)
-
-    # PPSAADCP: instrument depth (formerly DEPFP01)
-    var = out_obj.PPSAADCP
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['positive'] = 'down'
-    var.attrs['long_name'] = 'instrument depth'
-    var.attrs['xducer_offset_from_bottom'] = ''
-    var.attrs['bin_size'] = cell_size  # bin size
-    var.attrs['generic_name'] = 'depth'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::DEPH'
-    var.attrs['sdn_parameter_name'] = 'Depth below surface of the water body'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
-    var.attrs['sdn_uom_name'] = 'Metres'
-    var.attrs['standard_name'] = 'depth'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -685,7 +334,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'heading'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::HEAD'
     var.attrs['sdn_parameter_name'] = 'Orientation (horizontal relative to true north) of measurement device {heading}'
@@ -696,40 +344,23 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PRESPR01: pressure
-    var = out_obj.PRESPR01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'dbar'
-    var.attrs['_FillValue'] = fillValue
-    var.attrs['long_name'] = 'pressure'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
-    var.attrs['ancillary_variables'] = 'PRESPR01_QC'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::PRES'
-    var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
-                                      'pressure sensor and corrected to read zero at sea level'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPDB'
-    var.attrs['sdn_uom_name'] = 'Decibars'
-    var.attrs['standard_name'] = 'sea_water_pressure'
-    var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['data_max'] = np.nanmax(var.data)
+    if pres_flag == 0:
+        var = out_obj.PRESPR01
+        var.encoding['dtype'] = 'float32'
+        var.attrs['units'] = 'dbar'
+        var.attrs['_FillValue'] = fillValue
+        var.attrs['long_name'] = 'pressure'
+        var.attrs['sensor_type'] = 'adcp'
+        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['legacy_GF3_code'] = 'SDN:GF3::PRES'
+        var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
+                                          'pressure sensor and corrected to read zero at sea level'
+        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPDB'
+        var.attrs['sdn_uom_name'] = 'Decibars'
+        var.attrs['standard_name'] = 'sea_water_pressure'
+        var.attrs['data_min'] = np.nanmin(var.data)
+        var.attrs['data_max'] = np.nanmax(var.data)
 
-    # PRESPR01_QC: pressure quality flag
-    var = out_obj.PRESPR01_QC
-    var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
-    var.attrs['long_name'] = 'quality flag for PRESPR01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
-                           'identification of negative pressure values'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['data_max'] = np.nanmax(var.data)
-    var.attrs['data_min'] = np.nanmin(var.data)
-    
     # SVELCV01: sound velocity
     var = out_obj.SVELCV01
     var.encoding['dtype'] = 'float32'
@@ -737,7 +368,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'speed of sound'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::SVEL'
     var.attrs['sdn_parameter_name'] = 'Sound velocity in the water body by computation from temperature and ' \
@@ -766,7 +396,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_01'
@@ -781,7 +410,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_02'
@@ -796,7 +424,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_03'
@@ -811,7 +438,6 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
     var.attrs['sensor_type'] = 'adcp'
-    var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_04'
@@ -828,14 +454,9 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['units'] = 'm s-1'
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'upward_sea_water_velocity_by_vertical_beam'
-        var.attrs['ancillary_variables'] = 'LRZUVP01_QC'
+        var.attrs['ancillary_variables'] = 'VB_VELCTY_QC'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
-        var.attrs['generic_name'] = 'vv'
-        var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-        var.attrs['flag_values'] = metadata_dict['flag_values']
-        var.attrs['References'] = metadata_dict['flag_references']
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
         var.attrs['sdn_uom_name'] = 'Metres per second'
         var.attrs['standard_name'] = 'upward_sea_water_velocity'
@@ -844,24 +465,13 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['valid_max'] = uvw_vel_max
         var.attrs['valid_min'] = uvw_vel_min
 
-        var = out_obj.LRZUVP01_QC
-        var.encoding['dtype'] = 'int'
-        var.attrs['_FillValue'] = 0
-        var.attrs['long_name'] = 'quality flag for LRZUVP01'
-        var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-        var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-        var.attrs['flag_values'] = metadata_dict['flag_values']
-        var.attrs['References'] = metadata_dict['flag_references']
-        var.attrs['data_max'] = np.max(var.data)
-        var.attrs['data_min'] = np.min(var.data)
-
         var = out_obj.TNIHCE05
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'counts'
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'ADCP_echo_intensity_beam_5'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
+        var.attrs['instrument_depth'] = instrument_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'AGC'
         var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
@@ -877,14 +487,14 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_5'
         var.attrs['sensor_type'] = 'adcp'
-        var.attrs['sensor_depth'] = sensor_depth
+        var.attrs['instrument_depth'] = instrument_depth
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'CM'
         var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                           'moored acoustic doppler current profiler (ADCP) vertical beam'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
-        
+
         if vb_pg_flag == 0:
             var = out_obj.PCGDAP05
             var.encoding['dtype'] = 'float32'
@@ -892,7 +502,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
             var.attrs['_FillValue'] = fillValue
             var.attrs['long_name'] = 'percent_good_beam_5'
             var.attrs['sensor_type'] = 'adcp'
-            var.attrs['sensor_depth'] = sensor_depth
+            var.attrs['instrument_depth'] = instrument_depth
             var.attrs['serial_number'] = metadata_dict['serialNumber']
             var.attrs['generic_name'] = 'PGd'
             var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
@@ -901,31 +511,29 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
             var.attrs['sdn_uom_name'] = 'Percent'
             var.attrs['data_min'] = np.nanmin(var.data)
             var.attrs['data_max'] = np.nanmax(var.data)
-
     return
 
 
-def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
-    
-    # If your raw file came from a NarrowBand instrument, you must also use the create_nc_L1() start_year optional kwarg (int type)
-    # If your raw file has time values out of range, you must also use the create_nc_L1() time_file optional kwarg
-    # Use the time_file kwarg to read in a csv file containing time entries spanning the range of deployment and using the
-    # instrument sampling interval
+def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
+    # Combines data from a raw ADCP file and metadata from a csv file to produce a netCDF file of ADCP data
 
-    # Splice file name to get output netCDF file name
-    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'; print(outname)
+    # Define the name for the netCDF file
+    out_name = os.path.basename(f_adcp)[:-4] + '.adcp.L0.nc'
+    print(out_name)
 
     # Get full file path
-    cwd = os.getcwd(); print(cwd)
-    outname_full = cwd + '/' + outname
+    cwd = os.getcwd()
+    print(cwd)
+    out_name_full = cwd + '/' + out_name
 
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = {}
-    with open(file_meta) as csv_file:
+    with open(f_meta) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
         for row in csv_reader:
-            # extract all metadata from csv file into dictionary -- some items not passed to netCDF file but are extracted anyway
+            # extract all metadata from csv file into dictionary
+            # some items not passed to netCDF file but are extracted anyway
             if row[0] != "Name":
                 meta_dict[row[0]] = row[1]
             elif row[0] == '' and row[1] == '':
@@ -935,7 +543,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                               'in metadata file', UserWarning)
             else:
                 continue
-    
+
     # Assign model, model_long name, and manufacturer
     if meta_dict["instrumentSubtype"].upper() == "WORKHORSE":
         meta_dict['model'] = "wh"
@@ -963,19 +571,19 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Check if model was read into dictionary correctly
     if 'model' not in meta_dict:
         ValueError("instrumentSubtype value of \"{}\" not valid".format(meta_dict['instrumentSubtype']))
-        
+
     print('Read in csv metadata file')
 
     # Read in data and start processing
 
     # Read in raw ADCP file and model type
     if meta_dict['model'] == 'nb':
-        data = rawfile(inFile, meta_dict['model'], trim=True, yearbase=start_year)
+        data = rawfile(f_adcp, meta_dict['model'], trim=True, yearbase=start_year)
     else:
-        data = rawfile(inFile, meta_dict['model'], trim=True)
+        data = rawfile(f_adcp, meta_dict['model'], trim=True)
     print('Read in raw data')
 
-    # Extract multidimensional variables from data object: 
+    # Extract multidimensional variables from data object:
     # fixed leader, velocity, amplitude intensity, correlation magnitude, and percent good
     fixed_leader = data.read(varlist=['FixedLeader'])
     vel = data.read(varlist=['Velocity'])
@@ -1005,22 +613,30 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         except AttributeError:
             flag_vb_pg += 1
 
+    print(flag_pg)
+    print(flag_vb_pg)
+
     # Metadata value corrections
 
-    # Convert numeric values to numerics
+    # Convert numeric values from string to numeric type
     meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
-    
+
     for key in ['instrument_depth', 'latitude', 'longitude', 'water_depth', 'magnetic_variation']:
         meta_dict[key] = float(meta_dict[key])
+
+    # Serial number corrections
 
     # Add leading zero to serial numbers that have 3 digits
     if len(str(meta_dict['serialNumber'])) == 3:
         meta_dict['serialNumber'] = '0' + str(meta_dict['serialNumber'])
-    # Overwrite serial number to include the model: upper returns uppercase
-    meta_dict['serialNumber'] = meta_dict['model'].upper() + meta_dict['serialNumber']
-    # Add instrument model variable value
-    meta_dict['instrumentModel'] = '{} ADCP {}kHz ({})'.format(model_long, data.sysconfig['kHz'],
-                                                               meta_dict['serialNumber'])
+
+    if meta_dict['model'].upper() not in meta_dict['serialNumber']:
+        # Overwrite serial number to include the model: upper returns uppercase
+        meta_dict['serialNumber'] = meta_dict['model'].upper() + meta_dict['serialNumber']
+
+        # Add instrument model variable value
+        meta_dict['instrumentModel'] = '{} ADCP {}kHz ({})'.format(model_long, data.sysconfig['kHz'],
+                                                                   meta_dict['serialNumber'])
 
     # Correct flag_meanings values if they are comma-separated
     if ',' in meta_dict['flag_meaning']:
@@ -1044,8 +660,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         orientations = [SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
         meta_dict['orientation'] = mean_orientation(orientations)
     except IndexError:
-        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range', 
-                      UserWarning)        
+        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range',
+                      UserWarning)
         meta_dict['orientation'] = 'up' if data.sysconfig['up'] else 'down'
 
     # Retrieve beam pattern
@@ -1056,7 +672,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Set up dimensions and variables
 
-    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs, metadata_dict=meta_dict, 
+    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs,
+                                             metadata_dict=meta_dict,
                                              origin_year=data.yearbase, time_csv=time_file)
 
     # Distance dimension
@@ -1067,29 +684,21 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Convert SoundSpeed from int16 to float32
     sound_speed = np.float32(vel.VL['SoundSpeed'])
 
-    # Convert pressure
-    pressure = assign_pres(vel_var=vel, metadata_dict=meta_dict)
-    
+    # Convert decapascal to decibar
+    # Do not create pressure variable if no data exists
+    flag_no_pres = 0
+    try:
+        decapascal2decibar = 1/1000
+        pressure = np.array(vel.VL['Pressure'] * decapascal2decibar, dtype='float32')
+    except ValueError:
+        warnings.warn('No pressure data available (no field of name Pressure')
+        flag_no_pres += 1
+
     # Depth
 
-    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
-    # negative so that depth is positive; units=m
-    depth = -gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude'])
-    print('Calculated sea surface height from sea pressure using gsw package')
-    
     # Check instrument_depth from metadata csv file: compare with pressure values
-    check_depths(pressure, distance, meta_dict['instrument_depth'], meta_dict['water_depth']) 
-
-    # Calculate sensor depth of instrument based off mean instrument depth
-    sensor_dep = np.nanmean(depth)
-    meta_dict['processing_history'] += " Sensor depth and mean depth set to {} based on trimmed depth values.".format(
-        str(sensor_dep))
-
-    # Calculate height of sea surface: bin height minus sensor depth
-    DISTTRAN = np.round(distance - sensor_dep, decimals=2)
-
-    # Round sensor_dep
-    sensor_dep = np.round(sensor_dep, decimals=2)
+    if flag_no_pres == 0:
+        check_depths(pressure, distance, meta_dict['instrument_depth'], meta_dict['water_depth'])
 
     # Adjust velocity data
 
@@ -1097,76 +706,17 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     vel.vel.data[vel.vel.data == -32768.0] = np.nan
 
     if meta_dict['model'] == 'sv':
-        vb_vel.vb_vel.data[vb_vel.vb_vel.data == -32768.0] = np.nan
-
-    # Rotate into earth if not in enu already; this makes the netCDF bigger
-    # For Sentinel V instruments, transformations are done independently of vertical beam velocity data
-    if vel.trans.coordsystem != 'earth' and vel.trans.coordsystem != 'enu':
-        vel1, vel2, vel3, vel4 = coordsystem_2enu(vel_var=vel, fixed_leader_var=fixed_leader, metadata_dict=meta_dict)
-    else:
-        vel1 = vel.vel1.data
-        vel2 = vel.vel2.data
-        vel3 = vel.vel3.data
-        vel4 = vel.vel4.data
-        meta_dict['coord_system'] = 'enu'
-
-    # Correct magnetic declination in velocities
-    LCEWAP01, LCNSAP01 = correct_true_north(vel1, vel2, meta_dict)
-
-    # Flag data based on cut_lead_ensembles and cut_trail_ensembles
-
-    # Set start and end indices
-    e1 = int(meta_dict['cut_lead_ensembles'])  # "ensemble 1"
-    e2 = int(meta_dict['cut_trail_ensembles'])  # "ensemble 2"
-
-    # Flag measurements from before deployment and after recovery using e1 and e2
-        
-    PRESPR01_QC = flag_pressure(pres=pressure, ens1=e1, ens2=e2, metadata_dict=meta_dict)
-    
-    if meta_dict['model'] != 'sv':
-        LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC = flag_velocity(e1, e2, data.NCells, LCEWAP01, LCNSAP01,
-                                                              vel3)
-    else:
-        LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC, LRZUVP01_QC = flag_velocity(e1, e2, data.NCells, LCEWAP01,
-                                                                           LCNSAP01, vel3,
-                                                                           vb_vel.vb_vel.data)
-
-    # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) from before dep. and after rec. of ADCP
-    for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
-        variable[:e1] = np.nan
-        if e2 != 0:
-            variable[-e2:] = np.nan
-
-    if e2 != 0:
-        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
-                                           "sound_speed limited by deployment ({} UTC) and recovery ({} UTC) " \
-                                           "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
-    else:
-        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
-                                           "sound_speed limited by " \
-                                           "deployment ({} UTC) time.".format(time_DTUT8601[e1])
-
-    meta_dict['processing_history'] += ' Level 1 processing was performed on the dataset. This entailed corrections' \
-                                       ' for magnetic declination based on an average of the dataset and cleaning ' \
-                                       'of the beginning and end of the dataset. The leading {} ensembles and the ' \
-                                       'trailing {} ensembles ' \
-                                       'were removed from the data set.'.format(meta_dict['cut_lead_ensembles'],
-                                                                                meta_dict['cut_trail_ensembles'])
-
-    print('Finished QCing data; making netCDF object next')
+        vb_vel.vbvel.data[vb_vel.vbvel.data == -32768.0] = np.nan
 
     # Make into netCDF file
-    
+
     # Create xarray Dataset object containing all dimensions and variables
     # Sentinel V instruments don't have percent good ('pg') variables
     out = xr.Dataset(coords={'time': time_s, 'distance': distance},
-                     data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
-                                'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
-                                'LRZAAP01': (['distance', 'time'], vel3.transpose()),
-                                'LERRAP01': (['distance', 'time'], vel4.transpose()),
-                                'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
-                                'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
-                                'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
+                     data_vars={'VEL_MAGNETIC_EAST': (['distance', 'time'], vel.vel1.data.transpose()),
+                                'VEL_MAGNETIC_NORTH': (['distance', 'time'], vel.vel2.data.transpose()),
+                                'LRZAAP01': (['distance', 'time'], vel.vel3.data.transpose()),
+                                'LERRAP01': (['distance', 'time'], vel.vel4.data.transpose()),
                                 'ELTMEP01': (['time'], time_s),
                                 'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
                                 'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
@@ -1180,37 +730,42 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                 'HEADCM01': (['time'], vel.heading),
                                 'ROLLGP01': (['time'], vel.roll),
                                 'TEMPPR01': (['time'], vel.temperature),
-                                'DISTTRAN': (['distance'], DISTTRAN),
-                                'PPSAADCP': (['time'], depth),
+                                'XDUCER_DEPTH': (['time'], vel.XducerDepth),
                                 'ALATZZ01': ([], meta_dict['latitude']),
                                 'ALONZZ01': ([], meta_dict['longitude']),
                                 'latitude': ([], meta_dict['latitude']),
                                 'longitude': ([], meta_dict['longitude']),
-                                'PRESPR01': (['time'], pressure),
-                                'PRESPR01_QC': (['time'], PRESPR01_QC),
                                 'SVELCV01': (['time'], sound_speed),
                                 'DTUT8601': (['time'], time_DTUT8601),
-                                'filename': ([], outname[:-3]),
+                                'filename': ([], out_name[:-3]),
                                 'instrument_serial_number': ([], meta_dict['serialNumber']),
                                 'instrument_model': ([], meta_dict['instrumentModel'])})
 
+    if flag_no_pres == 0:
+        print('Assigning pressure variable')
+        out = out.assign(PRESPR01=(('time'), pressure))
+    
     if flag_pg == 0:
+        print('Assigning percent good variables')
         out = out.assign(PCGDAP00=(('distance', 'time'), pg.pg1.transpose()))
         out = out.assign(PCGDAP02=(('distance', 'time'), pg.pg2.transpose()))
         out = out.assign(PCGDAP03=(('distance', 'time'), pg.pg3.transpose()))
         out = out.assign(PCGDAP04=(('distance', 'time'), pg.pg4.transpose()))
 
     if meta_dict['model'] == 'sv':
-        out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vb_vel.data.transpose()))
-        out = out.assign(LRZUVP01_QC=(('distance', 'time'), LRZUVP01_QC.transpose()))
+        print('Assigning Sentinel V vertical beam variables')
+        out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vbvel.data.transpose()))
         out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
         out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.VBCorrelation.transpose()))
         if flag_vb_pg == 0:
+            print('Assigning Sentinel V vertical beam percent good variable')
             out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))  # OR vb_pg.VBPercentGood.transpose() ?
 
     # Add attributes to each variable
     fill_value = 1e+15
-    add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize, fillValue=fill_value, pg_flag=flag_pg, vb_pg_flag=flag_vb_pg)
+    add_attrs_2vars_L0(out_obj=out, metadata_dict=meta_dict, instrument_depth=meta_dict['instrument_depth'],
+                       cell_size=data.CellSize,
+                       fillValue=fill_value, pres_flag=flag_no_pres, pg_flag=flag_pg, vb_pg_flag=flag_vb_pg)
 
     # Global attributes
 
@@ -1263,8 +818,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out.attrs['creator_type'] = "person"
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
-    out.attrs['time_coverage_start'] = time_DTUT8601[e1] + ' UTC'
-    out.attrs['time_coverage_end'] = time_DTUT8601[-e2 - 1] + ' UTC'  # -1 is last time entry before cut ones
+    out.attrs['time_coverage_start'] = time_DTUT8601[1] + ' UTC'
+    out.attrs['time_coverage_end'] = time_DTUT8601[-1] + ' UTC'
 
     # geospatial lat, lon, and vertical min/max calculations
     out.attrs['geospatial_lat_min'] = meta_dict['latitude']
@@ -1274,35 +829,33 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     out.attrs['geospatial_lon_max'] = meta_dict['longitude']
     out.attrs['geospatial_lon_units'] = "degrees_east"
 
-    # sensor_depth is a variable attribute, not a global attribute
-    if out.attrs['orientation'] == 'up':
-        out.attrs['geospatial_vertical_min'] = sensor_dep - np.nanmax(out.distance.data)
-        out.attrs['geospatial_vertical_max'] = sensor_dep - np.nanmin(out.distance.data)
-    elif out.attrs['orientation'] == 'down':
-        out.attrs['geospatial_vertical_min'] = sensor_dep + np.nanmin(out.distance.data)
-        out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(out.distance.data)
-
     # Export the 'out' object as a netCDF file
-    print(outname)
-
-    out.to_netcdf(outname, mode='w', format='NETCDF4')
+    out.to_netcdf(out_name, mode='w', format='NETCDF4')
     out.close()
 
-    return outname_full
+    return out_name_full
 
 
-def example_usage_L1():
-    # Specify raw ADCP file to create nc file from, along with associated csv metadata file
-
-    # raw .000 file
+def example_usage_L0():
+    # 2) raw .000 file
     raw_file = "./sample_data/a1_20050503_20050504_0221m.000"
-    # csv metadata file
+    # 3) csv metadata file
     raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 
-    # Create netCDF file
-    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
-
-    # Produce new netCDF file that includes a geographic_area variable
+    nc_name = nc_create_L0(raw_file, raw_file_meta, start_year=None, time_file=None)
     add_var2nc.add_geo(nc_name)
 
     return
+
+
+# adcp_raw = '/home/hourstonh/Documents/data/ADCP_Roy/Mooring_Data_Processed_FINAL_LaPerouse/LaPerouse41/ADCP/a1_20050503_20050504_0221m.000'
+# adcp_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/a1_20050503_20050504_0221m_meta_L1.csv'
+# new_wd = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/'
+# os.chdir(new_wd)
+
+# Add geographic_area variable
+# new_nc = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/a1_20050503_20050504_0221m.adcp.L0.nc'
+# my_json_file = '/home/hourstonh/cioos-siooc_data_transform-master/cioos_data_transform/ios_data_transform/' \
+#                'ios_data_transform/tests/test_files/ios_polygons.geojson'
+# os.chdir('/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/L0_geo/')
+# nc_geo = add_var2nc.add_geo(ncfile=new_nc, json_file=my_json_file)

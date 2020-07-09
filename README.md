@@ -1,18 +1,22 @@
 # pycurrents_ADCP_processing
 
-For performing "level 1" processing raw moored ADCP data in Python using the UHDAS `pycurrents` package.
+For performing "level 0" (L0) and "level 1" (L1) processing on raw moored ADCP data in Python using the UHDAS `pycurrents` package.
 
-Level 1 (L1) processing comprises:
+L0 processing does not include any processing. Raw ADCP data is combined with metadata from a csv file and exported in netCDF format. 
+
+L1 processing contains minimal processing. Raw ADCP data is also combined with metadata from a csv file and exported in netCDF format. The difference from L0 is that L1 processing comprises:
 * Corrections for magnetic declination
 * Calculation of sea surface height from pressure values and latitude
 * Rotation into enu coordinates if this is not already the coordinate system of the dataset
 * Flagging leading and trailing ensembles from before and after deployment and setting them to nan's
 * Flagging negative pressure values
 
+*add_var2nc.py* adds a geographic_area variable to a netCDF file from either the L0 or L1 process and exports a new netCDF file containing this addition.
+
 *ADCP IOS header file.py* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/). 
 
 ## Installation
-1. Before creating a virtual environment for the package, create a folder for the virtual environment and enter the folder in terminal, e.g. "test"  
+1. Before creating a virtual environment for the package, create a folder for the virtual environment and enter the folder in terminal, e.g. "adcp"  
 2. Create a virtual environment called "adcp37" with Python version 3.7:  
         `conda create -n adcp37 python=3.7`
 3. Activate the virtual environment:  
@@ -29,13 +33,15 @@ Level 1 (L1) processing comprises:
         `pip install -e ./pycurrents`  
 6. Clone this `pycurrents_ADCP_processing` repository with git:  
         `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`  
+7. Run "setup.py":  
+        `sudo python setup.py install`
 
 ### Pre-requisites
 * Linux (or Unix-like) environment
 * Python 3.7
 
-## Usage
-*ADCP_pycurrents_L1.py* uses the `pycurrents` package to open a raw ADCP file in Python and export it in netCDF file format. The script also uses a .csv metadata file for the raw ADCP file whose contents are combined with the raw data in the netCDF file, so that the netCDF file is self-describing. This metadata file is filled out by the user and a template can be found at https://github.com/hhourston/ADCP_processing_visualization/tree/master/ADCP_metadata_template. 
+## Usage 
+Sample usage of *ADCP_processing_L1.py*, *ADCP_processing_L0.py*, *add_var2nc.py* and *ADCP_IOS_Header_file.py* is laid out in *create_nc.py*. An example of how to create uniform time data (for replacing invalid time data in a raw ADCP file) can be found in *generate_time_range.py*.
 
 ## Credits
 *ADCP_pycurrents_L1.py* is based off of the gist, *RdiToNetcdf.ipynb*, by Jody Klymak (https://github.com/jklymak), and includes contributions from Di Wan (https://github.com/onedwd) and Eric Firing (https://github.com/efiring). *add_var2nc.py* was written by Di Wan. *ADCP_IOS_Header_file.py* was written by Lu Guan (https://github.com/guanlu129).
