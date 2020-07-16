@@ -52,6 +52,13 @@ def write_file(nc):
         print(nc.PCGDAP00.data_max)
     except AttributeError:
         flag_pg = 1
+    # For Sentinel V files, test if the vertical beam variables exist
+    flag_vb = 0
+    if nc.instrumentSubtype == 'Sentinel V':
+        try:
+            print(nc.LRZUVP01.data_max)
+        except AttributeError:
+            flag_vb += 1
 
     start_time = pd.to_datetime(nc.coords["time"].values[1]).strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
     end_time = pd.to_datetime(nc.coords["time"].values[-1]).strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
@@ -62,7 +69,7 @@ def write_file(nc):
     time_units_string = unit(time_increment)  # call unit function
     number_of_records = str(nc.coords["time"].size)  # number of ensumbles
     data_description = nc.attrs["instrumentType"]
-    if nc.instrumentSubtype == 'Sentinel V':
+    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         if flag_pg == 1:
             number_of_channels = "30"
         else:
@@ -87,7 +94,7 @@ def write_file(nc):
     # print('{:>8}'.format('1') + " " + '{:25}'.format('Record_Number') + '{:13}'.format('n/a') + '{:16}'.format('1') + '{:12}'.format(number_of_records))
     # print('{:>8}'.format('1') + " " + '{:35}'.format(nc.ELTMEP01.standard_name.title()) + '{:20}'.format("YYYY-MM-DDThh:mm:ssZ") + '{:>22}'.format(str(nc.ELTMEP01.values[0,0])[:-10]) + '{:>22}'.format(str(nc.ELTMEP01.values[-1,-1])[:-10]))
     # print('{:>8}'.format('1') + " " + '{:35}'.format(nc.DTUT8601.time_zone) + '{:20}'.format("YYYY-MM-DD hh:mm:ss") + '{:>22}'.format("n/a") + '{:>22}'.format("n/a"))
-    if nc.instrumentSubtype == 'Sentinel V':
+    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         print('{:>8}'.format('1') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Date") + '{:15}'.format(
             "YYYY-MM-DD") + '{:>17}'.format("n/a") + '{:>17}'.format("n/a"))
         print('{:>8}'.format('2') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Time") + '{:15}'.format(

@@ -17,9 +17,6 @@ from pycurrents_ADCP_processing import ADCP_processing_L0, ADCP_processing_L1, a
 import os
 
 
-# Remove before uploading to GitHub
-os.chdir('/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/scott1_20170706_20170711_0101m/')
-
 # Define raw ADCP file and associated metadata file
 f = './sample_data/a1_20050503_20050504_0221m.000'
 meta = './sample_data/a1_20050503_20050504_0221m_meta_L1.csv'
@@ -30,12 +27,11 @@ ncname_L0 = ADCP_processing_L0.nc_create_L0(f_adcp=f, f_meta=meta)
 # Perform L1 processing on the raw data and export as a netCDF file
 ncname_L1 = ADCP_processing_L1.nc_create_L1(inFile=f, file_meta=meta)
 
-os.chdir('/home/hourstonh/Gitkraken_local/pycurrents_ADCP_processing/')
-
 # Read in the netCDF file produced above and add a geographic_area variable
 # Export as a new netCDF file
+geoname_L0 = add_var2nc.add_geo(ncname_L0)
 geoname_L1 = add_var2nc.add_geo(ncname_L1)
 
-# Generate a header (.adcp) file from the newest netCDF file
+# Generate a header (.adcp) file from the L1 netCDF file that has the geographic area variable
 ADCP_IOS_Header_file.main_header(geoname_L1)
 

@@ -260,7 +260,7 @@ def flag_velocity(ens1, ens2, number_of_cells, v1, v2, v3, v5=None):
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, LRZUVP01_QC_var
 
 
-def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, pg_flag, vb_pg_flag):
+def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValue, pg_flag=0, vb_flag=0, vb_pg_flag=0):
     # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
     # metadata_dict: dictionary object of metadata items
     # sensor_depth: sensor depth recorded by instrument
@@ -826,7 +826,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     # done variables
 
     # Add Vertical Beam variable attrs for Sentinel V instruments
-    if metadata_dict['model'] == 'sv':
+    if metadata_dict['model'] == 'sv' and vb_flag == 0:
         var = out_obj.LRZUVP01
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'm s-1'
@@ -991,7 +991,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # If model == Sentinel V, read in vertical beam data
     if meta_dict['model'] == 'sv':
-        #vb_leader = data.read(varlist=['VBLeader'])
+        # vb_leader = data.read(varlist=['VBLeader'])
         vb_vel = data.read(varlist=['VBVelocity'])
         vb_amp = data.read(varlist=['VBIntensity'])
         vb_cor = data.read(varlist=['VBCorrelation'])
@@ -999,6 +999,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Create flags if pg data or vb_pg data are missing
     flag_pg = 0
+    flag_vb = 0
     flag_vb_pg = 0
     try:
         print(pg.pg1.data[:5])
@@ -1006,6 +1007,12 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         flag_pg += 1
 
     if meta_dict['model'] == 'sv':
+        # Test for missing Sentinel V vertical beam data; if true treat file as regular 4-beam file
+        try:
+            print(vb_vel.vbvel.data[:5])
+        except AttributeError:
+            flag_vb += 1
+        # Test for missing vertical beam percent good data
         try:
             print(vb_pg.vb_pg.data[:5])
         except AttributeError:
@@ -1105,7 +1112,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic fill_value for pycurrents
     vel.vel.data[vel.vel.data == -32768.0] = np.nan
 
-    if meta_dict['model'] == 'sv':
+    if meta_dict['model'] == 'sv' and flag_vb == 0:
         vb_vel.vbvel.data[vb_vel.vbvel.data == -32768.0] = np.nan
 
     # Rotate into earth if not in enu already; this makes the netCDF bigger
@@ -1131,8 +1138,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
     # Flag measurements from before deployment and after recovery using e1 and e2
         
     PRESPR01_QC = flag_pressure(pres=pressure, ens1=e1, ens2=e2, metadata_dict=meta_dict)
-    
-    if meta_dict['model'] != 'sv':
+
+    if meta_dict['model'] != 'sv' or flag_vb == 1:
         LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC = flag_velocity(e1, e2, data.NCells, LCEWAP01, LCNSAP01,
                                                               vel3)
     else:
@@ -1209,7 +1216,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         out = out.assign(PCGDAP03=(('distance', 'time'), pg.pg3.transpose()))
         out = out.assign(PCGDAP04=(('distance', 'time'), pg.pg4.transpose()))
 
-    if meta_dict['model'] == 'sv':
+    if meta_dict['model'] == 'sv' and flag_vb == 0:
         out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vbvel.data.transpose()))
         out = out.assign(LRZUVP01_QC=(('distance', 'time'), LRZUVP01_QC.transpose()))
         out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
@@ -1219,7 +1226,8 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
 
     # Add attributes to each variable
     fill_value = 1e+15
-    add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize, fillValue=fill_value, pg_flag=flag_pg, vb_pg_flag=flag_vb_pg)
+    add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize,
+                       fillValue=fill_value, pg_flag=flag_pg, vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
 
     # Global attributes
 
