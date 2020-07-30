@@ -25,7 +25,7 @@ L1 processing contains minimal processing. Raw ADCP data is also combined with m
         `conda config --add channels conda-forge`  
         `conda config --set channel_priority strict`
 4. Install required packages:  
-        `conda install numpy scipy pip pandas netCDF4 xarray gsw`  
+        `conda install numpy scipy pip pandas netCDF4 xarray gsw matplotlib shapely`  
         `pip install datetime`  
 5. Clone pycurrents with Mercurial:  
         `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`  
