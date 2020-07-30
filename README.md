@@ -33,7 +33,7 @@ L1 processing contains minimal processing. Raw ADCP data is also combined with m
         `pip install -e ./pycurrents`  
 6. Clone this `pycurrents_ADCP_processing` repository with git:  
         `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`  
-7. Run "setup.py":  
+7. cd to the `pycurrents_ADCP_processing` directory and run "setup.py":  
         `sudo python setup.py install`
 
 ### Pre-requisites
