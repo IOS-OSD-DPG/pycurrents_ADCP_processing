@@ -36,21 +36,21 @@ def get_L1_start_end(ncdata):
     # from the processing_history global attribute.
     # Then get the index of the last ensemble cut from the beginning of the time series
     # and the index of the first ensemble cut from the end of the time series.
-    # d: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+    # ncdata: dataset-type object created by reading in a netCDF ADCP file with the xarray package
 
     digits_in_process_hist = [int(s) for s in ncdata.attrs['processing_history'].split() if s.isdigit()]
-    # The indices used are conditional upon the interior of the processing history remaining unchanged
+    # The indices used are conditional upon the contents of the processing history remaining unchanged
     # in L1 and before L2. Appending to the end of the processing history is ok
-    start_end_indices = (digits_in_process_hist[1], len(ncdata.time.data) - digits_in_process_hist[2])
+    start_end_indices = (digits_in_process_hist[1], len(ncdata.time.data) - digits_in_process_hist[2] - 1)
 
     return start_end_indices
 
 
-def limit_data(ncdata, ew_data, ns_data, nc_time, orientation, inst_depth, nc_distance, bad_bins=0):
-    if orientation == 'up':
-        bin_depths = inst_depth - nc_distance
+def limit_data(ncdata, ew_data, ns_data, bad_bins=0):
+    if ncdata.orientation == 'up':
+        bin_depths = ncdata.instrument_depth - ncdata.distance.data
     else:
-        bin_depths = inst_depth + nc_distance
+        bin_depths = ncdata.instrument_depth + ncdata.distance.data
     print(bin_depths)
 
     # data.time should be limited to the data.time with no NA values
@@ -62,7 +62,7 @@ def limit_data(ncdata, ew_data, ns_data, nc_time, orientation, inst_depth, nc_di
         new_first_last = (0, 0)
 
     # Remove bins where surface backscatter occurs
-    time_lim = nc_time[new_first_last[0]:new_first_last[1]]
+    time_lim = ncdata.time.data[new_first_last[0]:new_first_last[1]]
 
     if bad_bins != 0:
         bin_depths_lim = bin_depths[:-bad_bins]
@@ -81,7 +81,7 @@ def limit_data(ncdata, ew_data, ns_data, nc_time, orientation, inst_depth, nc_di
 def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
     print('in ne')
 
-    vminvmax = [-0.75, 0.75]
+    vminvmax = [-0.5, 0.5]
     fig = plt.figure(figsize=(13.75, 10))
     ax = fig.add_subplot(2, 1, 1)
 
@@ -102,7 +102,7 @@ def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='
         ax.set_title('ADCP (North, raw) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
                                                           str(int(data.instrument_depth))), fontsize=14)
     else:
-        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'godin\'')
+        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
     if data.orientation == 'up':
         plt.gca().invert_yaxis()
@@ -149,7 +149,7 @@ def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='
 
 
 def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25, filter_type='raw'):
-    # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'godin' (Godin Filtered)
+    # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
     print('in ac')
     along_angle = cross_angle + 90  # deg
@@ -158,7 +158,7 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
     AS = u_along
     CS = u_cross
 
-    vminvmax = [-0.75, 0.75]
+    vminvmax = [-0.5, 0.5]
 
     fig = plt.figure(figsize=(13.75, 10))
 
@@ -175,7 +175,7 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
                                                                     data.attrs['deployment_number'],
                                                                     math.ceil(data.instrument_depth)),
             fontsize=14)
-    elif filter_type == 'godin':
+    elif filter_type == 'Godin':
         ax1.set_title(
             'ADCP (along, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(along_angle, data.attrs['station'],
                                                                        data.attrs['deployment_number'],
@@ -186,7 +186,7 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
                                                                       data.attrs['deployment_number'],
                                                                       math.ceil(data.instrument_depth)), fontsize=14)
     else:
-        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'godin\'')
+        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
     if data.orientation == 'up':
         plt.gca().invert_yaxis()
@@ -218,7 +218,7 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
                                                                       str(math.ceil(data.instrument_depth))),
                       fontsize=14)
     else:
-        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'godin\'')
+        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
     if data.orientation == 'up':
         plt.gca().invert_yaxis()
@@ -317,7 +317,7 @@ def binplot_compare_filt(nc, time, dat_raw, dat_filt, filter_type, direction):
     # Function to take one bin from the unfiltered (raw) data and the corresponding bin in the filtered
     # data, and plot the time series together on one plot. Restrict time series to 1 month.
     # dat_filt: data filtered using the method defined in filter_type
-    # filter_type options: 'godin' or 'xxh' (e.g., '30h', '35h')
+    # filter_type options: 'Godin' or 'xxh' (e.g., '30h', '35h')
     # direction: 'east' or 'north'
 
     if direction == 'east':
@@ -376,12 +376,9 @@ def binplot_compare_filt(nc, time, dat_raw, dat_filt, filter_type, direction):
 def example_usage_plot_nc():
     ncfile = './newnc/a1_20160713_20170513_0480m.adcp.L1.nc'
     ncdata = xr.open_dataset(ncfile)
-    bad_surface_bins = 3  # to input by user; these bins nearest the surface are not plotted
+    bad_bins = 3
 
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata.LCEWAP01.data, ncdata.LCNSAP01.data,
-                                                          ncdata.time.data, ncdata.orientation,
-                                                          ncdata.instrument_depth,
-                                                          ncdata.distance.data, bad_surface_bins)
+    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, bad_bins)
 
     # North/East velocity plots
     make_pcolor_ne(ncdata, time_lim, bin_depths_lim, ns_lim, ew_lim)
@@ -401,16 +398,13 @@ def example_usage_plot_nc():
     ew_filt, ns_filt = filter_godin(ncdata)
 
     # Limit data
-    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt,
-                                                                    ncdata.time.data, ncdata.orientation,
-                                                                    ncdata.instrument_depth,
-                                                                    ncdata.distance.data, bad_surface_bins)
+    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt)
 
     # East/North
-    make_pcolor_ne(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type='godin')
+    make_pcolor_ne(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type='Godin')
 
     # Along-shore/cross-shore
-    make_pcolor_ac(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, cross_angle=25, filter_type='godin')
+    make_pcolor_ac(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, cross_angle=25, filter_type='Godin')
 
     # Compare velocity in bin 1
     binplot_compare_filt(ncdata, time_lim, ew_lim, ew_filt_lim, filter_type='30h', direction='east')
