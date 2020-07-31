@@ -17,7 +17,7 @@ from pycurrents_ADCP_processing.ADCP_processing_L1 import mean_orientation, conv
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
 
 
-def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, cell_size, fillValue, pres_flag, pg_flag, vb_pg_flag):
+def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres_flag, pg_flag, vb_flag, vb_pg_flag):
     # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
     # metadata_dict: dictionary object of metadata items
     # instrument_depth: sensor depth recorded by instrument
@@ -448,7 +448,7 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, cell_size, fill
     # done variables
 
     # Add Vertical Beam variable attrs for Sentinel V instruments
-    if metadata_dict['model'] == 'sv':
+    if metadata_dict['model'] == 'sv' and vb_flag == 0:
         var = out_obj.LRZUVP01
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'm s-1'
@@ -593,14 +593,15 @@ def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
 
     # If model == Sentinel V, read in vertical beam data
     if meta_dict['model'] == 'sv':
-        vb_leader = data.read(varlist=['VBLeader'])
+        # vb_leader = data.read(varlist=['VBLeader'])
         vb_vel = data.read(varlist=['VBVelocity'])
         vb_amp = data.read(varlist=['VBIntensity'])
         vb_cor = data.read(varlist=['VBCorrelation'])
         vb_pg = data.read(varlist=['VBPercentGood'])
 
-    # Create flags if pg data or vb_pg data are missing
+    # Create flags if pg data or vb data or vb_pg data are missing
     flag_pg = 0
+    flag_vb = 0
     flag_vb_pg = 0
     try:
         print(pg.pg1.data[:5])
@@ -608,12 +609,19 @@ def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
         flag_pg += 1
 
     if meta_dict['model'] == 'sv':
+        # Test for missing Sentinel V vertical beam data; if true treat file as regular 4-beam file
+        try:
+            print(vb_vel.vbvel.data[:5])
+        except AttributeError:
+            flag_vb += 1
+        # Test for missing vertical beam percent good data
         try:
             print(vb_pg.vb_pg.data[:5])
         except AttributeError:
             flag_vb_pg += 1
 
     print(flag_pg)
+    print(flag_vb)
     print(flag_vb_pg)
 
     # Metadata value corrections
@@ -705,7 +713,7 @@ def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic fill_value for pycurrents
     vel.vel.data[vel.vel.data == -32768.0] = np.nan
 
-    if meta_dict['model'] == 'sv':
+    if meta_dict['model'] == 'sv' and flag_vb == 0:
         vb_vel.vbvel.data[vb_vel.vbvel.data == -32768.0] = np.nan
 
     # Make into netCDF file
@@ -752,7 +760,7 @@ def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
         out = out.assign(PCGDAP03=(('distance', 'time'), pg.pg3.transpose()))
         out = out.assign(PCGDAP04=(('distance', 'time'), pg.pg4.transpose()))
 
-    if meta_dict['model'] == 'sv':
+    if meta_dict['model'] == 'sv' and flag_vb == 0:
         print('Assigning Sentinel V vertical beam variables')
         out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vbvel.data.transpose()))
         out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
@@ -764,8 +772,8 @@ def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
     # Add attributes to each variable
     fill_value = 1e+15
     add_attrs_2vars_L0(out_obj=out, metadata_dict=meta_dict, instrument_depth=meta_dict['instrument_depth'],
-                       cell_size=data.CellSize,
-                       fillValue=fill_value, pres_flag=flag_no_pres, pg_flag=flag_pg, vb_pg_flag=flag_vb_pg)
+                       fillValue=fill_value, pres_flag=flag_no_pres, pg_flag=flag_pg, vb_flag=flag_vb,
+                       vb_pg_flag=flag_vb_pg)
 
     # Global attributes
 
