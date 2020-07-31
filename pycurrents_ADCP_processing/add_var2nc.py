@@ -4,7 +4,7 @@ import xarray as xr
 import glob as glob
 import sys
 import os
-import utils as utils
+from pycurrents_ADCP_processing import utils
 # Library detail: https://github.com/cioos-siooc/cioos-siooc_data_transform/tree/master/cioos_data_transform/ios_data_transform
 # Credit: Pramod Thupaki
 from shapely.geometry import Point

@@ -12,7 +12,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/hhourston/pycurrents_ADCP_processing",
-    install_requires=['numpy', 'xarray', 'pandas', 'datetime', 'gsw', 'netCDF4', 'scipy'],
+    install_requires=['numpy', 'xarray', 'pandas', 'datetime', 'gsw', 'netCDF4', 'scipy', 'matplotlib', 'shapely'],
     packages=setuptools.find_packages(),
     classifiers=["Programming Language :: Python :: 3"],
     python_requires='~=3.7',
