@@ -23,6 +23,8 @@ import pandas as pd
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
+    # Rotate North and East velocities to along- and cross-shore velocities given an along-shore angle
+    # along_angle measured in degrees relative to geographic North
     along_angle = np.deg2rad(along_angle)
 
     u_along = u_true * np.cos(along_angle) + v_true * np.sin(along_angle)

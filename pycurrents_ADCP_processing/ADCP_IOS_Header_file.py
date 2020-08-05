@@ -718,7 +718,7 @@ def main_header(f):
     if not os.path.exists('./newnc/'):
         os.makedirs('./newnc/')
     f_output = './newnc/' + in_f_name.split(".")[0] + ".adcp"
-    print(f_output)
+    # print(f_output) prints to previously opened f_output in line 730
     nc_file = xr.open_dataset(f)
 
     # datetime object containing current date and time
