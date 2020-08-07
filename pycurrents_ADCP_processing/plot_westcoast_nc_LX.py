@@ -81,17 +81,17 @@ def limit_data(ncdata, ew_data, ns_data, bad_bins=0):
 
 
 def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
-    print('in ne')
+    # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
 
-    vminvmax = [-0.5, 0.5]
+    vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
     fig = plt.figure(figsize=(13.75, 10))
     ax = fig.add_subplot(2, 1, 1)
 
     f1 = ax.pcolor(time_lim, bin_depths_lim, ns_lim[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
     cbar = fig.colorbar(f1, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
-
     ax.set_ylabel('Depth [m]', fontsize=14)
+
     if filter_type == '30h':
         ax.set_title(
             'ADCP (North, 30h average) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
@@ -116,15 +116,14 @@ def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
-    if filter_type == '30h':
-        ax2.set_title('ADCP (East, 30h average) {}-{} {}m'.format(data.attrs['station'],
-                                                                  data.attrs['deployment_number'],
-                                                                  str(int(data.instrument_depth))), fontsize=14)
+    if 'h' in filter_type: #xxh-average; e.g. '30h', '35h'
+        ax2.set_title('ADCP (East, {} average) {}-{} {}m'.format(filter_type, data.attrs['station'],
+                                                                 data.attrs['deployment_number'],
+                                                                 str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
-        if filter_type == '30h':
-            ax2.set_title('ADCP (East, Godin Filtered) {}-{} {}m'.format(data.attrs['station'],
-                                                                         data.attrs['deployment_number'],
-                                                                         str(int(data.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP (East, Godin Filtered) {}-{} {}m'.format(data.attrs['station'],
+                                                                     data.attrs['deployment_number'],
+                                                                     str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title('ADCP (East, raw) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
                                                           str(int(data.instrument_depth))), fontsize=14)
@@ -153,17 +152,15 @@ def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='
 def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25, filter_type='raw'):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
-    print('in ac')
+
     along_angle = cross_angle + 90  # deg
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
     CS = u_cross
 
-    vminvmax = [-0.5, 0.5]
-
+    vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
     fig = plt.figure(figsize=(13.75, 10))
-
     ax1 = fig.add_subplot(2, 1, 1)
 
     f1 = ax1.pcolor(time_lim, bin_depths_lim, AS[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
@@ -174,8 +171,8 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
     if 'h' in filter_type:
         ax1.set_title(
             'ADCP (along, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
-                                                                    data.attrs['deployment_number'],
-                                                                    math.ceil(data.instrument_depth)),
+                                                                   data.attrs['deployment_number'],
+                                                                   math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
