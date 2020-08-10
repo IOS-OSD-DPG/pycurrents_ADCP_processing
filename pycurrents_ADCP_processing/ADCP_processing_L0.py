@@ -531,17 +531,16 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     return
 
 
-def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
+def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     # Combines data from a raw ADCP file and metadata from a csv file to produce a netCDF file of ADCP data
 
     # Define the name for the netCDF file
     out_name = os.path.basename(f_adcp)[:-4] + '.adcp.L0.nc'
     print(out_name)
-
-    # Get full file path
-    cwd = os.getcwd()
-    print(cwd)
-    out_name_full = cwd + '/' + out_name
+    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
+        out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
+    else:
+        out_absolute_name = os.path.abspath(dest_dir + out_name)
 
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = {}
@@ -858,29 +857,18 @@ def nc_create_L0(f_adcp, f_meta, start_year=None, time_file=None):
     out.to_netcdf(out_name, mode='w', format='NETCDF4')
     out.close()
 
-    return out_name_full
+    return out_absolute_name
 
 
 def example_usage_L0():
-    # 2) raw .000 file
+    # 1) raw .000 file
     raw_file = "./sample_data/a1_20050503_20050504_0221m.000"
-    # 3) csv metadata file
+    # 2) csv metadata file
     raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
+    # 3) destination directory for output files
+    dest_dir = 'dest_dir'
 
     nc_name = nc_create_L0(raw_file, raw_file_meta, start_year=None, time_file=None)
-    add_var2nc.add_geo(nc_name)
+    geo_name = add_var2nc.add_geo(nc_name, dest_dir=dest_dir)
 
     return
-
-
-# adcp_raw = '/home/hourstonh/Documents/data/ADCP_Roy/Mooring_Data_Processed_FINAL_LaPerouse/LaPerouse41/ADCP/a1_20050503_20050504_0221m.000'
-# adcp_meta = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/a1_20050503_20050504_0221m_meta_L1.csv'
-# new_wd = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/'
-# os.chdir(new_wd)
-
-# Add geographic_area variable
-# new_nc = '/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/a1_20050503_20050504_0221m.adcp.L0.nc'
-# my_json_file = '/home/hourstonh/cioos-siooc_data_transform-master/cioos_data_transform/ios_data_transform/' \
-#                'ios_data_transform/tests/test_files/ios_polygons.geojson'
-# os.chdir('/home/hourstonh/Documents/Hana_D_drive/ADCP_processing/ADCP_L1/a1_20050503_20050504_0221m/L0_geo/')
-# nc_geo = add_var2nc.add_geo(ncfile=new_nc, json_file=my_json_file)

@@ -927,19 +927,23 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     return
 
 
-def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
+def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     
     # If your raw file came from a NarrowBand instrument, you must also use the create_nc_L1() start_year optional kwarg (int type)
     # If your raw file has time values out of range, you must also use the create_nc_L1() time_file optional kwarg
     # Use the time_file kwarg to read in a csv file containing time entries spanning the range of deployment and using the
     # instrument sampling interval
 
-    # Splice file name to get output netCDF file name
-    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'; print(outname)
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
 
-    # Get full file path
-    cwd = os.getcwd(); print(cwd)
-    outname_full = cwd + '/' + outname
+    # Splice file name to get output netCDF file name
+    out_name = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
+    print(out_name)
+    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
+        out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
+    else:
+        out_absolute_name = os.path.abspath(dest_dir + out_name)
 
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = {}
@@ -1223,7 +1227,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                 'PRESPR01_QC': (['time'], PRESPR01_QC),
                                 'SVELCV01': (['time'], sound_speed),
                                 'DTUT8601': (['time'], time_DTUT8601),
-                                'filename': ([], outname[:-3]),
+                                'filename': ([], out_name[:-3]),
                                 'instrument_serial_number': ([], meta_dict['serialNumber']),
                                 'instrument_model': ([], meta_dict['instrumentModel'])})
 
@@ -1317,12 +1321,12 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(out.distance.data)
 
     # Export the 'out' object as a netCDF file
-    print(outname)
+    print(out_name)
 
-    out.to_netcdf(outname, mode='w', format='NETCDF4')
+    out.to_netcdf(out_name, mode='w', format='NETCDF4')
     out.close()
 
-    return outname_full
+    return out_absolute_name
 
 
 def example_usage_L1():
@@ -1333,10 +1337,12 @@ def example_usage_L1():
     # csv metadata file
     raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 
+    dest_dir = 'dest_dir'
+
     # Create netCDF file
-    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
+    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, start_year=None, time_file=None)
 
     # Produce new netCDF file that includes a geographic_area variable
-    add_var2nc.add_geo(nc_name)
+    add_var2nc.add_geo(nc_name, dest_dir)
 
     return
