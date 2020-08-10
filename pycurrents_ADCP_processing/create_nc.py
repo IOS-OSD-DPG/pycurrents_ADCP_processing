@@ -20,18 +20,19 @@ import os
 # Define raw ADCP file and associated metadata file
 f = './sample_data/a1_20050503_20050504_0221m.000'
 meta = './sample_data/a1_20050503_20050504_0221m_meta_L1.csv'
+dest_dir = 'dest_dir'
 
 # Perform L0 processing on the raw data and export as a netCDF file
-ncname_L0 = ADCP_processing_L0.nc_create_L0(f_adcp=f, f_meta=meta)
+ncname_L0 = ADCP_processing_L0.nc_create_L0(f_adcp=f, f_meta=meta, dest_dir=dest_dir)
 
 # Perform L1 processing on the raw data and export as a netCDF file
-ncname_L1 = ADCP_processing_L1.nc_create_L1(inFile=f, file_meta=meta)
+ncname_L1 = ADCP_processing_L1.nc_create_L1(inFile=f, file_meta=meta, dest_dir=dest_dir)
 
 # Read in the netCDF file produced above and add a geographic_area variable
 # Export as a new netCDF file
-geoname_L0 = add_var2nc.add_geo(ncname_L0)
-geoname_L1 = add_var2nc.add_geo(ncname_L1)
+geoname_L0 = add_var2nc.add_geo(ncname_L0, dest_dir)
+geoname_L1 = add_var2nc.add_geo(ncname_L1, dest_dir)
 
 # Generate a header (.adcp) file from the L1 netCDF file that has the geographic area variable
-ADCP_IOS_Header_file.main_header(geoname_L1)
+header_name = ADCP_IOS_Header_file.main_header(geoname_L1, dest_dir)
 

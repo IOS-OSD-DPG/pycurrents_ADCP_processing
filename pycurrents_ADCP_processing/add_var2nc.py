@@ -10,7 +10,7 @@ from pycurrents_ADCP_processing import utils
 from shapely.geometry import Point
 
 
-def add_geo(ncfile):
+def add_geo(ncfile, dest_dir):
     # Function returns full path of the netCDF file it creates
     data_xr = xr.open_dataset(ncfile)
     lon = data_xr.ALONZZ01
@@ -25,12 +25,12 @@ def add_geo(ncfile):
     print(utils.find_geographic_area(polygons_dict, Point(lon, lat)))
     print(ncfile)
     # Create subdir for new netCDF file if one doesn't exist yet
-    if not os.path.exists('./newnc/'):
-        os.makedirs('./newnc/')
-    new_name = './newnc/' + os.path.basename(ncfile)
+    if not os.path.exists('./{}/newnc/'.format(dest_dir)):
+        os.makedirs('./{}/newnc/'.format(dest_dir))
+    new_name = './{}/newnc/{}'.format(dest_dir, os.path.basename(ncfile))
     print('New file is located at: ', new_name)
     data_xr.to_netcdf(new_name)
-    return new_name
+    return os.path.abspath(new_name)
 
 
 def get_files(archive_dir):
@@ -42,7 +42,7 @@ def get_files(archive_dir):
 
     for profile in list_of_profiles:
         print(profile)
-        add_geo(profile)
+        abs_path = add_geo(profile)
 
 
 def example_usage_geo():

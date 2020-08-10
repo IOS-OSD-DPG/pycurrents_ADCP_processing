@@ -738,10 +738,11 @@ def main_header(f):
     write_instrument(nc=nc_file)
     write_raw(nc=nc_file)
     write_history(nc=nc_file, f_name=in_f_name)
+    return os.path.abspath(f_output)
 
 
 def example_usage_header():
     # Input
     in_file = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
-    main_header(f=in_file)
-    return
+    header_name = main_header(f=in_file)
+    return header_name
