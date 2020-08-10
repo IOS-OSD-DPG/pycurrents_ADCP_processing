@@ -378,6 +378,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                       'profiler (ADCP)'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
+    var.attrs['standard_name'] = 'indicative_error_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = 2 * uvw_vel_max
@@ -444,6 +445,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                       'profiler (ADCP) beam 1'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
+    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -461,6 +463,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                       'profiler (ADCP) beam 2'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
+    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -478,6 +481,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                       'profiler (ADCP) beam 3'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
+    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -495,6 +499,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                       'profiler (ADCP) beam 4'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
+    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -517,6 +522,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                           'current profiler (ADCP) beam 1'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
         var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -534,6 +540,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                           'current profiler (ADCP) beam 2'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
         var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -551,6 +558,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                           'current profiler (ADCP) beam 3'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
         var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -568,6 +576,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                           'current profiler (ADCP) beam 4'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
         var.attrs['sdn_uom_name'] = 'Percent'
+        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -776,6 +785,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_01'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 1'
+    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -791,6 +801,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_02'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 2'
+    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -806,6 +817,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_03'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 3'
+    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -821,6 +833,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_04'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 4'
+    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
     # done variables
@@ -873,6 +886,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                           'profiler (ADCP) vertical beam'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
         var.attrs['sdn_uom_name'] = 'Counts'
+        var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -887,6 +901,8 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['generic_name'] = 'CM'
         var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                           'moored acoustic doppler current profiler (ADCP) vertical beam'
+        var.attrs[
+            'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
         
@@ -904,25 +920,30 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
                                               'current profiler (ADCP) vertical beam'
             var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
             var.attrs['sdn_uom_name'] = 'Percent'
+            var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
             var.attrs['data_min'] = np.nanmin(var.data)
             var.attrs['data_max'] = np.nanmax(var.data)
 
     return
 
 
-def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
+def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     
     # If your raw file came from a NarrowBand instrument, you must also use the create_nc_L1() start_year optional kwarg (int type)
     # If your raw file has time values out of range, you must also use the create_nc_L1() time_file optional kwarg
     # Use the time_file kwarg to read in a csv file containing time entries spanning the range of deployment and using the
     # instrument sampling interval
 
-    # Splice file name to get output netCDF file name
-    outname = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'; print(outname)
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
 
-    # Get full file path
-    cwd = os.getcwd(); print(cwd)
-    outname_full = cwd + '/' + outname
+    # Splice file name to get output netCDF file name
+    out_name = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
+    print(out_name)
+    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
+        out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
+    else:
+        out_absolute_name = os.path.abspath(dest_dir + out_name)
 
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = {}
@@ -1206,7 +1227,7 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
                                 'PRESPR01_QC': (['time'], PRESPR01_QC),
                                 'SVELCV01': (['time'], sound_speed),
                                 'DTUT8601': (['time'], time_DTUT8601),
-                                'filename': ([], outname[:-3]),
+                                'filename': ([], out_name[:-3]),
                                 'instrument_serial_number': ([], meta_dict['serialNumber']),
                                 'instrument_model': ([], meta_dict['instrumentModel'])})
 
@@ -1300,12 +1321,12 @@ def nc_create_L1(inFile, file_meta, start_year=None, time_file=None):
         out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(out.distance.data)
 
     # Export the 'out' object as a netCDF file
-    print(outname)
+    print(out_name)
 
-    out.to_netcdf(outname, mode='w', format='NETCDF4')
+    out.to_netcdf(out_name, mode='w', format='NETCDF4')
     out.close()
 
-    return outname_full
+    return out_absolute_name
 
 
 def example_usage_L1():
@@ -1316,10 +1337,12 @@ def example_usage_L1():
     # csv metadata file
     raw_file_meta = "./sample_data/a1_20050503_20050504_0221m_meta_L1.csv"
 
+    dest_dir = 'dest_dir'
+
     # Create netCDF file
-    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, start_year=None, time_file=None)
+    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, start_year=None, time_file=None)
 
     # Produce new netCDF file that includes a geographic_area variable
-    add_var2nc.add_geo(nc_name)
+    add_var2nc.add_geo(nc_name, dest_dir)
 
     return

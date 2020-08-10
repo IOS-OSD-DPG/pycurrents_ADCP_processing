@@ -80,18 +80,18 @@ def limit_data(ncdata, ew_data, ns_data, bad_bins=0):
     return time_lim, bin_depths_lim, ns_lim, ew_lim
 
 
-def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
-    print('in ne')
+def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
+    # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
 
-    vminvmax = [-0.5, 0.5]
+    vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
     fig = plt.figure(figsize=(13.75, 10))
     ax = fig.add_subplot(2, 1, 1)
 
     f1 = ax.pcolor(time_lim, bin_depths_lim, ns_lim[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
     cbar = fig.colorbar(f1, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
-
     ax.set_ylabel('Depth [m]', fontsize=14)
+
     if filter_type == '30h':
         ax.set_title(
             'ADCP (North, 30h average) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
@@ -116,15 +116,14 @@ def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
-    if filter_type == '30h':
-        ax2.set_title('ADCP (East, 30h average) {}-{} {}m'.format(data.attrs['station'],
-                                                                  data.attrs['deployment_number'],
-                                                                  str(int(data.instrument_depth))), fontsize=14)
+    if 'h' in filter_type: #xxh-average; e.g. '30h', '35h'
+        ax2.set_title('ADCP (East, {} average) {}-{} {}m'.format(filter_type, data.attrs['station'],
+                                                                 data.attrs['deployment_number'],
+                                                                 str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
-        if filter_type == '30h':
-            ax2.set_title('ADCP (East, Godin Filtered) {}-{} {}m'.format(data.attrs['station'],
-                                                                         data.attrs['deployment_number'],
-                                                                         str(int(data.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP (East, Godin Filtered) {}-{} {}m'.format(data.attrs['station'],
+                                                                     data.attrs['deployment_number'],
+                                                                     str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title('ADCP (East, raw) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
                                                           str(int(data.instrument_depth))), fontsize=14)
@@ -134,36 +133,36 @@ def make_pcolor_ne(data, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     if 'L0' in data.filename.data.tolist():
-        plot_dir = './L0_Python_plots/'
+        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
     elif 'L1' in data.filename.data.tolist():
-        plot_dir = './L1_Python_plots/'
+        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
     elif 'L2' in data.filename.data.tolist():
-        plot_dir = './L2_Python_plots/'
+        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     else:
         ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    fig.savefig(plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
-        str(int(data.instrument_depth))) + '-NE_{}.png'.format(filter_type))
+    plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
+        str(int(data.instrument_depth))) + '-NE_{}.png'.format(filter_type)
+    fig.savefig(plot_name)
     plt.close()
-    return
+
+    return os.path.abspath(plot_name)
 
 
-def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25, filter_type='raw'):
+def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25, filter_type='raw'):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
-    print('in ac')
+
     along_angle = cross_angle + 90  # deg
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
     CS = u_cross
 
-    vminvmax = [-0.5, 0.5]
-
+    vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
     fig = plt.figure(figsize=(13.75, 10))
-
     ax1 = fig.add_subplot(2, 1, 1)
 
     f1 = ax1.pcolor(time_lim, bin_depths_lim, AS[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
@@ -174,8 +173,8 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
     if 'h' in filter_type:
         ax1.set_title(
             'ADCP (along, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
-                                                                    data.attrs['deployment_number'],
-                                                                    math.ceil(data.instrument_depth)),
+                                                                   data.attrs['deployment_number'],
+                                                                   math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
@@ -227,20 +226,22 @@ def make_pcolor_ac(data, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=2
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     if 'L0' in data.filename.data.tolist():
-        plot_dir = './L0_Python_plots/'
+        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
     elif 'L1' in data.filename.data.tolist():
-        plot_dir = './L1_Python_plots/'
+        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
     elif 'L2' in data.filename.data.tolist():
-        plot_dir = './L2_Python_plots/'
+        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     else:
         ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    fig.savefig(plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
-        math.ceil(data.instrument_depth)) + '-AC_{}.png'.format(filter_type))
+    plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
+        math.ceil(data.instrument_depth)) + '-AC_{}.png'.format(filter_type)
+    fig.savefig(plot_name)
     plt.close()
-    return
+
+    return os.path.abspath(plot_name)
 
 
 def num_ens_per_hr(nc):
@@ -315,7 +316,7 @@ def filter_XXh(nc, num_hrs=30):
     return ew_filt_final, ns_filt_final
 
 
-def binplot_compare_filt(nc, time, dat_raw, dat_filt, filter_type, direction):
+def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, direction):
     # Function to take one bin from the unfiltered (raw) data and the corresponding bin in the filtered
     # data, and plot the time series together on one plot. Restrict time series to 1 month.
     # dat_filt: data filtered using the method defined in filter_type
@@ -358,57 +359,66 @@ def binplot_compare_filt(nc, time, dat_raw, dat_filt, filter_type, direction):
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     if 'L0' in nc.filename.data.tolist():
-        plot_dir = './L0_Python_plots/'
+        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
     elif 'L1' in nc.filename.data.tolist():
-        plot_dir = './L1_Python_plots/'
+        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
     elif 'L2' in nc.filename.data.tolist():
-        plot_dir = './L2_Python_plots/'
+        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     else:
         ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    fig.savefig(plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+    plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
         str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(vel_code, bin_index + 1,
-                                                                                 filter_type))
+                                                                                 filter_type)
+    fig.savefig(plot_name)
     plt.close()
-    return
+    return os.path.abspath(plot_name)
 
 
-def example_usage_plot_nc():
-    ncfile = './newnc/a1_20160713_20170513_0480m.adcp.L1.nc'
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0, cross_angle=25):
+    """
+    Inputs:
+        - ncfile: file name of netCDF ADCP file
+        - dest_dir: destination directory for output files
+        - filter_type: "Godin", "30h", or "35h"
+        - bad_bins: the number of bins that are above the sea surface ("bad")
+        - cross_angle: cross-shore angle; measured CCW from North
+    Outputs:
+        - list of absolute file names of output files
+    """
     ncdata = xr.open_dataset(ncfile)
-    bad_bins = 3
 
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, bad_bins)
+    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, bad_bins)
 
     # North/East velocity plots
-    make_pcolor_ne(ncdata, time_lim, bin_depths_lim, ns_lim, ew_lim)
+    fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
     # Along/Cross-shelf velocity plots
-    make_pcolor_ac(ncdata, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25)
+    fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle)
 
-    # Redo whole process with Godin-filtered data
+    # Redo whole process with filtered data
 
-    # Apply 30h-averaging filter
-    # ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=30)
-
-    # Apply 35h-averaging filter
-    # ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=35)
-
-    # Apply Godin filter
-    ew_filt, ns_filt = filter_godin(ncdata)
+    if filter_type == "Godin":
+        ew_filt, ns_filt = filter_godin(ncdata)
+    elif filter_type == "30h":
+        ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=30)
+    elif filter_type == "35h":
+        ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=35)
+    else:
+        ValueError("filter_type value not understood !")
 
     # Limit data
     time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt)
 
     # East/North
-    make_pcolor_ne(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type='Godin')
+    fname_ne_filt = make_pcolor_ne(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
 
     # Along-shore/cross-shore
-    make_pcolor_ac(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, cross_angle=25, filter_type='Godin')
+    fname_ac_filt = make_pcolor_ac(ncdata, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, cross_angle, filter_type)
 
     # Compare velocity in bin 1
-    binplot_compare_filt(ncdata, time_lim, ew_lim, ew_filt_lim, filter_type='30h', direction='east')
+    fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type, direction='east')
 
-    return
+    return [fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]
