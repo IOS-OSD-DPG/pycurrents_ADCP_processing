@@ -390,7 +390,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0, cr
     """
     ncdata = xr.open_dataset(ncfile)
 
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, bad_bins)
+    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, bad_bins)
 
     # North/East velocity plots
     fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
