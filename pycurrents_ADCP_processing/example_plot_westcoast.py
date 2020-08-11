@@ -11,4 +11,3 @@ dest_dir = 'dest_dir'
 cross_angle = 25
 
 output_files = plot_westcoast_nc_LX.create_westcoast_plots(ncfile, dest_dir, "Godin", bad_surface_bins, cross_angle)
-
