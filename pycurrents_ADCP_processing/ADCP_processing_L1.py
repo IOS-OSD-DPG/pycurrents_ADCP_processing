@@ -1321,9 +1321,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(out.distance.data)
 
     # Export the 'out' object as a netCDF file
-    print(out_name)
-
-    out.to_netcdf(out_name, mode='w', format='NETCDF4')
+    out.to_netcdf(out_absolute_name, mode='w', format='NETCDF4')
     out.close()
 
     return out_absolute_name

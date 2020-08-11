@@ -854,7 +854,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['geospatial_lon_units'] = "degrees_east"
 
     # Export the 'out' object as a netCDF file
-    out.to_netcdf(out_name, mode='w', format='NETCDF4')
+    out.to_netcdf(out_absolute_name, mode='w', format='NETCDF4')
     out.close()
 
     return out_absolute_name
