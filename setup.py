@@ -14,6 +14,7 @@ setuptools.setup(
     url="https://github.com/hhourston/pycurrents_ADCP_processing",
     install_requires=['numpy', 'xarray', 'pandas', 'datetime', 'gsw', 'netCDF4', 'scipy', 'matplotlib', 'shapely'],
     packages=setuptools.find_packages(),
+    package_data={'pycurrents_ADCP_processing': ['*.geojson']},
     classifiers=["Programming Language :: Python :: 3"],
     python_requires='~=3.7',
 )
