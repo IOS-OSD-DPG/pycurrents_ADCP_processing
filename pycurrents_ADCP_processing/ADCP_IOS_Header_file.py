@@ -711,13 +711,14 @@ def write_history(nc, f_name):
     print("To get the actual data, please see " + f_name)
 
 
-def main_header(f):
+def main_header(f, dest_dir):
     #Start
     in_f_name = f.split("/")[-1]
     # Create subdir for new netCDF file if one doesn't exist yet
-    if not os.path.exists('./newnc/'):
-        os.makedirs('./newnc/')
-    f_output = './newnc/' + in_f_name.split(".")[0] + ".adcp"
+    newnc_dir = './{}/newnc/'.format(dest_dir)
+    if not os.path.exists(newnc_dir):
+        os.makedirs(newnc_dir)
+    f_output = newnc_dir + in_f_name.split(".")[0] + ".adcp"
     # print(f_output) prints to previously opened f_output in line 730
     nc_file = xr.open_dataset(f)
 
@@ -727,22 +728,29 @@ def main_header(f):
     dt_string = now.strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
     IOS_string = '*IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON' # ?? check with Germaine on the dates
 
-    sys.stdout = open(f_output, 'wt')
-    print("*" + dt_string)
-    print(IOS_string)
-    print() # print("\n") pring("\n" * 40)
-    write_file(nc=nc_file)
-    write_admin(nc=nc_file)
-    write_location(nc=nc_file)
-    write_deployment_recovery(nc=nc_file)
-    write_instrument(nc=nc_file)
-    write_raw(nc=nc_file)
-    write_history(nc=nc_file, f_name=in_f_name)
+    orig_stdout = sys.stdout
+    file_handle = open(f_output, 'wt')
+    try:
+        sys.stdout = file_handle
+        print("*" + dt_string)
+        print(IOS_string)
+        print() # print("\n") pring("\n" * 40)
+        write_file(nc=nc_file)
+        write_admin(nc=nc_file)
+        write_location(nc=nc_file)
+        write_deployment_recovery(nc=nc_file)
+        write_instrument(nc=nc_file)
+        write_raw(nc=nc_file)
+        write_history(nc=nc_file, f_name=in_f_name)
+        sys.stdout.flush() #Recommended by Tom
+    finally:
+        sys.stdout = orig_stdout
     return os.path.abspath(f_output)
 
 
 def example_usage_header():
     # Input
     in_file = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
-    header_name = main_header(f=in_file)
+    dest_dir = 'dest_dir'
+    header_name = main_header(f=in_file, dest_dir=dest_dir)
     return header_name

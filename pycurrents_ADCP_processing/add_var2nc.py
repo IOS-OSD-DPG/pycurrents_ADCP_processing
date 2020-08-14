@@ -2,7 +2,6 @@
 # Adding geographic area for all .adcp.nc files
 import xarray as xr
 import glob as glob
-import sys
 import os
 from pycurrents_ADCP_processing import utils
 # Library detail: https://github.com/cioos-siooc/cioos-siooc_data_transform/tree/master/cioos_data_transform/ios_data_transform
@@ -19,7 +18,7 @@ def add_geo(ncfile, dest_dir):
     data_xr.attrs['_FillValue'] = 1e35
     # Geojson definitions for IOS
 
-    json_file = './pyutils/ios_polygons.geojson'
+    json_file = './pycurrents_ADCP_processing/pyutils/ios_polygons.geojson'
     polygons_dict = utils.read_geojson(json_file)
     data_xr['geographic_area'] = utils.find_geographic_area(polygons_dict, Point(lon, lat))
     print(utils.find_geographic_area(polygons_dict, Point(lon, lat)))
@@ -28,8 +27,8 @@ def add_geo(ncfile, dest_dir):
     if not os.path.exists('./{}/newnc/'.format(dest_dir)):
         os.makedirs('./{}/newnc/'.format(dest_dir))
     new_name = './{}/newnc/{}'.format(dest_dir, os.path.basename(ncfile))
-    print('New file is located at: ', new_name)
-    data_xr.to_netcdf(new_name)
+    print('New file is located at: ', os.path.abspath(new_name))
+    data_xr.to_netcdf(os.path.abspath(new_name))
     return os.path.abspath(new_name)
 
 
