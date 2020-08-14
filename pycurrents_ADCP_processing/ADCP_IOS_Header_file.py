@@ -729,19 +729,22 @@ def main_header(f, dest_dir):
     IOS_string = '*IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON' # ?? check with Germaine on the dates
 
     orig_stdout = sys.stdout
-    sys.stdout = open(f_output, 'wt')
-    print("*" + dt_string)
-    print(IOS_string)
-    print() # print("\n") pring("\n" * 40)
-    write_file(nc=nc_file)
-    write_admin(nc=nc_file)
-    write_location(nc=nc_file)
-    write_deployment_recovery(nc=nc_file)
-    write_instrument(nc=nc_file)
-    write_raw(nc=nc_file)
-    write_history(nc=nc_file, f_name=in_f_name)
-    sys.stdout.flush() #Recommended by Tom
-    sys.stdout = orig_stdout
+    file_handle = open(f_output, 'wt')
+    try:
+        sys.stdout = file_handle
+        print("*" + dt_string)
+        print(IOS_string)
+        print() # print("\n") pring("\n" * 40)
+        write_file(nc=nc_file)
+        write_admin(nc=nc_file)
+        write_location(nc=nc_file)
+        write_deployment_recovery(nc=nc_file)
+        write_instrument(nc=nc_file)
+        write_raw(nc=nc_file)
+        write_history(nc=nc_file, f_name=in_f_name)
+        sys.stdout.flush() #Recommended by Tom
+    finally:
+        sys.stdout = orig_stdout
     return os.path.abspath(f_output)
 
 
