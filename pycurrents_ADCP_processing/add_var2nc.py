@@ -27,8 +27,8 @@ def add_geo(ncfile, dest_dir):
     if not os.path.exists('./{}/newnc/'.format(dest_dir)):
         os.makedirs('./{}/newnc/'.format(dest_dir))
     new_name = './{}/newnc/{}'.format(dest_dir, os.path.basename(ncfile))
-    print('New file is located at: ', new_name)
-    data_xr.to_netcdf(new_name)
+    print('New file is located at: ', os.path.abspath(new_name))
+    data_xr.to_netcdf(os.path.abspath(new_name))
     return os.path.abspath(new_name)
 
 
