@@ -927,6 +927,46 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     return
 
 
+def create_meta_dict_L1(adcp_meta):
+    """
+    Read in a csv metadata file and output in dictionary format
+    Inputs:
+        - adcp_meta: csv-format file containing metadata for raw ADCP file
+    Outputs:
+        - meta_dict: a dictionary containing the metadata from the csv file and additional metadata on conventions
+    """
+    meta_dict = {}
+    with open(adcp_meta) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        line_count = 0
+        for row in csv_reader:
+            # extract all metadata from csv file into dictionary -- some items not passed to netCDF file but are extracted anyway
+            if row[0] != "Name":
+                meta_dict[row[0]] = row[1]
+            elif row[0] == '' and row[1] == '':
+                warnings.warn('Metadata file contains a blank row; skipping this row', UserWarning)
+            elif row[0] != '' and row[1] == '':
+                warnings.warn('Metadata item in csv file has blank value; skipping this row '
+                              'in metadata file', UserWarning)
+            else:
+                continue
+
+    # Add conventions metadata to meta_dict
+    meta_dict['deployment_type'] = 'Sub Surface'
+    meta_dict['flag_meaning'] = 'no_quality_control, good_value, probably_good_value, probably_bad_value, ' \
+                                'bad_value, changed_value, value_below_detection, value_in_excess, ' \
+                                'interpolated_value, missing_value'
+    meta_dict['flag_references'] = 'BODC SeaDataNet'
+    meta_dict['flag_values'] = '0, 1, 2, 3, 4, 5, 6, 7, 8, 9'
+    meta_dict['keywords'] = 'Oceans > Ocean Circulation > Ocean Currents'
+    meta_dict['keywords_vocabulary'] = 'GCMD Science Keywords'
+    meta_dict['naming_authority'] = 'BODC, MEDS, CF v72'
+    meta_dict['variable_code_reference'] = 'BODC P01'
+    meta_dict['Conventions'] = "CF-1.8"
+
+    return meta_dict
+
+
 def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     
     # If your raw file came from a NarrowBand instrument, you must also use the create_nc_L1() start_year optional kwarg (int type)
@@ -946,21 +986,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         out_absolute_name = os.path.abspath(dest_dir + out_name)
 
     # Read information from metadata file into a dictionary, called meta_dict
-    meta_dict = {}
-    with open(file_meta) as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter=',')
-        line_count = 0
-        for row in csv_reader:
-            # extract all metadata from csv file into dictionary -- some items not passed to netCDF file but are extracted anyway
-            if row[0] != "Name":
-                meta_dict[row[0]] = row[1]
-            elif row[0] == '' and row[1] == '':
-                warnings.warn('Metadata file contains a blank row; skipping this row', UserWarning)
-            elif row[0] != '' and row[1] == '':
-                warnings.warn('Metadata item in csv file has blank value; skipping this row '
-                              'in metadata file', UserWarning)
-            else:
-                continue
+    meta_dict = create_meta_dict_L1(file_meta)
     
     # Assign model, model_long name, and manufacturer
     if meta_dict["instrumentSubtype"].upper() == "WORKHORSE":
@@ -1278,7 +1304,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['transmit_pulse_length_cm'] = vel.FL['Pulse']
     out.attrs['instrumentType'] = "adcp"
     out.attrs['manufacturer'] = meta_dict['manufacturer']
-    out.attrs['source'] = "R code: adcpProcess, github:"
+    out.attrs['source'] = "Python code: github: pycurrents_ADCP_processing"
     now = datetime.datetime.now()
     out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
     out.attrs['_FillValue'] = str(fill_value)
@@ -1297,7 +1323,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['false_target_reject_values'] = 50  # falseTargetThresh
     out.attrs['data_type'] = "adcp"
     out.attrs['pred_accuracy'] = 1  # velocityResolution * 1000
-    out.attrs['Conventions'] = "CF-1.8"
     out.attrs['creator_type'] = "person"
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
