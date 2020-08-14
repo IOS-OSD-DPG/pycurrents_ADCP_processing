@@ -531,18 +531,14 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     return
 
 
-def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
-    # Combines data from a raw ADCP file and metadata from a csv file to produce a netCDF file of ADCP data
-
-    # Define the name for the netCDF file
-    out_name = os.path.basename(f_adcp)[:-4] + '.adcp.L0.nc'
-    print(out_name)
-    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
-        out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
-    else:
-        out_absolute_name = os.path.abspath(dest_dir + out_name)
-
-    # Read information from metadata file into a dictionary, called meta_dict
+def create_meta_dict_L0(f_meta):
+    """
+        Read in a csv metadata file and output in dictionary format
+        Inputs:
+            - adcp_meta: csv-format file containing metadata for raw ADCP file
+        Outputs:
+            - meta_dict: a dictionary containing the metadata from the csv file and additional metadata on conventions
+        """
     meta_dict = {}
     with open(f_meta) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
@@ -559,6 +555,31 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
                               'in metadata file', UserWarning)
             else:
                 continue
+
+    # Add conventions metadata to meta_dict
+    meta_dict['deployment_type'] = 'Sub Surface'
+    meta_dict['keywords'] = 'Oceans > Ocean Circulation > Ocean Currents'
+    meta_dict['keywords_vocabulary'] = 'GCMD Science Keywords'
+    meta_dict['naming_authority'] = 'BODC, MEDS, CF v72'
+    meta_dict['variable_code_reference'] = 'BODC P01'
+    meta_dict['Conventions'] = "CF-1.8"
+
+    return meta_dict
+
+
+def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
+    # Combines data from a raw ADCP file and metadata from a csv file to produce a netCDF file of ADCP data
+
+    # Define the name for the netCDF file
+    out_name = os.path.basename(f_adcp)[:-4] + '.adcp.L0.nc'
+    print(out_name)
+    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
+        out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
+    else:
+        out_absolute_name = os.path.abspath(dest_dir + out_name)
+
+    # Read information from metadata file into a dictionary, called meta_dict
+    meta_dict = create_meta_dict_L0(f_meta)
 
     # Assign model, model_long name, and manufacturer
     if meta_dict["instrumentSubtype"].upper() == "WORKHORSE":
@@ -838,7 +859,6 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['false_target_reject_values'] = 50  # falseTargetThresh
     out.attrs['data_type'] = "adcp"
     out.attrs['pred_accuracy'] = 1  # velocityResolution * 1000
-    out.attrs['Conventions'] = "CF-1.8"
     out.attrs['creator_type'] = "person"
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
