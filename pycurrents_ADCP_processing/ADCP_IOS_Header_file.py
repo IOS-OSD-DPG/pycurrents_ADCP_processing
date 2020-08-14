@@ -728,6 +728,7 @@ def main_header(f, dest_dir):
     dt_string = now.strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
     IOS_string = '*IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON' # ?? check with Germaine on the dates
 
+    orig_stdout = sys.stdout
     sys.stdout = open(f_output, 'wt')
     print("*" + dt_string)
     print(IOS_string)
@@ -739,6 +740,8 @@ def main_header(f, dest_dir):
     write_instrument(nc=nc_file)
     write_raw(nc=nc_file)
     write_history(nc=nc_file, f_name=in_f_name)
+    sys.stdout.flush() #Recommended by Tom
+    sys.stdout = orig_stdout
     return os.path.abspath(f_output)
 
 
