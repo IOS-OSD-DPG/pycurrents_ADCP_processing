@@ -14,8 +14,8 @@ deployment_cruise_number,2016-12,The number of the deployment cruise,Optional,Op
 geographic_area,"Offshore Barkley Sound, WVI",Geographic area of the station,Optional,Optional
 history,"The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston. The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm. Instrument depth was derived from reconciling all trustworthy pressure sensors on the mooring (i.e., Sea-Bird) and the mooring line length.",The history of the processing and data set,Optional,Optional
 instrument_depth,480,Depth of the instrument in meters,Required,Required
-latitude,48.5385,Latitude of mooring,Required,Required
-longitude,-126.1952,Longitude of mooring,Required,Required
+latitude,48.5385,Latitude of mooring in decimal degrees,Required,Required
+longitude,-126.1952,Longitude of mooring in decimal degrees,Required,Required
 platform,John P. Tully,The platform/ship name,Optional,Optional
 project,La Perouse,The project under which data were collected,Optional,Optional
 publisher_email,DFO.PAC.SCI.IOSData-DonneesISO.SCI.PAC.MPO@dfo-mpo.gc.ca,The email of the data shop which published and processed this data set,Optional,Optional
