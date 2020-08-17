@@ -1,7 +1,7 @@
 Name,Value,Definition,L0 Instructions,L1 Instructions
 instrument_depth,,Depth of the instrument in meters,Required,Required
-latitude,,Latitude of mooring,Required,Required
-longitude,,Longitude of mooring,Required,Required
+latitude,,Latitude of mooring in decimal degrees,Required,Required
+longitude,,Longitude of mooring in decimal degrees,Required,Required
 water_depth,,Water depth in meters,Required,Required
 serialNumber,,The serial number of the instrument,Required,Required
 instrumentSubtype,,"The instrument subtype (e.g. Workhorse, Broadband, Sentinel V)",Required,Required

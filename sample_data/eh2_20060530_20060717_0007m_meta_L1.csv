@@ -13,8 +13,8 @@ cut_trail_ensembles,0,The number of trailing ensembles to cut from the dataset,O
 deployment_cruise_number,2006-10,The number of the deployment cruise,Optional,Optional
 history,The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston. The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm. Instrument depth was derived from the shipboard depth sounder and the mooring line length.,The history of the processing and data set,Optional,Optional
 instrument_depth,7,Depth of the instrument in meters,Optional,Optional
-latitude,47.5977,Latitude of mooring,Required,Required
-longitude,-124.5903,Longitude of mooring,Required,Required
+latitude,47.5977,Latitude of mooring in decimal degrees,Required,Required
+longitude,-124.5903,Longitude of mooring in decimal degrees,Required,Required
 platform,John P. Tully,The platform/ship name,Required,Required
 processing_level,1,The level of processing to be performed on the data,Optional,Optional
 project,ECOHAB,The project under which data were collected,Optional,Optional
