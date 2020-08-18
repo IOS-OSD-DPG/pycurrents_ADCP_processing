@@ -48,16 +48,14 @@ def get_L1_start_end(ncdata):
     return start_end_indices
 
 
-def limit_data(ncdata, ew_data, ns_data, bad_bins=0):
+def limit_data(ncdata, ew_data, ns_data):
     if ncdata.orientation == 'up':
         bin_depths = ncdata.instrument_depth - ncdata.distance.data
     else:
         bin_depths = ncdata.instrument_depth + ncdata.distance.data
     print(bin_depths)
 
-    # data.time should be limited to the data.time with no NA values
-    # AS and CS will need to be likewise limited
-    # bins must be limited
+    # data.time should be limited to the data.time with no NA values; bins must be limited
     if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
         new_first_last = get_L1_start_end(ncdata=ncdata)
     else:
@@ -66,17 +64,11 @@ def limit_data(ncdata, ew_data, ns_data, bad_bins=0):
     # Remove bins where surface backscatter occurs
     time_lim = ncdata.time.data[new_first_last[0]:new_first_last[1]]
 
-    if bad_bins != 0:
-        bin_depths_lim = bin_depths[:-bad_bins]
-        print(bin_depths_lim)
+    bin_depths_lim = bin_depths[bin_depths >= 0]
+    print(bin_depths_lim)
 
-        ew_lim = ew_data[:-bad_bins, new_first_last[0]:new_first_last[1]]
-        ns_lim = ns_data[:-bad_bins, new_first_last[0]:new_first_last[1]]
-    else:
-        bin_depths_lim = bin_depths
-
-        ew_lim = ew_data[:, new_first_last[0]:new_first_last[1]]
-        ns_lim = ns_data[:, new_first_last[0]:new_first_last[1]]
+    ew_lim = ew_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
+    ns_lim = ns_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
 
     return time_lim, bin_depths_lim, ns_lim, ew_lim
 
@@ -193,18 +185,18 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     ax1.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:
         ax1.set_title(
-            'ADCP (along, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
+            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
                                                                    data.attrs['deployment_number'],
                                                                    math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
-            'ADCP (along, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(along_angle, data.attrs['station'],
+            'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(along_angle, data.attrs['station'],
                                                                        data.attrs['deployment_number'],
                                                                        math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'raw':
-        ax1.set_title('ADCP (along, raw) {}$^\circ$ {}-{} {}m'.format(along_angle, data.attrs['station'],
+        ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(along_angle, data.attrs['station'],
                                                                       data.attrs['deployment_number'],
                                                                       math.ceil(data.instrument_depth)), fontsize=14)
     else:
@@ -398,19 +390,18 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     return os.path.abspath(plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0):
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
         - dest_dir: destination directory for output files
         - filter_type: "Godin", "30h", or "35h"
-        - bad_bins: the number of bins that are above the sea surface ("bad")
     Outputs:
         - list of absolute file names of output files
     """
     ncdata = xr.open_dataset(ncfile)
 
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, bad_bins)
+    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data)
 
     # North/East velocity plots
     fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
@@ -430,7 +421,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0):
         ValueError("filter_type value not understood !")
 
     # Limit data
-    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt, bad_bins)
+    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt)
 
     # East/North
     fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)

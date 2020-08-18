@@ -206,9 +206,7 @@ def flag_pressure(pres, ens1, ens2, metadata_dict):
         PRESPR01_QC_var[-ens2:] = 4
 
     # Flag negative pressure values
-    for i in range(len(pres)):
-        if pres[i] < 0:
-            PRESPR01_QC_var[i] = 4  #"bad_data"
+    PRESPR01_QC_var[pres < 0] = 4
 
     pres[PRESPR01_QC_var == 4] = np.nan
 
