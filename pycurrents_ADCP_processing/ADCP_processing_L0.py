@@ -570,6 +570,9 @@ def create_meta_dict_L0(f_meta):
 def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     # Combines data from a raw ADCP file and metadata from a csv file to produce a netCDF file of ADCP data
 
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+
     # Define the name for the netCDF file
     out_name = os.path.basename(f_adcp)[:-4] + '.adcp.L0.nc'
     print(out_name)
@@ -682,16 +685,6 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
         # Add instrument model variable value
         meta_dict['instrumentModel'] = '{} ADCP {}kHz ({})'.format(model_long, data.sysconfig['kHz'],
                                                                    meta_dict['serialNumber'])
-
-    # Correct flag_meanings values if they are comma-separated
-    if ',' in meta_dict['flag_meaning']:
-        flag_meaning_list = [x.strip() for x in meta_dict['flag_meaning'].split(',')]
-        meta_dict['flag_meaning'] = np.array(flag_meaning_list, dtype='U{}'.format(
-            len(max(flag_meaning_list, key=len))))
-
-    # Convert flag_values from single string to numpy array
-    flag_values_list = [x.strip() for x in meta_dict['flag_values'].split(',')]
-    meta_dict['flag_values'] = np.array(flag_values_list, dtype='int32')
 
     # Begin writing processing history, which will be added as a global attribute to the output netCDF file
     meta_dict['processing_history'] = "Metadata read in from log sheet and combined with raw data to export " \
@@ -815,7 +808,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     # Global attributes
 
     # Add select meta_dict items as global attributes
-    pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model']
+    pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'model']
     for key, value in meta_dict.items():
         if key in pass_dict_keys:
             pass
@@ -840,7 +833,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['transmit_pulse_length_cm'] = vel.FL['Pulse']
     out.attrs['instrumentType'] = "adcp"
     out.attrs['manufacturer'] = meta_dict['manufacturer']
-    out.attrs['source'] = "R code: adcpProcess, github:"
+    out.attrs['source'] = "Python code: github: pycurrents_ADCP_processing"
     now = datetime.datetime.now()
     out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
     out.attrs['_FillValue'] = str(fill_value)
@@ -888,7 +881,7 @@ def example_usage_L0():
     # 3) destination directory for output files
     dest_dir = 'dest_dir'
 
-    nc_name = nc_create_L0(raw_file, raw_file_meta, start_year=None, time_file=None)
-    geo_name = add_var2nc.add_geo(nc_name, dest_dir=dest_dir)
+    nc_name = nc_create_L0(raw_file, raw_file_meta, dest_dir, start_year=None, time_file=None)
+    geo_name = add_var2nc.add_geo(nc_name, dest_dir)
 
-    return
+    return nc_name, geo_name
