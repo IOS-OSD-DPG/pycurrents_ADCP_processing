@@ -152,11 +152,31 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     return os.path.abspath(plot_name)
 
 
+def determine_dom_angle(u_true, v_true):
+    # Determine the dominant angle in degrees
+    # along_angle measured in degrees relative to geographic East, counter-clockwise
+    angles = np.arange(0, 180)
+    max_rms = 0.
+    max_angle = 0.
+    for angle in angles:
+        along_angle = np.deg2rad(angle)
+
+        u_along = u_true * np.cos(along_angle) + v_true * np.sin(along_angle)
+        rms = np.sqrt(np.nanmean(u_along * u_along))
+        if rms > max_rms:
+            max_rms = rms
+            max_angle = angle # in degrees
+    along_angle = max_angle
+    cross_angle = max_angle - 90.
+    return along_angle, cross_angle
+
+
 def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25, filter_type='raw'):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
-
-    along_angle = cross_angle + 90  # deg
+    along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
+    print(along_angle, cross_angle)
+#     along_angle = cross_angle + 90  # deg
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
@@ -204,18 +224,18 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cro
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type: #xxh-average; e.g. '30h', '35h'
         ax2.set_title(
-            'ADCP (cross, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
+            'ADCP (cross, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, cross_angle, data.attrs['station'],
                                                                    data.attrs['deployment_number'],
                                                                    math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
-            'ADCP (cross, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(str(along_angle), data.attrs['station'],
+            'ADCP (cross, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
                                                                        data.attrs['deployment_number'],
                                                                        str(math.ceil(data.instrument_depth))),
             fontsize=14)
     elif filter_type == 'raw':
-        ax2.set_title('ADCP (cross, raw) {}$^\circ$ {}-{} {}m'.format(str(along_angle), data.attrs['station'],
+        ax2.set_title('ADCP (cross, raw) {}$^\circ$ {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
                                                                       data.attrs['deployment_number'],
                                                                       str(math.ceil(data.instrument_depth))),
                       fontsize=14)
