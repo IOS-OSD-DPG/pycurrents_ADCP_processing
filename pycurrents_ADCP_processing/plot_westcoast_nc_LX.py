@@ -59,7 +59,7 @@ def limit_data(ncdata, ew_data, ns_data):
     if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
         new_first_last = get_L1_start_end(ncdata=ncdata)
     else:
-        new_first_last = (0, 0)
+        new_first_last = (0, len(ew_data[0]))
 
     # Remove bins where surface backscatter occurs
     time_lim = ncdata.time.data[new_first_last[0]:new_first_last[1]]
@@ -73,8 +73,12 @@ def limit_data(ncdata, ew_data, ns_data):
     return time_lim, bin_depths_lim, ns_lim, ew_lim
 
 
-def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
+def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False, filter_type='raw'):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
+
+    magnetic = '' #specify "Magnetic (North)" for L0 files, since magnetic declination wasn't applied to them
+    if level0:
+        magnetic = 'Magnetic '
 
     vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
     fig = plt.figure(figsize=(13.75, 10))
@@ -87,15 +91,18 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
 
     if filter_type == '30h':
         ax.set_title(
-            'ADCP (North, 30h average) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
-                                                         str(int(data.instrument_depth))), fontsize=14)
+            'ADCP ({}North, 30h average) {}-{} {}m'.format(magnetic, data.attrs['station'],
+                                                           data.attrs['deployment_number'],
+                                                           str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
         ax.set_title(
-            'ADCP (North, Godin Filtered) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
-                                                            str(int(data.instrument_depth))), fontsize=14)
+            'ADCP ({}North, Godin Filtered) {}-{} {}m'.format(magnetic, data.attrs['station'],
+                                                              data.attrs['deployment_number'],
+                                                              str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
-        ax.set_title('ADCP (North, raw) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
-                                                          str(int(data.instrument_depth))), fontsize=14)
+        ax.set_title(
+            'ADCP ({}North, raw) {}-{} {}m'.format(magnetic, data.attrs['station'], data.attrs['deployment_number'],
+                                                   str(int(data.instrument_depth))), fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -109,17 +116,18 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
-    if 'h' in filter_type: #xxh-average; e.g. '30h', '35h'
-        ax2.set_title('ADCP (East, {} average) {}-{} {}m'.format(filter_type, data.attrs['station'],
-                                                                 data.attrs['deployment_number'],
-                                                                 str(int(data.instrument_depth))), fontsize=14)
+    if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
+        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m'.format(magnetic, filter_type, data.attrs['station'],
+                                                                   data.attrs['deployment_number'],
+                                                                   str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
-        ax2.set_title('ADCP (East, Godin Filtered) {}-{} {}m'.format(data.attrs['station'],
-                                                                     data.attrs['deployment_number'],
-                                                                     str(int(data.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m'.format(magnetic, data.attrs['station'],
+                                                                       data.attrs['deployment_number'],
+                                                                       str(int(data.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
-        ax2.set_title('ADCP (East, raw) {}-{} {}m'.format(data.attrs['station'], data.attrs['deployment_number'],
-                                                          str(int(data.instrument_depth))), fontsize=14)
+        ax2.set_title(
+            'ADCP ({}East, raw) {}-{} {}m'.format(magnetic, data.attrs['station'], data.attrs['deployment_number'],
+                                                  str(int(data.instrument_depth))), fontsize=14)
 
     if data.orientation == 'up':
         plt.gca().invert_yaxis()
@@ -136,8 +144,12 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
-        str(int(data.instrument_depth))) + '-NE_{}.png'.format(filter_type)
+    if level0:
+        plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
+            str(int(data.instrument_depth))) + '-magn_NE_{}.png'.format(filter_type)
+    else:
+        plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
+            str(int(data.instrument_depth))) + '-NE_{}.png'.format(filter_type)
     fig.savefig(plot_name)
     plt.close()
 
@@ -185,20 +197,22 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     ax1.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:
         ax1.set_title(
-            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
-                                                                   data.attrs['deployment_number'],
-                                                                   math.ceil(data.instrument_depth)),
+            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(filter_type, along_angle,
+                                                                                data.attrs['station'],
+                                                                                data.attrs['deployment_number'],
+                                                                                math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
             'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(along_angle, data.attrs['station'],
-                                                                       data.attrs['deployment_number'],
-                                                                       math.ceil(data.instrument_depth)),
+                                                                                    data.attrs['deployment_number'],
+                                                                                    math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'raw':
         ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(along_angle, data.attrs['station'],
-                                                                      data.attrs['deployment_number'],
-                                                                      math.ceil(data.instrument_depth)), fontsize=14)
+                                                                                   data.attrs['deployment_number'],
+                                                                                   math.ceil(data.instrument_depth)),
+                      fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -214,23 +228,27 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
-    if 'h' in filter_type: #xxh-average; e.g. '30h', '35h'
+    if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
         ax2.set_title(
-            'ADCP (cross, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, cross_angle, data.attrs['station'],
-                                                                   data.attrs['deployment_number'],
-                                                                   math.ceil(data.instrument_depth)),
+            'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(filter_type, cross_angle,
+                                                                                data.attrs['station'],
+                                                                                data.attrs['deployment_number'],
+                                                                                math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
-            'ADCP (cross, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
-                                                                       data.attrs['deployment_number'],
-                                                                       str(math.ceil(data.instrument_depth))),
+            'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(str(cross_angle),
+                                                                                    data.attrs['station'],
+                                                                                    data.attrs['deployment_number'],
+                                                                                    str(math.ceil(
+                                                                                        data.instrument_depth))),
             fontsize=14)
     elif filter_type == 'raw':
-        ax2.set_title('ADCP (cross, raw) {}$^\circ$ {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
-                                                                      data.attrs['deployment_number'],
-                                                                      str(math.ceil(data.instrument_depth))),
-                      fontsize=14)
+        ax2.set_title(
+            'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
+                                                                         data.attrs['deployment_number'],
+                                                                         str(math.ceil(data.instrument_depth))),
+            fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -282,8 +300,12 @@ def filter_godin(nc):
 
     # Rolling window calculations
     # Need to take transpose so that the rolling average is taken along the time (not bin) axis
-    ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
-    ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
+    if 'L0' in nc.filename.data.tolist():
+        ew_df = pd.DataFrame(data=nc.VEL_MAGNETIC_EAST.data.transpose())
+        ns_df = pd.DataFrame(data=nc.VEL_MAGNETIC_NORTH.data.transpose())
+    else:
+        ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
+        ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
     # 24h rolling average
     ew_filt_temp1 = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
     ns_filt_temp1 = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
@@ -317,8 +339,12 @@ def filter_XXh(nc, num_hrs=30):
 
     # Rolling window calculations
     # Need to take transpose so that the rolling average is taken along the time (not bin) axis
-    ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
-    ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
+    if 'L0' in nc.filename.data.tolist():
+        ew_df = pd.DataFrame(data=nc.VEL_MAGNETIC_EAST.data.transpose())
+        ns_df = pd.DataFrame(data=nc.VEL_MAGNETIC_NORTH.data.transpose())
+    else:
+        ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
+        ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
     ew_filt_final = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
     ns_filt_final = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
 
@@ -336,7 +362,11 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     # filter_type options: 'Godin' or 'xxh' (e.g., '30h', '35h')
     # direction: 'east' or 'north'
 
-    if direction == 'east':
+    if direction == 'magnetic_east':
+        vel_code = 'VEL_MAGNETIC_EAST'
+    elif direction == 'magnetic_north':
+        vel_code = 'VEL_MAGNETIC_NORTH'
+    elif direction == 'east':
         vel_code = 'LCEWAP01'
     elif direction == 'north':
         vel_code = 'LCNSAP01'
@@ -401,13 +431,21 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
     """
     ncdata = xr.open_dataset(ncfile)
 
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data)
+    if "L0" in ncfile:
+        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.VEL_MAGNETIC_EAST.data, ncdata.VEL_MAGNETIC_NORTH.data)
+        # North/East velocity plots
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, True)
 
-    # North/East velocity plots
-    fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+        # Along/Cross-shelf velocity plots
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
-    # Along/Cross-shelf velocity plots
-    fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+    else:
+        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data)
+        # North/East velocity plots
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+
+        # Along/Cross-shelf velocity plots
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
     # Redo whole process with filtered data
 
@@ -424,12 +462,22 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
     time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt)
 
     # East/North
-    fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
+    if "L0" in ncfile:
+        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, True,
+                                       filter_type)
+    else:
+        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, False,
+                                       filter_type)
 
     # Along-shore/cross-shore
     fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
 
     # Compare velocity in bin 1
-    fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type, direction='east')
+    if 'L0' in ncfile:
+        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type,
+                                             direction='magnetic_east')
+    else:
+        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type,
+                                             direction='east')
 
     return [fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]
