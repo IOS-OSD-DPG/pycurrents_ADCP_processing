@@ -24,7 +24,7 @@ import pandas as pd
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
     # Rotate North and East velocities to along- and cross-shore velocities given an along-shore angle
-    # along_angle measured in degrees relative to geographic North
+    # along_angle measured in degrees counter-clockwise from geographic East
     along_angle = np.deg2rad(along_angle)
 
     u_along = u_true * np.cos(along_angle) + v_true * np.sin(along_angle)
@@ -152,11 +152,31 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     return os.path.abspath(plot_name)
 
 
-def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle=25, filter_type='raw'):
+def determine_dom_angle(u_true, v_true):
+    # Determine the dominant angle in degrees
+    # along_angle measured in degrees relative to geographic East, counter-clockwise
+    angles = np.arange(0, 180)
+    max_rms = 0.
+    max_angle = 0.
+    for angle in angles:
+        along_angle = np.deg2rad(angle)
+
+        u_along = u_true * np.cos(along_angle) + v_true * np.sin(along_angle)
+        rms = np.sqrt(np.nanmean(u_along * u_along))
+        if rms > max_rms:
+            max_rms = rms
+            max_angle = angle # in degrees
+    along_angle = max_angle
+    cross_angle = max_angle - 90.
+    return along_angle, cross_angle
+
+
+def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
-
-    along_angle = cross_angle + 90  # deg
+    along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
+    print(along_angle, cross_angle)
+#     along_angle = cross_angle + 90  # deg
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
@@ -204,18 +224,18 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cro
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type: #xxh-average; e.g. '30h', '35h'
         ax2.set_title(
-            'ADCP (cross, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, along_angle, data.attrs['station'],
+            'ADCP (cross, {} average) {}$^\circ$ {}-{} {}m'.format(filter_type, cross_angle, data.attrs['station'],
                                                                    data.attrs['deployment_number'],
                                                                    math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
-            'ADCP (cross, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(str(along_angle), data.attrs['station'],
+            'ADCP (cross, Godin Filtered) {}$^\circ$ {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
                                                                        data.attrs['deployment_number'],
                                                                        str(math.ceil(data.instrument_depth))),
             fontsize=14)
     elif filter_type == 'raw':
-        ax2.set_title('ADCP (cross, raw) {}$^\circ$ {}-{} {}m'.format(str(along_angle), data.attrs['station'],
+        ax2.set_title('ADCP (cross, raw) {}$^\circ$ {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
                                                                       data.attrs['deployment_number'],
                                                                       str(math.ceil(data.instrument_depth))),
                       fontsize=14)
@@ -378,14 +398,13 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     return os.path.abspath(plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0, cross_angle=None):
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
         - dest_dir: destination directory for output files
         - filter_type: "Godin", "30h", or "35h"
         - bad_bins: the number of bins that are above the sea surface ("bad")
-        - cross_angle: cross-shore angle; measured CCW from North
     Outputs:
         - list of absolute file names of output files
     """
@@ -397,8 +416,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0, cr
     fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
     # Along/Cross-shelf velocity plots
-    if cross_angle is not None:
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, cross_angle)
+    fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
     # Redo whole process with filtered data
 
@@ -418,13 +436,9 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", bad_bins=0, cr
     fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
 
     # Along-shore/cross-shore
-    if cross_angle is not None:
-        fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, cross_angle, filter_type)
+    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
 
     # Compare velocity in bin 1
     fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type, direction='east')
 
-    if cross_angle is None:
-        return [fname_ne, fname_ne_filt, fname_binplot]
-    else:
-        return [fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]
+    return [fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]
