@@ -498,54 +498,62 @@ def flag_by_pres(d, use_prexmcat=False):
     """
 
     if use_prexmcat:
-        print('Using PREXMCAT as pressure data')
+        print('Using PREXMCAT as pressure data ...')
         pressure = d.PREXMCAT
     else:
-        print('Using PRESPR01 as pressure data')
+        print('Using PRESPR01 as pressure data ...')
         pressure = d.PRESPR01
 
     # Obtain the number of leading and trailing ensembles that were set to nans during L1 processing
-    start_end_L1 = plot_westcoast_nc_LX.get_L1_start_end(ncdata=d)
-    print('Start and end indices between nans from L1:', start_end_L1[0], start_end_L1[1], sep=' ')
+    # start_end_L1 = plot_westcoast_nc_LX.get_L1_start_end(ncdata=d)
+    # print('Start and end indices between nans from L1:', start_end_L1[0], start_end_L1[1], sep=' ')
 
     # List of indices where bins start to have negative pressure
-    bad_bin_list = np.zeros(shape=d.time.data.shape, dtype='int32') #initialize with zeros
-    bad_bin_list[start_end_L1[0]:start_end_L1[1]] = -1 #assume no bad bins in this range; index=-1
+    # bad_bin_list = np.zeros(shape=d.time.data.shape, dtype='int32') #initialize with zeros
+    # bad_bin_list[start_end_L1[0]:start_end_L1[1]] = -1 #assume no bad bins in this range; index=-1
 
     # Flag by negative pressure timestep by timestep
-    for t_i in range(start_end_L1[0], start_end_L1[1]):
-        flag = 0
-        # Iterate through bins
-        for b_i in range(len(d.distance.data)):  # bin with index 0 == 1st bin
-            # Calculate pressure at each bin depth by subtracting each bin distance from pressure at time step
-            bin_pres = pressure.data[t_i] - d.distance.data[b_i]
-            if bin_pres < 0:
-                # Identify first bin index with negative pressure
-                bad_bin_1 = b_i
-                bad_bin_list[t_i] = bad_bin_1
-                flag += 1
-            if flag != 0:
-                break
+    # for t_i in range(start_end_L1[0], start_end_L1[1]):
+    #     flag = 0
+    #     # Iterate through bins
+    #     for b_i in range(len(d.distance.data)):  # bin with index 0 == 1st bin
+    #         # Calculate pressure at each bin depth by subtracting each bin distance from pressure at time step
+    #         bin_pres = pressure.data[t_i] - d.distance.data[b_i]
+    #         if bin_pres < 0:
+    #             # Identify first bin index with negative pressure
+    #             bad_bin_1 = b_i
+    #             bad_bin_list[t_i] = bad_bin_1
+    #             flag += 1
+    #         if flag != 0:
+    #             break
+
+    pres_2d = np.vstack((pressure.data,) * len(d.distance.data))
+    dist_2d = np.vstack((d.distance.data,) * len(pressure.data)).transpose()
+    bin_pres = pres_2d - dist_2d
 
     # Flag velocity data
     flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        vels_QC = [d.LCEWAP01_QC, d.LCNSAP01_QC, d.LCNSAP01_QC, d.LRZUVP01_QC]
+        vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
-        vels_QC = [d.LCEWAP01_QC, d.LCNSAP01_QC, d.LCNSAP01_QC]
+        vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data]
+
+    # for v_QC in vels_QC:
+    #     for t_i in range(start_end_L1[0], start_end_L1[1]):
+    #         # Skip time steps with no bad bins
+    #         if bad_bin_list[t_i] != -1:
+    #             v_QC[bad_bin_list[t_i]:, t_i] = 4  # bad_value flag=4
 
     for v_QC in vels_QC:
-        for t_i in range(start_end_L1[0], start_end_L1[1]):
-            # Skip time steps with no bad bins
-            if bad_bin_list[t_i] != -1:
-                v_QC[bad_bin_list[t_i]:, t_i] = 4  # bad_value flag=4
+        v_QC[bin_pres < 0] = 4
 
     d.attrs['processing_history'] = d.processing_history + " Level 2 processing was performed on the data."
     d.attrs['processing_history'] = d.processing_history + " Bins with negative pressure (i.e. were located above" \
                                                            " sea level) were flagged as bad_value" \
                                                            " timestep by timestep."
 
-    return bad_bin_list
+    # return bad_bin_list
+    return
 
 
 def flag_below_seafloor(d):
@@ -561,36 +569,44 @@ def flag_below_seafloor(d):
     """
 
     # Obtain the number of leading and trailing ensembles that were set to nans during L1 processing
-    start_end_L1 = plot_westcoast_nc_LX.get_L1_start_end(ncdata=d)
-    print('Start and end indices between nans from L1:', start_end_L1[0], start_end_L1[1], sep=' ')
+    # start_end_L1 = plot_westcoast_nc_LX.get_L1_start_end(ncdata=d)
+    # print('Start and end indices between nans from L1:', start_end_L1[0], start_end_L1[1], sep=' ')
 
-    bad_bin_list = np.zeros(shape=d.time.data.shape, dtype='int32') #initialize with zeros
-    bad_bin_list[start_end_L1[0]:start_end_L1[1]] = -1 #assume no bad bins in range
-    for t_i in range(start_end_L1[0], start_end_L1[1]):
-        flag = 0
-        # Find shallowest bin that is within the ocean floor and flag it and all deeper ones as 4 == bad_data
-        for b_i in range(len(d.distance.data)):
-            bin_depth = d.instrument_depth + d.distance.data[b_i]
-            if bin_depth > d.water_depth:
-                bad_bin_1 = b_i
-                bad_bin_list[t_i] = bad_bin_1
-                flag += 1
-            if flag != 0:
-                break
+    # bad_bin_list = np.zeros(shape=d.time.data.shape, dtype='int32') #initialize with zeros
+    # bad_bin_list[start_end_L1[0]:start_end_L1[1]] = -1 #assume no bad bins in range
+    # for t_i in range(start_end_L1[0], start_end_L1[1]):
+    #     flag = 0
+    #     # Find shallowest bin that is within the ocean floor and flag it and all deeper ones as 4 == bad_data
+    #     for b_i in range(len(d.distance.data)):
+    #         bin_depth = d.instrument_depth + d.distance.data[b_i]
+    #         if bin_depth > d.water_depth:
+    #             bad_bin_1 = b_i
+    #             bad_bin_list[t_i] = bad_bin_1
+    #             flag += 1
+    #         if flag != 0:
+    #             break
+
+    instrument_depth_2d = np.zeros((len(d.distance.data), len(d.time.data)), 'float32')
+    instrument_depth_2d[:, :] = d.instrument_depth
+    distance_2d = np.vstack((d.distance.data,) * len(d.time.data)).transpose()
+    bin_depths = instrument_depth_2d - distance_2d
 
     # Flag velocity data
     flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        vels_QC = [d.LCEWAP01_QC, d.LCNSAP01_QC, d.LCNSAP01_QC, d.LRZUVP01_QC]
+        vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
-        vels_QC = [d.LCEWAP01_QC, d.LCNSAP01_QC, d.LCNSAP01_QC]
+        vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data]
+
+    # for v_QC in vels_QC:
+    #     for t_i in range(start_end_L1[0], start_end_L1[1]):
+    #         # If time is after deployment time and before recovery time, from L1
+    #         if bad_bin_list[t_i] != -1:
+    #             v_QC[bad_bin_list[t_i]:, t_i] = 4  # bad_value flag=4
+    #             v_QC[:bad_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
 
     for v_QC in vels_QC:
-        for t_i in range(start_end_L1[0], start_end_L1[1]):
-            # If time is after deployment time and before recovery time, from L1
-            if bad_bin_list[t_i] != -1:
-                v_QC[bad_bin_list[t_i]:, t_i] = 4  # bad_value flag=4
-                v_QC[:bad_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
+        v_QC[bin_depths > d.water_depth] = 4 # bad_value flag=4
 
     d.attrs['processing_history'] = d.processing_history + " Level 2 processing was performed on the data."
     d.attrs['processing_history'] = d.processing_history + " Bins below the ocean floor depth were flagged as" \
@@ -598,10 +614,11 @@ def flag_below_seafloor(d):
     d.attrs['processing_history'] = d.processing_history + "The remaining bins were flagged as " \
                                                            "probably_good_value."
 
-    return bad_bin_list
+    #return bad_bin_list
+    return
 
 
-def flag_by_backsc(d, bad_bin_list):
+def flag_by_backsc(d):
     """
     Flag where beam-averaged backscatter increases at each time step for upwards-facing ADCPs
     Inputs:
@@ -616,42 +633,47 @@ def flag_by_backsc(d, bad_bin_list):
 
     # Obtain the number of leading and trailing ensembles that were set to nans during L1 processing
     # From these get the start index after the nans and the end index before the nans
-    start_end_L1 = plot_westcoast_nc_LX.get_L1_start_end(ncdata=d)
-    print('Start and end indices from L1:', start_end_L1[0], start_end_L1[1], sep=' ')
+    # start_end_L1 = plot_westcoast_nc_LX.get_L1_start_end(ncdata=d)
+    # print('Start and end indices from L1:', start_end_L1[0], start_end_L1[1], sep=' ')
 
     # Take beam-averaged backscatter, excluding data from before deployment and after recovery
     # Beam-averaged backscatter is shorter than time series
     flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         # Include amplitude intensity from vertical 5th beam
-        amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE02.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE03.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE04.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE05.data[:, start_end_L1[0]:start_end_L1[1]]], axis=0)
+        amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, :],
+                                   d.TNIHCE02.data[:, :],
+                                   d.TNIHCE03.data[:, :],
+                                   d.TNIHCE04.data[:, :],
+                                   d.TNIHCE05.data[:, :]], axis=0)
     else:
-        amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE02.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE03.data[:, start_end_L1[0]:start_end_L1[1]],
-                                   d.TNIHCE04.data[:, start_end_L1[0]:start_end_L1[1]]], axis=0)
+        amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, :],
+                                   d.TNIHCE02.data[:, :],
+                                   d.TNIHCE03.data[:, :],
+                                   d.TNIHCE04.data[:, :]], axis=0)
 
     # Then determine bin where beam-averaged backscatter increases for each timestep
-    susp_bin_list = np.zeros(shape=d.time.data.shape, dtype='int32') #initialize with zeros
-    susp_bin_list[start_end_L1[0]:start_end_L1[1]] = -1 #assume no suspicious bins in range
+    # susp_bin_list = np.zeros(shape=d.time.data.shape, dtype='int32') #initialize with zeros
+    # susp_bin_list[start_end_L1[0]:start_end_L1[1]] = -1 #assume no suspicious bins in range
 
     # Iterate through time stamps between the deployment and recovery times
-    for t_i in range(start_end_L1[0], start_end_L1[1]):
-        flag = 0
-        # Iterate through bin numbers. Start at index=2 because sometimes one-bin increases occur in the first
-        # 2 bins closest to ADCP, not near the surface.
-        for b_i in range(2, len(d.distance.data)):
-            if amp_beam_avg[b_i, t_i - start_end_L1[0]] > amp_beam_avg[b_i - 1, t_i - start_end_L1[0]]:
-                # Index of first suspicious bin counting away from the instrument
-                # print(b_i)
-                susp_bin_list[t_i] = b_i
-                flag += 1
-            if flag == 1:
-                break
+    # for t_i in range(start_end_L1[0], start_end_L1[1]):
+    #     flag = 0
+    #     # Iterate through bin numbers. Start at index=2 because sometimes one-bin increases occur in the first
+    #     # 2 bins closest to ADCP, not near the surface.
+    #     for b_i in range(2, len(d.distance.data)):
+    #         if amp_beam_avg[b_i, t_i - start_end_L1[0]] > amp_beam_avg[b_i - 1, t_i - start_end_L1[0]]:
+    #             # Index of first suspicious bin counting away from the instrument
+    #             # print(b_i)
+    #             susp_bin_list[t_i] = b_i
+    #             flag += 1
+    #         if flag == 1:
+    #             break
+
+    diffs = np.diff(amp_beam_avg, axis=0)
+    diffs[0, :] = 0  # to remove misleading increases often observed from the first to second bin
+    zeros = np.zeros(len(d.time.data)) #to stack on top of diffs, because the y dim of diffs < y dim of d.distance
+    diffs = np.vstack((zeros, diffs))
 
     # Flag the qc variables
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
@@ -659,22 +681,26 @@ def flag_by_backsc(d, bad_bin_list):
     else:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data]
 
+    # for v_QC in vels_QC:
+    #     # Iterate through time stamps
+    #     for t_i in range(start_end_L1[0], start_end_L1[1]):
+    #         # Iterate through bins
+    #         for b_i in range(len(d.distance.data)):
+    #             if susp_bin_list[t_i] != -1:
+    #                 if bad_bin_list[t_i] != -1:
+    #                     v_QC[susp_bin_list[t_i]:bad_bin_list[t_i], t_i] = 3  # probably_bad_value
+    #                     v_QC[:susp_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
+    #                 else:
+    #                     #bad_bin_list[t_i] == -1 so no bad bins
+    #                     v_QC[susp_bin_list[t_i]:, t_i] = 3  # probably_bad_value
+    #                     v_QC[:susp_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
+    #             else:
+    #                 #susp_bin_list[t_i] and bad_bin_list[t_i] == -1 so no suspicious and no bad bins
+    #                 v_QC[:, t_i] = 2  # probably_good_value flag=2, or good_value flag=1
+
     for v_QC in vels_QC:
-        # Iterate through time stamps
-        for t_i in range(start_end_L1[0], start_end_L1[1]):
-            # Iterate through bins
-            for b_i in range(len(d.distance.data)):
-                if susp_bin_list[t_i] != -1:
-                    if bad_bin_list[t_i] != -1:
-                        v_QC[susp_bin_list[t_i]:bad_bin_list[t_i], t_i] = 3  # probably_bad_value
-                        v_QC[:susp_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
-                    else:
-                        #bad_bin_list[t_i] == -1 so no bad bins
-                        v_QC[susp_bin_list[t_i]:, t_i] = 3  # probably_bad_value
-                        v_QC[:susp_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
-                else:
-                    #susp_bin_list[t_i] and bad_bin_list[t_i] == -1 so no suspicious and no bad bins
-                    v_QC[:, t_i] = 2  # probably_good_value flag=2, or good_value flag=1
+        v_QC[np.logical_and(diffs > 0, v_QC != 4)] = 3 # probably_bad_value
+        v_QC[np.logical_and(diffs <= 0, v_QC != 4)] = 1 # probably_good_value flag=2, or good_value flag=1
 
     print('Velocity qc variables updated')
 
@@ -684,7 +710,8 @@ def flag_by_backsc(d, bad_bin_list):
     d.attrs['processing_history'] = d.processing_history + " The remaining bins were flagged as " \
                                                            "probably_good_value."
 
-    return susp_bin_list
+    #return susp_bin_list
+    return
 
 
 def plot_pres_compare(d):
@@ -1048,13 +1075,13 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
             plot_pres_compare(nc_adcp)
 
             # Flag bad bins by negative pressure values
-            bad_bins = flag_by_pres(d=nc_adcp, use_prexmcat=True)
+            flag_by_pres(d=nc_adcp, use_prexmcat=True)
         else:
             # Flag bad bins by negative pressure values
-            bad_bins = flag_by_pres(d=nc_adcp)
+            flag_by_pres(d=nc_adcp)
 
         # Identify bins through time series where their backscatter increases, get list of their indices
-        susp_bins = flag_by_backsc(d=nc_adcp, bad_bin_list=bad_bins)
+        flag_by_backsc(d=nc_adcp)
 
         # Make QC plots showing time-averaged negative pressure and backscatter increases
         plot_backscatter_qc(d=nc_adcp)
@@ -1062,7 +1089,7 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
         # orientation == 'down'
 
         # Identify bins through time series that are below the depth of the ocean floor
-        bad_bins = flag_below_seafloor(d=nc_adcp)
+        flag_below_seafloor(d=nc_adcp)
 
         # Make QC plots showing time-averaged flagged bins that are below ocean floor depth
         plot_backscatter_qc(d=nc_adcp)
