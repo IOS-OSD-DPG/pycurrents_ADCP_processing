@@ -1,7 +1,6 @@
-*2020/07/08 10:35:38.90
+*2020/08/19 10:23:14.73
 *IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON
 
-100
 *FILE
     START TIME          : UTC 2016/07/13 18:29:59.00
     END TIME            : UTC 2017/06/26 19:59:59.00
@@ -231,17 +230,18 @@
     !   Name     Vers  Date       Time     Recs In   Recs Out
     !   -------- ----  ---------- -------- --------- ---------
         ADCP2NC  1     2020-07-07 10:58:00    18822     16709
-        NC2IOS   1.0   2020/07/08 10:35:38    16709     16709
+        NC2IOS   1.0   2020/08/19 10:23:14    16709     16709
     $END
     $REMARKS
         -ADCP2NC  processing: 2020-07-07 10:58:00
          The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston.
          The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm.
          Instrument depth was derived from reconciling all trustworthy pressure sensors on the mooring (i.e., Sea-Bird) and the mooring line length..
-        -NC2IOS  processing: 2020/07/08 10:35:38
+        -NC2IOS  processing: 2020/08/19 10:23:14
          NetCDF file converted to IOSShell format.
     $END
 
+*COMMENTS
+    To get the actual data, please see a1_20160713_20170513_0480m.adcp.L1.nc
+
 *END OF HEADER
-To get the actual data, please see a1_20160713_20170513_0480m.adcp.L1.nc
-./newnc/eh3_20050502_20051002_0008m.adcp

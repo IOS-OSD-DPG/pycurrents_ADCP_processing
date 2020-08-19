@@ -49,14 +49,14 @@ def write_file(nc):
     # Test if the PCGPAP00-4 variables exist
     flag_pg = 0
     try:
-        print(nc.PCGDAP00.data_max)
+        x = nc.PCGDAP00.data_max
     except AttributeError:
         flag_pg = 1
     # For Sentinel V files, test if the vertical beam variables exist
     flag_vb = 0
     if nc.instrumentSubtype == 'Sentinel V':
         try:
-            print(nc.LRZUVP01.data_max)
+            x = nc.LRZUVP01.data_max
         except AttributeError:
             flag_vb += 1
 
@@ -707,8 +707,11 @@ def write_history(nc, f_name):
 
     print("    $END")
     print()
+    print("*COMMENTS")
+    print("    To get the actual data, please see " + f_name)
+    print()
     print("*END OF HEADER")
-    print("To get the actual data, please see " + f_name)
+    return
 
 
 def main_header(f, dest_dir):
