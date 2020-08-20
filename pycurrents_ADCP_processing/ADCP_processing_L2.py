@@ -351,7 +351,7 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
     return out_adcp_dataset
 
 
-def plots_preprocess_L2(d):
+def plots_preprocess_L2(d, dest_dir):
     """
     Preliminary plots:
     (1) Backscatter against depth, (2) mean velocity, and (3) principle component direction
@@ -472,7 +472,7 @@ def plots_preprocess_L2(d):
                                                  d.instrument_depth), fontweight='semibold')
 
     # Create L2_Python_plots subfolder
-    plot_dir = './L2_Python_plots/'
+    plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
@@ -714,7 +714,7 @@ def flag_by_backsc(d):
     return
 
 
-def plot_pres_compare(d):
+def plot_pres_compare(d, dest_dir):
     """
     For plotting ADCP pressure for ADCPs without pressure sensors
     Such ADCP files had pressure calculated from static instrument depth in L1 processing
@@ -741,7 +741,7 @@ def plot_pres_compare(d):
         d.attrs['instrument_depth']))
 
     # Create L2_Python_plots subfolder if not made already
-    plot_dir = './L2_Python_plots/'
+    plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
@@ -752,7 +752,7 @@ def plot_pres_compare(d):
     return
 
 
-def plot_backscatter_qc(d):
+def plot_backscatter_qc(d, dest_dir):
     """
     Calculate depths from bin distances from instrument
     Inputs:
@@ -849,15 +849,21 @@ def plot_backscatter_qc(d):
         beam_no += 1
 
     # Add flag plot text
-    if mean_bad_bin != 0:
+    if mean_bad_bin not in [0, len(d.distance.data)]:
+        x_pos = np.max(amp_mean_b1)
         y_pos = np.nanmean(depths[mean_bad_bin:])
-        ax.text(x=np.max(amp_mean_b1), y=y_pos, s='Flag=4',
+        ax.text(x=x_pos, y=y_pos, s='Flag=4',
                 horizontalalignment='right', verticalalignment='center', fontsize=10)
-    if mean_susp_bin != 0:
+    if mean_susp_bin not in [0, mean_bad_bin]:
         x_pos = np.nanmean(amp_mean_b1)
-        y_pos = np.nanmean(depths[mean_susp_bin - 1:mean_bad_bin])
-        ax.text(x=x_pos, y=y_pos,
-                s='Flag=3', horizontalalignment='right', verticalalignment='center', fontsize=10)
+        if mean_bad_bin != 0:
+            y_pos = np.nanmean(depths[mean_susp_bin - 1:mean_bad_bin])
+            ax.text(x=x_pos, y=y_pos,
+                    s='Flag=3', horizontalalignment='right', verticalalignment='center', fontsize=10)
+        else:
+            y_pos = np.nanmean(depths[mean_susp_bin - 1:])
+            ax.text(x=x_pos, y=y_pos,
+                    s='Flag=3', horizontalalignment='right', verticalalignment='center', fontsize=10)
 
     ax.set_ylim(depths[-1], depths[0])
     ax.legend(loc='lower left')
@@ -875,7 +881,7 @@ def plot_backscatter_qc(d):
                                                         d.attrs['instrument_depth']), fontweight='semibold')
 
     # Create L2_Python_plots subfolder if not already existing
-    plot_dir = './L2_Python_plots/'
+    plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
@@ -1060,7 +1066,7 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
     nc_adcp = nc_adcp.assign(filename=((), nc_out_name[:-3]))
 
     # Produce pre-processing plots
-    plots_preprocess_L2(nc_adcp)
+    plots_preprocess_L2(nc_adcp, dest_dir)
 
     if nc_adcp.orientation == 'up':
         # Identify bins through time series where their pressure is negative
@@ -1072,7 +1078,7 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
             nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe, name_ctd=f_sbe)
 
             # Plot static and CTD-derived pressures
-            plot_pres_compare(nc_adcp)
+            plot_pres_compare(nc_adcp, dest_dir)
 
             # Flag bad bins by negative pressure values
             flag_by_pres(d=nc_adcp, use_prexmcat=True)
@@ -1084,7 +1090,7 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
         flag_by_backsc(d=nc_adcp)
 
         # Make QC plots showing time-averaged negative pressure and backscatter increases
-        plot_backscatter_qc(d=nc_adcp)
+        plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
     else:
         # orientation == 'down'
 
@@ -1092,7 +1098,7 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
         flag_below_seafloor(d=nc_adcp)
 
         # Make QC plots showing time-averaged flagged bins that are below ocean floor depth
-        plot_backscatter_qc(d=nc_adcp)
+        plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
 
     # Set bad velocity data to nans
     bad_2_nan(d=nc_adcp)
@@ -1110,7 +1116,8 @@ def example_usage_L2():
     # Sample L1 netCDF ADCP file
     f_adcp = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
     f_sbe = None
+    dest_dir = 'dest_dir'
 
-    create_nc_L2(f_adcp)
+    new_name = create_nc_L2(f_adcp, dest_dir)
 
-    return
+    return new_name
