@@ -57,5 +57,6 @@ Documentation:
 Conventions:
 * BODC SeaDataNet quality flags: https://www.bodc.ac.uk/data/documents/series/37006/#QCflags
 * BODC SeaDataNet P01 vocabulary search: http://seadatanet.maris2.nl/v_bodc_vocab_v2/search.asp?lib=p01&screen=0
+* BODC SeaDataNet P06 data storage unit search: http://seadatanet.maris2.nl/v_bodc_vocab_v2/search.asp?lib=p06&screen=0
 * CF Conventions standard name table: http://cfconventions.org/standard-names.html 
 * GF3 codes (no longer maintained): https://www.nodc.noaa.gov/woce/woce_v3/wocedata_1/sss/documents/liste_param.htm
