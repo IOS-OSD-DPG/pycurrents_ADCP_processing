@@ -574,7 +574,7 @@ def write_raw(nc):
     # prof_mode = "??" # ??????????????????????
     corr_threshold = str(nc.attrs["valid_correlation_range"])
     n_codereps = str(nc.attrs["n_codereps"])  # n_codereps = "NA" #
-    min_pgood = nc.attrs["percentgd_threshold"]
+    # min_pgood = nc.attrs["percentgd_threshold"]
     evel_threshold = nc.attrs["error_velocity_threshold"]
     time_between_ping_groups = str(nc.attrs["time_coverage_duration"])  # need check and confirm
     coord = "00011111"  # need check and confirm?
