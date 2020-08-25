@@ -937,17 +937,16 @@ def create_meta_dict_L1(adcp_meta):
     with open(adcp_meta) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=',')
         line_count = 0
+        next(csv_reader, None) # Skip header row
         for row in csv_reader:
             # extract all metadata from csv file into dictionary -- some items not passed to netCDF file but are extracted anyway
-            if row[0] != "Name":
-                meta_dict[row[0]] = row[1]
-            elif row[0] == '' and row[1] == '':
-                warnings.warn('Metadata file contains a blank row; skipping this row', UserWarning)
+            if row[0] == '' and row[1] == '':
+                print('Metadata file contains a blank row; skipping this row !')
             elif row[0] != '' and row[1] == '':
-                warnings.warn('Metadata item in csv file has blank value; skipping this row '
-                              'in metadata file', UserWarning)
+                print('Metadata item in csv file has blank value; skipping this row '
+                      'in metadata file !')
             else:
-                continue
+                meta_dict[row[0]] = row[1]
 
     # Add conventions metadata to meta_dict
     meta_dict['deployment_type'] = 'Sub Surface'

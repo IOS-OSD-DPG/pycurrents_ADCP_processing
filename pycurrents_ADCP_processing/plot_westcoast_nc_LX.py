@@ -445,12 +445,14 @@ def determine_dom_angle(u_true, v_true):
     return along_angle, cross_angle
 
 
-def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
+def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw', along_angle=None):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
-    along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
+    if along_angle is None:
+        along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
+    else:
+        cross_angle = along_angle - 90  # deg
     print(along_angle, cross_angle)
-#     along_angle = cross_angle + 90  # deg
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
@@ -675,12 +677,13 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     return os.path.abspath(plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
         - dest_dir: destination directory for output files
         - filter_type: "Godin", "30h", or "35h"
+        - along_angle: Along-shore angle measured in degrees relative to geographic East, counter-clockwise
     Outputs:
         - list of absolute file names of output files
     """
@@ -694,7 +697,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
         fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, True)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle)
 
     else:
         fname_diagnostic = plots_diagnostic(ncdata, dest_dir)
@@ -704,7 +707,8 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
         fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle)
+
 
     # Redo whole process with filtered data
 
@@ -729,7 +733,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
                                        filter_type)
 
     # Along-shore/cross-shore
-    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
+    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type, along_angle)
 
     # Compare velocity in bin 1
     if 'L0' in ncfile:
