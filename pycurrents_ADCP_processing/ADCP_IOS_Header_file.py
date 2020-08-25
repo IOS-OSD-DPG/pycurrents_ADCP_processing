@@ -631,7 +631,7 @@ def write_raw(nc):
     # print("        " + '{:29}'.format('prof_mode:') + prof_mode) # ???????????????????????
     print("        " + '{:29}'.format('corr_threshold:') + corr_threshold)
     print("        " + '{:29}'.format('n_codereps:') + n_codereps)
-    print("        " + '{:29}'.format('min_pgood:') + min_pgood)
+    # print("        " + '{:29}'.format('min_pgood:') + min_pgood)
     print("        " + '{:29}'.format('evel_threshold:') + evel_threshold)
     print("        " + '{:29}'.format('time_between_ping_groups:') + time_between_ping_groups)
     print("        " + '{:29}'.format('coord:  ') + coord)
