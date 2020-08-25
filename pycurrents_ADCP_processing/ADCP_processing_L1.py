@@ -1316,7 +1316,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper()  # netCDF4 file format doesn't support bool
     out.attrs['valid_correlation_range'] = vel.FL['LowCorrThresh']  # lowCorrThresh
     out.attrs['minmax_percent_good'] = "100"  # hardcoded in oceNc_create()
-    out.attrs['percentgd_threshold'] = 0
+    out.attrs['percentgd_threshold'] = "0"
     out.attrs['error_velocity_threshold'] = "2000 m s-1"
     out.attrs['false_target_reject_values'] = 50  # falseTargetThresh
     out.attrs['data_type'] = "adcp"
