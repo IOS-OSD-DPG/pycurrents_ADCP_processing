@@ -29,4 +29,3 @@ water_depth,500,Water depth in meters,Required,Required
 serialNumber,20568,The serial number of the instrument,Required,Required
 instrumentSubtype,Workhorse,The instrument subtype,Required,Required
 magnetic_variation,16.67,The average magnetic variation of the timeseries,Optional,Required
-percentgd_threshold,99,,,
