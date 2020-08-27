@@ -10,8 +10,25 @@ netCDF-format data. The types of plots are:
     3. North and East Godin or 30h-averaged filtered current velocities
     4. Along and cross-shelf Godin or 30h-averaged filtered current velocities
     5. Bin plot for one month's worth of velocity data comparing raw and filtered (Godin or 30h-averaged) data
+    6. Diagnostic plot containing subplots of:
+        1. Time-averaged backscatter over depth
+        2. Time-averaged velocity over depth
+        3. Mean orientation
     
 Plots can be made from L0-, L1- or L2-processed data.
+
+Credits:
+Diagnostic plot code adapted from David Spear (originally in MatLab)
+fmamidir() and fpcdir() function code from Roy Hourston (originally in MatLab)
+
+From Roy Hourston's fpcdir.m script:
+    "THETA = fpcdir(X,Y) is the principal component direction of X and Y.
+    In other words, it is the angle of rotation counter-clockwise from
+    north of the first principal component of X and Y. Applies to
+    bivariate data set only. See Emery and Thomson, Data Analysis Methods
+    in Oceanography, 1997, p.327, and Preisendorfer, Principal Component
+    Analysis in Meteorology and Oceanography, 1988, p.15. Second principal
+    angle is given by THETA + 90 degrees."
 """
 
 import xarray as xr
