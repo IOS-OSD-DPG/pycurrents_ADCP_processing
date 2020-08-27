@@ -826,7 +826,6 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['numberOfCells'] = data.NCells
     out.attrs['pings_per_ensemble'] = data.NPings
     out.attrs['bin1Distance'] = data.Bin1Dist
-    # out.attrs['Blank'] = data.Blank #?? blanking distance?
     out.attrs['cellSize'] = data.CellSize
     out.attrs['pingtype'] = data.pingtype
     out.attrs['transmit_pulse_length_cm'] = vel.FL['Pulse']
@@ -846,15 +845,20 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['sensors_avail'] = '{0:08b}'.format(vel.FL['SA'])  # sensors_avail
     out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper()  # netCDF4 file format doesn't support bool
     out.attrs['valid_correlation_range'] = vel.FL['LowCorrThresh']  # lowCorrThresh
-    out.attrs['minmax_percent_good'] = "100"  # hardcoded in oceNc_create()
-    out.attrs['percentgd_threshold'] = "0"
-    out.attrs['error_velocity_threshold'] = "2000 m s-1"
-    out.attrs['false_target_reject_values'] = 50  # falseTargetThresh
+    out.attrs['min_percent_good'] = fixed_leader.FL['PGMin']
+    out.attrs['blank'] = '{} m'.format(fixed_leader.FL['Blank'] / 100) #convert cm to m
+    out.attrs['error_velocity_threshold'] = "{} mm s-1".format(fixed_leader.FL['EVMax'])
+    tpp_min = '{0:0>2}'.format(fixed_leader.FL['TPP_min'])
+    tpp_sec = '{0:0>2}'.format(fixed_leader.FL['TPP_sec'])
+    tpp_hun = '{0:0>2}'.format(fixed_leader.FL['TPP_hun'])
+    out.attrs['time_ping'] = '{}:{}.{}'.format(tpp_min, tpp_sec, tpp_hun)
+    out.attrs['false_target_reject_values'] = '{} counts'.format(fixed_leader.FL['WA'])  # falseTargetThresh
     out.attrs['data_type'] = "adcp"
-    out.attrs['pred_accuracy'] = 1  # velocityResolution * 1000
+    # out.attrs['pred_accuracy'] = 1  # velocityResolution * 1000
     out.attrs['creator_type'] = "person"
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
+    out.attrs['xmit_length'] = fixed_leader.FL['Pulse']
     out.attrs['time_coverage_start'] = time_DTUT8601[1] + ' UTC'
     out.attrs['time_coverage_end'] = time_DTUT8601[-1] + ' UTC'
 
