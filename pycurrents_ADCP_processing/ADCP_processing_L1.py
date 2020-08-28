@@ -1354,7 +1354,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     return out_absolute_name
 
 
-def example_usage_L1():
+def example_L1_1():
     # Specify raw ADCP file to create nc file from, along with associated csv metadata file
 
     # raw .000 file
@@ -1365,7 +1365,29 @@ def example_usage_L1():
     dest_dir = 'dest_dir'
 
     # Create netCDF file
-    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, start_year=None, time_file=None)
+    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir)
+
+    # Produce new netCDF file that includes a geographic_area variable
+    geo_name = add_var2nc.add_geo(nc_name, dest_dir)
+
+    return nc_name, geo_name
+
+
+def example_L1_2():
+    # Specify raw ADCP file to create nc file from, along with associated csv metadata file
+    # AND time file
+
+    # raw .000 file
+    raw_file = "./sample_data/scott2_20160711_20170707_0040m.pd0"
+    # csv metadata file
+    raw_file_meta = "./sample_data/scott2_20160711_20170707_0040m_meta_L1.csv"
+    # csv time file
+    scott_time = './sample_data/scott2_20160711_20170707_0040m_time.csv'
+
+    dest_dir = 'dest_dir'
+
+    # Create netCDF file
+    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, time_file=scott_time)
 
     # Produce new netCDF file that includes a geographic_area variable
     geo_name = add_var2nc.add_geo(nc_name, dest_dir)
