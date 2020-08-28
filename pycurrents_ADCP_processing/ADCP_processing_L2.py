@@ -1,18 +1,5 @@
 """
 author: Hana Hourston
-
-Credits:
-Pre-process plotting code adapted from David Spear (originally in MatLab)
-fmamidir() and fpcdir() function code from Roy Hourston (originally in MatLab)
-
-From Roy Hourston's fpcdir.m script:
-    "THETA = fpcdir(X,Y) is the principal component direction of X and Y.
-    In other words, it is the angle of rotation counter-clockwise from
-    north of the first principal component of X and Y. Applies to
-    bivariate data set only. See Emery and Thomson, Data Analysis Methods
-    in Oceanography, 1997, p.327, and Preisendorfer, Principal Component
-    Analysis in Meteorology and Oceanography, 1988, p.15. Second principal
-    angle is given by THETA + 90 degrees."
 """
 
 import os
@@ -21,97 +8,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import warnings
 import pandas as pd
-from matplotlib.backends.backend_pdf import PdfPages
-from pycurrents_ADCP_processing import plot_westcoast_nc_LX
-
-
-def fmamidir(u, v):
-    # Computes principal component direction of u and v
-
-    ub = np.nanmean(u)
-    vb = np.nanmean(v)
-    uu = np.nanmean(u ** 2)
-    vv = np.nanmean(v ** 2)
-    uv = np.nanmean(u * v)
-    uu = uu - (ub * ub)
-    vv = vv - (vb * vb)
-    uv = uv - (ub * vb)
-
-    # Solve for the quadratic
-    a = 1.0
-    b = -(uu + vv)
-    c = (uu * vv) - (uv * uv)
-    s1 = (-b + np.sqrt((b * b) - (4.0 * a * c)) / (2.0 * a))
-    s2 = (-b - np.sqrt((b * b) - (4.0 * a * c)) / (2.0 * a))
-    major = s1
-    minor = s2
-    if minor > major:
-        major = s2
-        minor = s1
-
-    # Return major and minor axes
-    return major, minor
-
-
-def fpcdir(x, y):
-    if x.shape != y.shape:
-        ValueError('u and v are different sizes!')
-    else:
-        # Compute major and minor axes
-        major, minor = fmamidir(x, y)
-
-        # Compute principal component direction
-        u = x
-        v = y
-        ub = np.nanmean(u)
-        vb = np.nanmean(v)
-        uu = np.nanmean(u ** 2)
-        uv = np.nanmean(u * v)
-        uu = uu - (ub * ub)
-        uv = uv - (ub * vb)
-
-        e1 = -uv / (uu - major)
-        e2 = 1
-        rad_deg = 180 / np.pi  # conversion factor
-        theta = np.arctan2(e1, e2) * rad_deg
-        theta = -theta  # change rotation angle to be CCW from North
-
-    return theta
-
-
-def vb_flag(dataset):
-    """
-    Create flag for missing vertical beam data in files from Sentinel V ADCPs
-    flag = 0 if Sentinel V file has vertical beam data, or file not from Sentinel V
-    flag = 1 if Sentinel V file does not have vertical beam data
-    Inputs:
-        - dataset: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-    Outputs:
-        - value of flag
-    """
-    try:
-        print(dataset.TNIHCE05.data)
-        return 0
-    except AttributeError:
-        if dataset.instrumentSubtype == 'Sentinel V':
-            return 1
-        else:
-            return 0
-
-
-def calculate_depths(dataset):
-    """
-    Calculate ADCP bin depths in the water column
-    Inputs:
-        - dataset: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-    Outputs:
-        - numpy array of ADCP bin depths
-    """
-    # depths = np.mean(ncdata.PRESPR01[0,:]) - ncdata.distance  #What Di used
-    if dataset.orientation == 'up':
-        return float(dataset.instrument_depth) - dataset.distance.data
-    else:
-        return float(dataset.instrument_depth) + dataset.distance.data
+from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
 
 
 def date2ns(date):
@@ -183,7 +80,6 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
             index_increment_adcp = 2
             index_increment_ctd = 3
         else:
-            # use_ratio_as_ctd_step = False  # use on adcp instead
             # time_increment_ratio = int(np.round(1 / time_increment_ratio, decimals=0))
             index_increment_adcp = 1
             index_increment_ctd = int(np.round(1 / time_increment_ratio, decimals=0))
@@ -264,8 +160,7 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
                 # Find the index of the last adcp time measurement in the ctd time range within 4 min
                 if np.abs(date2ns(nc_ctd.time.data[t_i]) - date2ns(
                         nc_adcp.time.data[-end_index])) < 4 * min2nano:
-                    # Add +1 so that the time range is inclusive?
-                    end_index_in_CTD = t_i  # + 1
+                    end_index_in_CTD = t_i
                     break
             # Break out of loop if start_index_in_CTD is found
             # Otherwise try the next time in the adcp time range
@@ -281,8 +176,7 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
             for t_j in range(len(nc_adcp.time.data)):
                 if np.abs(date2ns(nc_adcp.time.data[t_j]) - date2ns(
                         nc_ctd.time.data[-end_index])) < 4 * min2nano:
-                    # Add +1 so that the time range is inclusive?
-                    end_index_in_ADCP = t_j  # + 1
+                    end_index_in_ADCP = t_j
                     break
             # Break out of loop if start_index_in_CTD is found
             # Otherwise try the next time in the adcp time range
@@ -313,18 +207,14 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
                                                        start_index_in_ADCP:end_index_in_ADCP:index_increment_adcp]
         else:
             print('End adcp time is after ctd time range')
-            # len_pres_ctd_interval = length of the ctd pres interval that we want to insert into the new adcp pres
-            len_pres_ctd_interval = len(nc_ctd.PRESPR01.data[start_index_in_ADCP::time_increment_ratio])
-            pres_adcp_from_ctd[earliest_start_index:len_pres_ctd_interval
+            pres_adcp_from_ctd[earliest_start_index:end_index_in_ADCP
                                :index_increment_ctd] = nc_ctd.PRESPR01.data[
-                                                       start_index_in_ADCP:latest_end_index:index_increment_adcp]
+                                                       start_index_in_CTD:latest_end_index:index_increment_adcp]
     else:
         print('adcp time starts before ctd time range')
         if end_index_in_CTD != -9:
             print('adcp end time is within ctd time range')
-            len_pres_ctd_interval = len(nc_ctd.PRESPR01.data[
-                                        earliest_start_index:end_index_in_CTD:time_increment_ratio])
-            pres_adcp_from_ctd[start_index_in_ADCP:len_pres_ctd_interval
+            pres_adcp_from_ctd[start_index_in_ADCP:latest_end_index
                                :index_increment_ctd] = nc_ctd.PRESPR01.data[
                                                        earliest_start_index:end_index_in_CTD:index_increment_adcp]
         else:
@@ -349,139 +239,6 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
     print('Added attributes to PREXMCAT')
 
     return out_adcp_dataset
-
-
-def plots_preprocess_L2(d, dest_dir):
-    """
-    Preliminary plots:
-    (1) Backscatter against depth, (2) mean velocity, and (3) principle component direction
-    Inputs:
-        - d: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-    Outputs:
-        None
-    """
-    # Subplot 1/3: Plot avg backscatter against depth
-
-    # First calculate depths
-    depths = calculate_depths(d)
-
-    # Check if vertical beam data present in Sentinel V file
-    flag_vb = vb_flag(d)
-
-    # Calculate average backscatter (amplitude intensity)
-    amp_mean_b1 = np.nanmean(d.TNIHCE01.data, axis=1)
-    amp_mean_b2 = np.nanmean(d.TNIHCE02.data, axis=1)
-    amp_mean_b3 = np.nanmean(d.TNIHCE03.data, axis=1)
-    amp_mean_b4 = np.nanmean(d.TNIHCE04.data, axis=1)
-
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        amp_mean_b5 = np.nanmean(d.TNIHCE05.data, axis=1)
-        amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
-        colours = ['b', 'g', 'c', 'm', 'y'] #list of plotting colours
-    else:
-        # Done calculating time-averaged amplitude intensity
-        amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4]
-        colours = ['b', 'g', 'c', 'm']
-
-    # Start plot
-
-    # Make plot and first subplot
-    fig = plt.figure(figsize=(11, 8.5))
-    ax = fig.add_subplot(1, 3, 1)
-
-    beam_no = 1
-    for dat, col in zip(amp, colours):
-        f1 = ax.plot(dat, depths, label='Beam {}'.format(beam_no), linewidth=1, marker='o', markersize=2, color=col)
-        beam_no += 1
-    ax.set_ylim(depths[-1], depths[0])
-    ax.legend(loc='lower left')
-    ax.set_xlabel('Counts')
-    ax.set_ylabel('Depth (m)')  # Set y axis label for this subplot only out of the 3
-    ax.grid()
-    ax.tick_params(axis='both', direction='in', top=True, right=True)
-    ax.set_title('Mean Backscatter', fontweight='semibold')  # subplot title
-    # Flip over x-axis if instrument oriented 'up'
-    if d.orientation == 'up':
-        plt.gca().invert_yaxis()
-
-    # Subplot 2/3: Mean velocity
-    ax = fig.add_subplot(1, 3, 2)
-
-    # Calculate average velocities
-    u_mean = np.zeros(int(d.numberOfCells), dtype='float32')
-    v_mean = np.zeros(int(d.numberOfCells), dtype='float32')
-    w_mean = np.zeros(int(d.numberOfCells), dtype='float32')
-
-    for i in range(len(u_mean)):
-        u_mean[i] = np.nanmean(d.LCEWAP01.data[i, :])
-        v_mean[i] = np.nanmean(d.LCNSAP01.data[i, :])
-        w_mean[i] = np.nanmean(d.LRZAAP01.data[i, :])
-
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        w5_mean = np.zeros(int(d.numberOfCells), dtype='float32')
-        for i in range(len(u_mean)):
-            w5_mean[i] = np.nanmean(d.LRZUVP01.data[i, :])
-
-        names = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LRZUVP01']
-        vels = [u_mean, v_mean, w_mean, w5_mean]
-    else:
-        names = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01']
-        vels = [u_mean, v_mean, w_mean]
-
-    # Plot
-    for i in range(len(names)):
-        f2 = ax.plot(vels[i], depths, label=names[i], linewidth=1, marker='o', markersize=2, color=colours[i])
-    ax.set_ylim(depths[-1], depths[0])  # set vertical limits
-    ax.legend(loc='lower left')
-    ax.set_xlabel('Velocity (m/s)')
-    ax.grid()
-    ax.tick_params(axis='both', direction='in', top=True, right=True)
-    ax.set_title('Mean Velocity', fontweight='semibold')  # subplot title
-    # Flip over x-axis if instrument oriented 'up'
-    if d.orientation == 'up':
-        plt.gca().invert_yaxis()
-
-    # Subplot 3/3: Principal axis
-
-    orientation = np.zeros(int(d.numberOfCells), dtype='float32')
-    for ibin in range(len(orientation)):
-        xx = d.LCEWAP01[ibin, :]
-        yy = d.LCNSAP01[ibin, :]
-        orientation[ibin] = fpcdir(xx, yy)  # convert to CW direction
-
-    mean_orientation = np.round(np.nanmean(orientation), decimals=1)
-    middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])  #text plotting coordinate
-    mean_depth = np.nanmean(depths)  #text plotting coordinate
-
-    # Make the subplot
-    ax = fig.add_subplot(1, 3, 3)
-    f3 = ax.plot(orientation, depths, linewidth=1, marker='o', markersize=2)
-    ax.set_ylim(depths[-1], depths[0])  # set vertical limits
-    ax.set_xlabel('Orientation')
-    ax.text(x=middle_orientation, y=mean_depth, s='Mean orientation = ' + str(mean_orientation) + '$^\circ$',
-            horizontalalignment='center', verticalalignment='center', fontsize=10)
-    ax.grid()  # set grid
-    ax.tick_params(axis='both', direction='in', top=True, right=True)
-    ax.set_title('Principal Axis', fontweight='semibold')  # subplot title
-    # Flip over x-axis if instrument oriented 'up'
-    if d.orientation == 'up':
-        plt.gca().invert_yaxis()
-
-    # Create centred figure title
-    fig.suptitle('{}-{} {} at {} m depth'.format(d.station, d.deployment_number, d.serial_number,
-                                                 d.instrument_depth), fontweight='semibold')
-
-    # Create L2_Python_plots subfolder
-    plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
-    if not os.path.exists(plot_dir):
-        os.makedirs(plot_dir)
-
-    fig_name = plot_dir + '{}-{}_{}_nc_preprocess.png'.format(
-        d.station.lower(), str(d.deployment_number), d.serial_number)
-    fig.savefig(fig_name)
-    plt.close()
-
-    return
 
 
 def flag_by_pres(d, use_prexmcat=False):
@@ -532,7 +289,7 @@ def flag_by_pres(d, use_prexmcat=False):
     bin_pres = pres_2d - dist_2d
 
     # Flag velocity data
-    flag_vb = vb_flag(d)
+    flag_vb = pwl.vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
@@ -592,7 +349,7 @@ def flag_below_seafloor(d):
     bin_depths = instrument_depth_2d - distance_2d
 
     # Flag velocity data
-    flag_vb = vb_flag(d)
+    flag_vb = pwl.vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
@@ -638,7 +395,7 @@ def flag_by_backsc(d):
 
     # Take beam-averaged backscatter, excluding data from before deployment and after recovery
     # Beam-averaged backscatter is shorter than time series
-    flag_vb = vb_flag(d)
+    flag_vb = pwl.vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         # Include amplitude intensity from vertical 5th beam
         amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, :],
@@ -732,7 +489,7 @@ def plot_pres_compare(d, dest_dir):
                  label='PREXMCAT (CTD-derived)')
     f2 = ax.plot(d.time.data, d.PRESPR01.data, linewidth=1, color='k',
                  label='PRESPR01 (static)')
-    ax.set_ylim(bottom=0)  # don't set top limit
+    ax.set_ylim(bottom=0, top=np.ceil(np.nanmax([d.PREXMCAT.data, d.PRESPR01.data]) / 10.) * 10.)
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Pressure (dbar)')
     ax.legend(loc='lower left')
@@ -748,8 +505,9 @@ def plot_pres_compare(d, dest_dir):
     fig_name = plot_dir + '{}-{}_{}_CTD_pressure_compare.png'.format(
         d.station.lower(), str(d.deployment_number), d.serial_number)
     fig.savefig(fig_name)
+    plt.close()
 
-    return
+    return os.path.abspath(fig_name)
 
 
 def plot_backscatter_qc(d, dest_dir):
@@ -767,7 +525,7 @@ def plot_backscatter_qc(d, dest_dir):
     """
 
     # Calculate bin depths
-    depths = calculate_depths(d)
+    depths = pwl.calculate_depths(d)
 
     # Calculate average backscatter (amplitude intensity) over time for each beam
     amp_mean_b1 = np.nanmean(d.TNIHCE01.data, axis=1)
@@ -776,7 +534,7 @@ def plot_backscatter_qc(d, dest_dir):
     amp_mean_b4 = np.nanmean(d.TNIHCE04.data, axis=1)
 
     # Check if vertical beam data present in Sentinel V file
-    flag_vb = vb_flag(d)
+    flag_vb = pwl.vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         amp_mean_b5 = np.nanmean(d.TNIHCE05.data, axis=1)
         # Make lists of mean amplitude and corresponding plotting colours
@@ -849,12 +607,12 @@ def plot_backscatter_qc(d, dest_dir):
         beam_no += 1
 
     # Add flag plot text
-    if mean_bad_bin not in [0, len(d.distance.data)]:
+    if mean_bad_bin != 0:
         x_pos = np.max(amp_mean_b1)
         y_pos = np.nanmean(depths[mean_bad_bin:])
         ax.text(x=x_pos, y=y_pos, s='Flag=4',
                 horizontalalignment='right', verticalalignment='center', fontsize=10)
-    if mean_susp_bin not in [0, mean_bad_bin]:
+    if mean_susp_bin != 0:
         x_pos = np.nanmean(amp_mean_b1)
         if mean_bad_bin != 0:
             y_pos = np.nanmean(depths[mean_susp_bin - 1:mean_bad_bin])
@@ -890,98 +648,7 @@ def plot_backscatter_qc(d, dest_dir):
     fig.savefig(fig_name)
     plt.close()
 
-    return
-
-
-def plot_vel_by_bin_L2(d, which_vel=1):
-    """
-    Make plots of velocity per each bin
-    Inputs:
-        - d: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-        - which_vel: optional kwarg indicating which velocity to plot
-                     1=LCEWAP01 (Eastward), 2=LCNSAP01 (Northward), 3=LRZAAP01 (upward),
-                     5=LRZUVP01 (upward from vertical beam) (error velocity not plotted)
-    Outputs:
-        None
-    """
-
-    if which_vel == 1:
-        vel_data = d.LCEWAP01.data
-        vel_qc_data = d.LCEWAP01_QC.data
-        vel_name = 'LCEWAP01'
-    elif which_vel == 2:
-        vel_data = d.LCNSAP01.data
-        vel_qc_data = d.LCNSAP01_QC.data
-        vel_name = 'LCNSAP01'
-    elif which_vel == 3:
-        vel_data = d.LRZAAP01.data
-        vel_qc_data = d.LRZAAP01_QC.data
-        vel_name = 'LRZAAP01'
-    elif which_vel == 5:
-        vel_data = d.LRZUVP01.data
-        vel_qc_data = d.LRZUVP01_QC.data
-        vel_name = 'LRZUVP01'
-    else:
-        ValueError('Invalid value for which_vel kwarg. Choose a value in [1, 2, 3].')
-
-    # Create L2_Python_plots subfolder
-    plot_dir = './L2_Python_plots/'
-    if not os.path.exists(plot_dir):
-        os.makedirs(plot_dir)
-
-    fig_name = plot_dir + '{}-{}_{}_{}_binplot_QC.pdf'.format(
-        d.station.lower(), str(d.deployment_number), d.serial_number, vel_name)
-
-    bins_per_pg = 4
-
-    # Create pdf file of velocity plots for each bin
-    with PdfPages(fig_name) as pdf:
-        fig = plt.figure(figsize=(8.5, 11))
-        for bin_no in range(d.numberOfCells):
-            # Limit the number of subplots per each page to 5
-            if bin_no != 0 and bin_no % bins_per_pg + 1 == 1:
-                # Save the previous fig
-                pdf.savefig()
-                plt.close()
-                fig = plt.figure(figsize=(8.5, 11))
-            # Add subplot per bin number
-            ax = fig.add_subplot(bins_per_pg, 1, bin_no % bins_per_pg + 1)
-            # Plot bad data
-            f1 = ax.plot(d.time.data[vel_qc_data[bin_no] == 4], vel_data[bin_no][vel_qc_data[bin_no] == 4],
-                         color='r', label='Flag=4')
-            # Plot suspicious data if instrument orientation is 'up'
-            if d.orientation == 'up':
-                f2 = ax.plot(d.time.data[vel_qc_data[bin_no] == 3], vel_data[bin_no][vel_qc_data[bin_no] == 3],
-                             color='tab:orange', label='Flag=3')
-            # Plot good data
-            f3 = ax.plot(d.time.data[vel_qc_data[bin_no] == 1], vel_data[bin_no][vel_qc_data[bin_no] == 1],
-                         color='k', label='Flag=1')
-
-            ax.tick_params(axis='both', direction='in', right=True)
-            ax.set_title('Bin {}'.format(bin_no + 1))  # +1 since Python indexes from zero
-
-            if bin_no == 0:
-                fig.suptitle('{}-{} {} at {} m depth: {} (m s-1)'.format(d.attrs['station'],
-                                                                         d.attrs['deployment_number'],
-                                                                         d.attrs['serial_number'],
-                                                                         d.attrs['instrument_depth'],
-                                                                         vel_name), fontweight='semibold')
-
-            # Set the x axis label and legend
-            if (bin_no + 1) % bins_per_pg == 0:
-                ax.set_xlabel('Time (UTC)')
-                ax.legend(loc='lower left')
-
-            # Set x axis label and legend for very last bin if it wasn't a multiple of bins_per_pg
-            if bin_no == d.numberOfCells - 1 and (bin_no + 1) % bins_per_pg != 0:
-                ax.set_xlabel('Time (UTC)')
-                ax.legend(loc='lower left')
-
-        # Save and close the pdf
-        pdf.savefig()
-        plt.close()
-
-    return
+    return os.path.abspath(fig_name)
 
 
 def bad_2_nan(d):
@@ -1001,7 +668,7 @@ def bad_2_nan(d):
     d.LCNSAP01.data[d.LCNSAP01_QC.data == 4] = np.nan
     d.LRZAAP01.data[d.LRZAAP01_QC.data == 4] = np.nan
 
-    flag_vb = vb_flag(d)
+    flag_vb = pwl.vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         d.LRZUVP01.data[d.LRZUVP01_QC == 4] = np.nan
 
@@ -1022,7 +689,7 @@ def reset_vel_minmaxes(d):
         None
     """
 
-    flag_vb = vb_flag(d)
+    flag_vb = pwl.vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         var_list = [d.LCEWAP01, d.LCNSAP01, d.LRZAAP01, d.LRZUVP01, d.LERRAP01, d.LCEWAP01_QC, d.LCNSAP01_QC,
                     d.LRZAAP01_QC, d.LRZUVP01_QC]
@@ -1037,7 +704,7 @@ def reset_vel_minmaxes(d):
     return
 
 
-def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
+def create_nc_L2(f_adcp, dest_dir, f_ctd=None):
     """
     Function for performing the suite of L2 processing methods on netCDF ADCP
     data.
@@ -1066,19 +733,21 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
     nc_adcp = nc_adcp.assign(filename=((), nc_out_name[:-3]))
 
     # Produce pre-processing plots
-    plots_preprocess_L2(nc_adcp, dest_dir)
+    plot_diagn = pwl.plots_diagnostic(nc_adcp, dest_dir)
 
+    flag_static_pres = 0
     if nc_adcp.orientation == 'up':
         # Identify bins through time series where their pressure is negative
         if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
+            flag_static_pres += 1
             warnings.warn('Pressure was calculated from static instrument depth in L1', UserWarning)
-            nc_sbe = xr.open_dataset(f_sbe)
+            nc_sbe = xr.open_dataset(f_ctd)
 
             # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe, name_ctd=f_sbe)
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe, name_ctd=f_ctd)
 
             # Plot static and CTD-derived pressures
-            plot_pres_compare(nc_adcp, dest_dir)
+            plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
 
             # Flag bad bins by negative pressure values
             flag_by_pres(d=nc_adcp, use_prexmcat=True)
@@ -1090,15 +759,30 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
         flag_by_backsc(d=nc_adcp)
 
         # Make QC plots showing time-averaged negative pressure and backscatter increases
-        plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
+        plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
     else:
         # orientation == 'down'
+        if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
+            flag_static_pres += 1
+            warnings.warn('Pressure was calculated from static instrument depth in L1', UserWarning)
+            nc_sbe = xr.open_dataset(f_ctd)
+
+            # Calculate ADCP pressure from CTD pressure
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe, name_ctd=f_ctd)
+
+            # Plot static and CTD-derived pressures
+            plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
+
+            # Flag bad bins by negative pressure values
+            flag_by_pres(d=nc_adcp, use_prexmcat=True)
+        else:
+            pass
 
         # Identify bins through time series that are below the depth of the ocean floor
         flag_below_seafloor(d=nc_adcp)
 
         # Make QC plots showing time-averaged flagged bins that are below ocean floor depth
-        plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
+        plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
 
     # Set bad velocity data to nans
     bad_2_nan(d=nc_adcp)
@@ -1108,16 +792,30 @@ def create_nc_L2(f_adcp, dest_dir, f_sbe=None):
     print('Exported L2 netCDF file')
 
     nc_adcp.close()
-    return out_absolute_name
+
+    if flag_static_pres == 1:
+        return [out_absolute_name, plot_diagn, plot_pres_comp, plot_backsc]
+    else:
+        return [out_absolute_name, plot_diagn, plot_backsc]
 
 
-def example_usage_L2():
-
+def example_L2_1():
     # Sample L1 netCDF ADCP file
     f_adcp = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
-    f_sbe = None
     dest_dir = 'dest_dir'
 
-    new_name = create_nc_L2(f_adcp, dest_dir)
+    out_files = create_nc_L2(f_adcp, dest_dir)
 
-    return new_name
+    return out_files
+
+
+def example_L2_2():
+    # Sample L1 netCDF ADCP file
+    f_adcp = './newnc/e01_20120613_20130705_0091m.adcp.L1.nc'
+    # netCDF CTD file from same deployment
+    f_ctd = './sample_data/e01_20120613_20130705_0093m.ctd.nc'
+    dest_dir = 'dest_dir'
+
+    out_files = create_nc_L2(f_adcp, dest_dir, f_ctd)
+
+    return out_files
