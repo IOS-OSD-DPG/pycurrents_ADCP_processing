@@ -1,6 +1,6 @@
 # pycurrents_ADCP_processing
 
-For performing "level 0" (L0) and "level 1" (L1) processing on raw moored ADCP data in Python using the UHDAS `pycurrents` package.
+For performing "level 0" (L0), "level 1" (L1), and "level 2" (L2) processing on raw moored ADCP data in Python using the UHDAS `pycurrents` package.
 
 L0 processing does not include any processing. Raw ADCP data is combined with metadata from a csv file and exported in netCDF format. 
 
@@ -10,6 +10,12 @@ L1 processing contains minimal processing. Raw ADCP data is also combined with m
 * Rotation into enu coordinates if this is not already the coordinate system of the dataset
 * Flagging leading and trailing ensembles from before and after deployment and setting them to nan's
 * Flagging negative pressure values
+
+L2 processing contains:
+* Flagging data in bins where calculated pressure is negative
+* Flagging data by backscatter increases in upward-facing ADCPs
+* Flagging data below the depth of the sea floor in downward-facing ADCPs
+* Calculation of pressure data from CTD pressure data from the same deployment (if the ADCP was missing a pressure sensor)
 
 *add_var2nc.py* adds a geographic_area variable to a netCDF file from either the L0 or L1 process and exports a new netCDF file containing this addition.
 
