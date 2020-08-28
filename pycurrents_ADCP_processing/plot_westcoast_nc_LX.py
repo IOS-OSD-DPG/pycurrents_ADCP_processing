@@ -10,8 +10,25 @@ netCDF-format data. The types of plots are:
     3. North and East Godin or 30h-averaged filtered current velocities
     4. Along and cross-shelf Godin or 30h-averaged filtered current velocities
     5. Bin plot for one month's worth of velocity data comparing raw and filtered (Godin or 30h-averaged) data
+    6. Diagnostic plot containing subplots of:
+        1. Time-averaged backscatter over depth
+        2. Time-averaged velocity over depth
+        3. Mean orientation
     
-Plots can be made from L1- or L2-processed data.
+Plots can be made from L0-, L1- or L2-processed data.
+
+Credits:
+Diagnostic plot code adapted from David Spear (originally in MatLab)
+fmamidir() and fpcdir() function code from Roy Hourston (originally in MatLab)
+
+From Roy Hourston's fpcdir.m script:
+    "THETA = fpcdir(X,Y) is the principal component direction of X and Y.
+    In other words, it is the angle of rotation counter-clockwise from
+    north of the first principal component of X and Y. Applies to
+    bivariate data set only. See Emery and Thomson, Data Analysis Methods
+    in Oceanography, 1997, p.327, and Preisendorfer, Principal Component
+    Analysis in Meteorology and Oceanography, 1988, p.15. Second principal
+    angle is given by THETA + 90 degrees."
 """
 
 import xarray as xr
@@ -48,6 +65,258 @@ def get_L1_start_end(ncdata):
     return start_end_indices
 
 
+def fmamidir(u, v):
+    # Computes principal component direction of u and v
+
+    ub = np.nanmean(u)
+    vb = np.nanmean(v)
+    uu = np.nanmean(u ** 2)
+    vv = np.nanmean(v ** 2)
+    uv = np.nanmean(u * v)
+    uu = uu - (ub * ub)
+    vv = vv - (vb * vb)
+    uv = uv - (ub * vb)
+
+    # Solve for the quadratic
+    a = 1.0
+    b = -(uu + vv)
+    c = (uu * vv) - (uv * uv)
+    s1 = (-b + np.sqrt((b * b) - (4.0 * a * c)) / (2.0 * a))
+    s2 = (-b - np.sqrt((b * b) - (4.0 * a * c)) / (2.0 * a))
+    major = s1
+    minor = s2
+    if minor > major:
+        major = s2
+        minor = s1
+
+    # Return major and minor axes
+    return major, minor
+
+
+def fpcdir(x, y):
+    if x.shape != y.shape:
+        ValueError('u and v are different sizes!')
+    else:
+        # Compute major and minor axes
+        major, minor = fmamidir(x, y)
+
+        # Compute principal component direction
+        u = x
+        v = y
+        ub = np.nanmean(u)
+        vb = np.nanmean(v)
+        uu = np.nanmean(u ** 2)
+        uv = np.nanmean(u * v)
+        uu = uu - (ub * ub)
+        uv = uv - (ub * vb)
+
+        e1 = -uv / (uu - major)
+        e2 = 1
+        rad_deg = 180 / np.pi  # conversion factor
+        theta = np.arctan2(e1, e2) * rad_deg
+        theta = -theta  # change rotation angle to be CCW from North
+
+    return theta
+
+
+def calculate_depths(dataset):
+    """
+    Calculate ADCP bin depths in the water column
+    Inputs:
+        - dataset: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+    Outputs:
+        - numpy array of ADCP bin depths
+    """
+    # depths = np.mean(ncdata.PRESPR01[0,:]) - ncdata.distance  #What Di used
+    if dataset.orientation == 'up':
+        return float(dataset.instrument_depth) - dataset.distance.data
+    else:
+        return float(dataset.instrument_depth) + dataset.distance.data
+
+
+def vb_flag(dataset):
+    """
+    Create flag for missing vertical beam data in files from Sentinel V ADCPs
+    flag = 0 if Sentinel V file has vertical beam data, or file not from Sentinel V
+    flag = 1 if Sentinel V file does not have vertical beam data
+    Inputs:
+        - dataset: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+    Outputs:
+        - value of flag
+    """
+    try:
+        x = dataset.TNIHCE05.data
+        return 0
+    except AttributeError:
+        if dataset.instrumentSubtype == 'Sentinel V':
+            return 1
+        else:
+            return 0
+
+
+def get_plot_dir(filename, dest_dir):
+    if 'L0' in filename.data.tolist():
+        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
+    elif 'L1' in filename.data.tolist():
+        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
+    elif 'L2' in filename.data.tolist():
+        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
+    else:
+        ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
+
+    return plot_dir
+
+
+def plots_diagnostic(nc, dest_dir, level0=False):
+    """
+    Preliminary plots:
+    (1) Backscatter against depth, (2) mean velocity, and (3) principle component direction
+    Credits: David Spear, Roy Hourston
+    Inputs:
+        - d: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+    Outputs:
+        None
+    """
+    # Subplot 1/3: Plot avg backscatter against depth
+
+    # First calculate depths
+    depths = calculate_depths(nc)
+
+    # Check if vertical beam data present in Sentinel V file
+    flag_vb = vb_flag(nc)
+
+    # Calculate average backscatter (amplitude intensity)
+    amp_mean_b1 = np.nanmean(nc.TNIHCE01.data, axis=1)
+    amp_mean_b2 = np.nanmean(nc.TNIHCE02.data, axis=1)
+    amp_mean_b3 = np.nanmean(nc.TNIHCE03.data, axis=1)
+    amp_mean_b4 = np.nanmean(nc.TNIHCE04.data, axis=1)
+
+    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+        amp_mean_b5 = np.nanmean(nc.TNIHCE05.data, axis=1)
+        amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
+        colours = ['b', 'g', 'c', 'm', 'y'] #list of plotting colours
+    else:
+        # Done calculating time-averaged amplitude intensity
+        amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4]
+        colours = ['b', 'g', 'c', 'm']
+
+    # Start plot
+
+    # Make plot and first subplot
+    fig = plt.figure(figsize=(11, 8.5))
+    ax = fig.add_subplot(1, 3, 1)
+
+    beam_no = 1
+    for dat, col in zip(amp, colours):
+        f1 = ax.plot(dat, depths, label='Beam {}'.format(beam_no), linewidth=1, marker='o', markersize=2, color=col)
+        beam_no += 1
+    ax.set_ylim(depths[-1], depths[0])
+    ax.legend(loc='lower left')
+    ax.set_xlabel('Counts')
+    ax.set_ylabel('Depth (m)')  # Set y axis label for this subplot only out of the 3
+    ax.grid()
+    ax.tick_params(axis='both', direction='in', top=True, right=True)
+    ax.set_title('Mean Backscatter', fontweight='semibold')  # subplot title
+    # Flip over x-axis if instrument oriented 'up'
+    if nc.orientation == 'up':
+        plt.gca().invert_yaxis()
+
+    # Subplot 2/3: Mean velocity
+    ax = fig.add_subplot(1, 3, 2)
+
+    # Calculate average velocities
+    u_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
+    v_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
+    w_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
+
+    if level0:
+        for i in range(len(u_mean)):
+            u_mean[i] = np.nanmean(nc.VEL_MAGNETIC_EAST.data[i, :])
+            v_mean[i] = np.nanmean(nc.VEL_MAGNETIC_NORTH.data[i, :])
+            w_mean[i] = np.nanmean(nc.LRZAAP01.data[i, :])
+    else:
+        for i in range(len(u_mean)):
+            u_mean[i] = np.nanmean(nc.LCEWAP01.data[i, :])
+            v_mean[i] = np.nanmean(nc.LCNSAP01.data[i, :])
+            w_mean[i] = np.nanmean(nc.LRZAAP01.data[i, :])
+
+    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+        w5_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
+        for i in range(len(u_mean)):
+            w5_mean[i] = np.nanmean(nc.LRZUVP01.data[i, :])
+
+        if level0:
+            names = ['VEL_MAGNETIC_EAST', 'VEL_MAGNETIC_NORTH', 'LRZAAP01', 'LRZUVP01']
+        else:
+            names = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LRZUVP01']
+        vels = [u_mean, v_mean, w_mean, w5_mean]
+    else:
+        if level0:
+            names = ['VEL_MAGNETIC_EAST', 'VEL_MAGNETIC_NORTH', 'LRZAAP01']
+        else:
+            names = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01']
+        vels = [u_mean, v_mean, w_mean]
+
+    # Plot
+    for i in range(len(names)):
+        f2 = ax.plot(vels[i], depths, label=names[i], linewidth=1, marker='o', markersize=2, color=colours[i])
+    ax.set_ylim(depths[-1], depths[0])  # set vertical limits
+    ax.legend(loc='lower left')
+    ax.set_xlabel('Velocity (m/s)')
+    ax.grid()
+    ax.tick_params(axis='both', direction='in', top=True, right=True)
+    ax.set_title('Mean Velocity', fontweight='semibold')  # subplot title
+    # Flip over x-axis if instrument oriented 'up'
+    if nc.orientation == 'up':
+        plt.gca().invert_yaxis()
+
+    # Subplot 3/3: Principal axis
+
+    orientation = np.zeros(int(nc.numberOfCells), dtype='float32')
+    for ibin in range(len(orientation)):
+        if level0:
+            xx = nc.VEL_MAGNETIC_EAST.data[ibin, :]
+            yy = nc.VEL_MAGNETIC_NORTH.data[ibin, :]
+        else:
+            xx = nc.LCEWAP01.data[ibin, :]
+            yy = nc.LCNSAP01.data[ibin, :]
+        orientation[ibin] = fpcdir(xx, yy)  # convert to CW direction
+
+    mean_orientation = np.round(np.nanmean(orientation), decimals=1)
+    middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])  #text plotting coordinate
+    mean_depth = np.nanmean(depths)  #text plotting coordinate
+
+    # Make the subplot
+    ax = fig.add_subplot(1, 3, 3)
+    f3 = ax.plot(orientation, depths, linewidth=1, marker='o', markersize=2)
+    ax.set_ylim(depths[-1], depths[0])  # set vertical limits
+    ax.set_xlabel('Orientation')
+    ax.text(x=middle_orientation, y=mean_depth, s='Mean orientation = ' + str(mean_orientation) + '$^\circ$',
+            horizontalalignment='center', verticalalignment='center', fontsize=10)
+    ax.grid()  # set grid
+    ax.tick_params(axis='both', direction='in', top=True, right=True)
+    ax.set_title('Principal Axis', fontweight='semibold')  # subplot title
+    # Flip over x-axis if instrument oriented 'up'
+    if nc.orientation == 'up':
+        plt.gca().invert_yaxis()
+
+    # Create centred figure title
+    fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.serial_number,
+                                                 nc.instrument_depth), fontweight='semibold')
+
+    # Create plots subfolder
+    plot_dir = get_plot_dir(nc.filename, dest_dir)
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    fig_name = plot_dir + '{}-{}_{}_nc_diagnostic.png'.format(
+        nc.station, str(nc.deployment_number), nc.serial_number)
+    fig.savefig(fig_name)
+    plt.close()
+
+    return os.path.abspath(fig_name)
+
+
 def limit_data(ncdata, ew_data, ns_data):
     if ncdata.orientation == 'up':
         bin_depths = ncdata.instrument_depth - ncdata.distance.data
@@ -73,14 +342,38 @@ def limit_data(ncdata, ew_data, ns_data):
     return time_lim, bin_depths_lim, ns_lim, ew_lim
 
 
-def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False, filter_type='raw'):
+def get_vminvmax(v1_data, v2_data):
+    """
+    Get range of pcolor color bar
+    Inputs:
+        - v1_data, v2_data: 2 raw or filtered velocity data components (East and North or Along- and Cross-shore)
+    Outputs:
+        - 2-element list containing the color bar min and max
+    """
+    v1_std = np.nanstd(v1_data)
+    v1_mean = np.nanmean(v1_data)
+    v1_lim = np.max([np.abs(-(v1_mean + 2 * v1_std)), np.abs(v1_mean + 2 * v1_std)])
+    v2_std = np.nanstd(v2_data)
+    v2_mean = np.nanmean(v2_data)
+    v2_lim = np.max([np.abs(-(v2_mean + 2 * v2_std)), np.abs(v2_mean + 2 * v2_std)])
+
+    # determine which limit to use
+    vel_lim = np.max([v1_lim, v2_lim])
+    print(vel_lim)
+    vminvmax = [-vel_lim, vel_lim]
+    print(vminvmax)
+    return vminvmax
+
+
+def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False, filter_type='raw'):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
 
     magnetic = '' #specify "Magnetic (North)" for L0 files, since magnetic declination wasn't applied to them
     if level0:
         magnetic = 'Magnetic '
 
-    vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
+    # vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
+    vminvmax = get_vminvmax(ns_lim, ew_lim)
     fig = plt.figure(figsize=(13.75, 10))
     ax = fig.add_subplot(2, 1, 1)
 
@@ -91,22 +384,22 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, lev
 
     if filter_type == '30h':
         ax.set_title(
-            'ADCP ({}North, 30h average) {}-{} {}m'.format(magnetic, data.attrs['station'],
-                                                           data.attrs['deployment_number'],
-                                                           str(int(data.instrument_depth))), fontsize=14)
+            'ADCP ({}North, 30h average) {}-{} {}m'.format(magnetic, nc.attrs['station'],
+                                                           nc.attrs['deployment_number'],
+                                                           str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
         ax.set_title(
-            'ADCP ({}North, Godin Filtered) {}-{} {}m'.format(magnetic, data.attrs['station'],
-                                                              data.attrs['deployment_number'],
-                                                              str(int(data.instrument_depth))), fontsize=14)
+            'ADCP ({}North, Godin Filtered) {}-{} {}m'.format(magnetic, nc.attrs['station'],
+                                                              nc.attrs['deployment_number'],
+                                                              str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
         ax.set_title(
-            'ADCP ({}North, raw) {}-{} {}m'.format(magnetic, data.attrs['station'], data.attrs['deployment_number'],
-                                                   str(int(data.instrument_depth))), fontsize=14)
+            'ADCP ({}North, raw) {}-{} {}m'.format(magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+                                                   str(int(nc.instrument_depth))), fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    if data.orientation == 'up':
+    if nc.orientation == 'up':
         plt.gca().invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
@@ -117,39 +410,33 @@ def make_pcolor_ne(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, lev
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
-        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m'.format(magnetic, filter_type, data.attrs['station'],
-                                                                   data.attrs['deployment_number'],
-                                                                   str(int(data.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m'.format(magnetic, filter_type, nc.attrs['station'],
+                                                                   nc.attrs['deployment_number'],
+                                                                   str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
-        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m'.format(magnetic, data.attrs['station'],
-                                                                       data.attrs['deployment_number'],
-                                                                       str(int(data.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m'.format(magnetic, nc.attrs['station'],
+                                                                       nc.attrs['deployment_number'],
+                                                                       str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
-            'ADCP ({}East, raw) {}-{} {}m'.format(magnetic, data.attrs['station'], data.attrs['deployment_number'],
-                                                  str(int(data.instrument_depth))), fontsize=14)
+            'ADCP ({}East, raw) {}-{} {}m'.format(magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+                                                  str(int(nc.instrument_depth))), fontsize=14)
 
-    if data.orientation == 'up':
+    if nc.orientation == 'up':
         plt.gca().invert_yaxis()
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
-    if 'L0' in data.filename.data.tolist():
-        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
-    elif 'L1' in data.filename.data.tolist():
-        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
-    elif 'L2' in data.filename.data.tolist():
-        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
-    else:
-        ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
+    plot_dir = get_plot_dir(nc.filename, dest_dir)
+
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
     if level0:
-        plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
-            str(int(data.instrument_depth))) + '-magn_NE_{}.png'.format(filter_type)
+        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+            str(int(nc.instrument_depth))) + '-magn_NE_{}.png'.format(filter_type)
     else:
-        plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{0}m'.format(
-            str(int(data.instrument_depth))) + '-NE_{}.png'.format(filter_type)
+        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+            str(int(nc.instrument_depth))) + '-NE_{}.png'.format(filter_type)
     fig.savefig(plot_name)
     plt.close()
 
@@ -175,18 +462,21 @@ def determine_dom_angle(u_true, v_true):
     return along_angle, cross_angle
 
 
-def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw'):
+def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw', along_angle=None):
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
-    along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
+    if along_angle is None:
+        along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
+    else:
+        cross_angle = along_angle - 90  # deg
     print(along_angle, cross_angle)
-#     along_angle = cross_angle + 90  # deg
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
     CS = u_cross
 
-    vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
+    # vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
+    vminvmax = get_vminvmax(AS, CS)
     fig = plt.figure(figsize=(13.75, 10))
     ax1 = fig.add_subplot(2, 1, 1)
 
@@ -221,8 +511,6 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
 
     ax2 = fig.add_subplot(2, 1, 2)
 
-    # vminvmax = get_vminvmax(CS)
-
     f2 = ax2.pcolor(time_lim, bin_depths_lim, CS[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
     cbar = fig.colorbar(f2, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
@@ -255,15 +543,8 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     if data.orientation == 'up':
         plt.gca().invert_yaxis()
 
-    # Create L1_Python_plots or L2_Python_plots subfolder if not made already
-    if 'L0' in data.filename.data.tolist():
-        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
-    elif 'L1' in data.filename.data.tolist():
-        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
-    elif 'L2' in data.filename.data.tolist():
-        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
-    else:
-        ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
+    # Create plots subfolder if not made already
+    plot_dir = get_plot_dir(data.filename, dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
@@ -401,14 +682,7 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
                                              vel_code, bin_index + 1, bin_depth), fontsize=14)
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
-    if 'L0' in nc.filename.data.tolist():
-        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
-    elif 'L1' in nc.filename.data.tolist():
-        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
-    elif 'L2' in nc.filename.data.tolist():
-        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
-    else:
-        ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
+    plot_dir = get_plot_dir(nc.filename, dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
@@ -420,32 +694,38 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     return os.path.abspath(plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
         - dest_dir: destination directory for output files
         - filter_type: "Godin", "30h", or "35h"
+        - along_angle: Along-shore angle measured in degrees relative to geographic East, counter-clockwise
     Outputs:
         - list of absolute file names of output files
     """
     ncdata = xr.open_dataset(ncfile)
 
     if "L0" in ncfile:
+        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, True)
+
         time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.VEL_MAGNETIC_EAST.data, ncdata.VEL_MAGNETIC_NORTH.data)
         # North/East velocity plots
         fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, True)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle)
 
     else:
+        fname_diagnostic = plots_diagnostic(ncdata, dest_dir)
+
         time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data)
         # North/East velocity plots
         fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle)
+
 
     # Redo whole process with filtered data
 
@@ -470,7 +750,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
                                        filter_type)
 
     # Along-shore/cross-shore
-    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type)
+    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type, along_angle)
 
     # Compare velocity in bin 1
     if 'L0' in ncfile:
@@ -480,4 +760,4 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin"):
         fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type,
                                              direction='east')
 
-    return [fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]
+    return [fname_diagnostic, fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]

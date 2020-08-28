@@ -1,7 +1,6 @@
-*2020/07/08 10:35:38.90
+*2020/08/27 16:46:29.82
 *IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON
 
-100
 *FILE
     START TIME          : UTC 2016/07/13 18:29:59.00
     END TIME            : UTC 2017/06/26 19:59:59.00
@@ -173,11 +172,12 @@
         n_cells:                     31
         pings_per_ensemble:          13
         cell_size:                   16.0
+        blank:                       7.04 m
         corr_threshold:              64
         n_codereps:                  9
         min_pgood:                   0
-        evel_threshold:              2000 m s-1
-        time_between_ping_groups:    348.08333333333337
+        evel_threshold:              2000 mm s-1
+        time_between_ping_groups:    02:18.46
         coord:                       00011111
         coord_sys:                   enu
         use_pitchroll:               yes
@@ -188,8 +188,8 @@
         sensors_src:                 01111101
         sensors_avail:               00111101
         bin1_dist:                   24.56
-        xmit_pulse:                  17.10
-        fls_target_threshold:        50
+        xmit_length:                 1710
+        fls_target_threshold:        50 counts
         xmit_lag:                    193
         h_adcp_beam_angle:           20
         ranges:                      
@@ -230,18 +230,19 @@
 
     !   Name     Vers  Date       Time     Recs In   Recs Out
     !   -------- ----  ---------- -------- --------- ---------
-        ADCP2NC  1     2020-07-07 10:58:00    18822     16709
-        NC2IOS   1.0   2020/07/08 10:35:38    16709     16709
+        ADCP2NC  1     2020-08-27 16:46:29    18822     16709
+        NC2IOS   1.0   2020/08/27 16:46:29    16709     16709
     $END
     $REMARKS
-        -ADCP2NC  processing: 2020-07-07 10:58:00
+        -ADCP2NC  processing: 2020-08-27 16:46:29
          The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston.
          The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm.
          Instrument depth was derived from reconciling all trustworthy pressure sensors on the mooring (i.e., Sea-Bird) and the mooring line length..
-        -NC2IOS  processing: 2020/07/08 10:35:38
+        -NC2IOS  processing: 2020/08/27 16:46:29
          NetCDF file converted to IOSShell format.
     $END
 
+*COMMENTS
+    To get the actual data, please see a1_20160713_20170513_0480m.adcp.L1.nc
+
 *END OF HEADER
-To get the actual data, please see a1_20160713_20170513_0480m.adcp.L1.nc
-./newnc/eh3_20050502_20051002_0008m.adcp

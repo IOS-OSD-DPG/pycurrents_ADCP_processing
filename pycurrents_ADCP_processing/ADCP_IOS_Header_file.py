@@ -49,14 +49,14 @@ def write_file(nc):
     # Test if the PCGPAP00-4 variables exist
     flag_pg = 0
     try:
-        print(nc.PCGDAP00.data_max)
+        x = nc.PCGDAP00.data_max
     except AttributeError:
         flag_pg = 1
     # For Sentinel V files, test if the vertical beam variables exist
     flag_vb = 0
     if nc.instrumentSubtype == 'Sentinel V':
         try:
-            print(nc.LRZUVP01.data_max)
+            x = nc.LRZUVP01.data_max
         except AttributeError:
             flag_vb += 1
 
@@ -570,13 +570,13 @@ def write_raw(nc):
     n_cells = str(nc.attrs["numberOfCells"])
     pings_per_ensemble = str(nc.attrs["pings_per_ensemble"])
     cell_size = str(nc.attrs["cellSize"])
-    # blank = "??" # ??????????????????????????
+    blank = str(nc.attrs['blank'])
     # prof_mode = "??" # ??????????????????????
     corr_threshold = str(nc.attrs["valid_correlation_range"])
     n_codereps = str(nc.attrs["n_codereps"])  # n_codereps = "NA" #
-    min_pgood = nc.attrs["percentgd_threshold"]
+    min_pgood = str(nc.attrs["min_percent_good"])
     evel_threshold = nc.attrs["error_velocity_threshold"]
-    time_between_ping_groups = str(nc.attrs["time_coverage_duration"])  # need check and confirm
+    time_between_ping_groups = str(nc.attrs['time_ping'])
     coord = "00011111"  # need check and confirm?
     coord_sys = nc.attrs["coord_system"]
     use_pitchroll = "yes"  # need check and confirm?
@@ -591,8 +591,9 @@ def write_raw(nc):
     sensors_src = str(nc.attrs["sensor_source"])
     sensors_avail = str(nc.attrs["sensors_avail"])
     bin1_dist = "%.2f" % round(nc.attrs["bin1Distance"], 2)
-    xmit_pulse = "%.2f" % round(nc.attrs["transmit_pulse_length_cm"] / 100, 2)
-    fls_target_threshold = str(nc.attrs["false_target_reject_values"])
+    # xmit_pulse = "%.2f" % round(nc.attrs["transmit_pulse_length_cm"] / 100, 2)
+    xmit_length = str(nc.attrs['xmit_length'])
+    fls_target_threshold = nc.attrs["false_target_reject_values"]
     xmit_lag = str(nc.attrs["xmit_lag"])  # xmit_lag = "NA"
     # syspower = "??" # ??????????????????????
     # navigator_basefreqindex = "??" # ????????????????????
@@ -627,7 +628,7 @@ def write_raw(nc):
     print("        " + '{:29}'.format('n_cells: ') + n_cells)
     print("        " + '{:29}'.format('pings_per_ensemble:') + pings_per_ensemble)
     print("        " + '{:29}'.format('cell_size:') + cell_size)
-    # print("        " + '{:29}'.format('blank:') + blank) # ???????????????????????????
+    print("        " + '{:29}'.format('blank:') + blank) # ???????????????????????????
     # print("        " + '{:29}'.format('prof_mode:') + prof_mode) # ???????????????????????
     print("        " + '{:29}'.format('corr_threshold:') + corr_threshold)
     print("        " + '{:29}'.format('n_codereps:') + n_codereps)
@@ -644,7 +645,7 @@ def write_raw(nc):
     print("        " + '{:29}'.format('sensors_src: ') + sensors_src)
     print("        " + '{:29}'.format('sensors_avail:') + sensors_avail)
     print("        " + '{:29}'.format('bin1_dist: ') + bin1_dist)
-    print("        " + '{:29}'.format('xmit_pulse:') + xmit_pulse)
+    print("        " + '{:29}'.format('xmit_length:') + xmit_length)
     print("        " + '{:29}'.format('fls_target_threshold:') + fls_target_threshold)
     print("        " + '{:29}'.format('xmit_lag:') + xmit_lag)
     # print("        " + '{:29}'.format('syspower:') + syspower)
@@ -673,7 +674,7 @@ def write_raw(nc):
 def write_history(nc, f_name):
     # define function to write raw info
     process_1 = "ADCP2NC "
-    process_1_ver = str(nc.attrs["pred_accuracy"])
+    process_1_ver = '1' # str(nc.attrs["pred_accuracy"])
     date_time_1 = nc.attrs["date_modified"]
     digits_in_process_hist = [int(s) for s in nc.attrs['processing_history'].split() if s.isdigit()] #H.Hourston May 27, 2020
     Recs_in_1 = str(digits_in_process_hist[-2] + digits_in_process_hist[-1] + nc.coords["time"].size)
@@ -707,8 +708,11 @@ def write_history(nc, f_name):
 
     print("    $END")
     print()
+    print("*COMMENTS")
+    print("    To get the actual data, please see " + f_name)
+    print()
     print("*END OF HEADER")
-    print("To get the actual data, please see " + f_name)
+    return
 
 
 def main_header(f, dest_dir):
