@@ -1,4 +1,4 @@
-*2020/08/19 10:22:30.02
+*2020/08/27 16:41:47.60
 *IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON
 
 *FILE
@@ -171,11 +171,12 @@
         n_cells:                     30
         pings_per_ensemble:          30
         cell_size:                   4.0
+        blank:                       1.76 m
         corr_threshold:              64
         n_codereps:                  8
         min_pgood:                   0
-        evel_threshold:              2000 m s-1
-        time_between_ping_groups:    1.3958333333333286
+        evel_threshold:              2000 mm s-1
+        time_between_ping_groups:    00:20.00
         coord:                       00011111
         coord_sys:                   enu
         use_pitchroll:               yes
@@ -186,8 +187,8 @@
         sensors_src:                 01111111
         sensors_avail:               00111101
         bin1_dist:                   6.03
-        xmit_pulse:                  4.03
-        fls_target_threshold:        50
+        xmit_length:                 403
+        fls_target_threshold:        50 counts
         xmit_lag:                    51
         h_adcp_beam_angle:           20
         ranges:                      
@@ -227,15 +228,15 @@
 
     !   Name     Vers  Date       Time     Recs In   Recs Out
     !   -------- ----  ---------- -------- --------- ---------
-        ADCP2NC  1     2020-07-07 10:54:00      230       202
-        NC2IOS   1.0   2020/08/19 10:22:30      202       202
+        ADCP2NC  1     2020-08-27 16:41:47      230       202
+        NC2IOS   1.0   2020/08/27 16:41:47      202       202
     $END
     $REMARKS
-        -ADCP2NC  processing: 2020-07-07 10:54:00
+        -ADCP2NC  processing: 2020-08-27 16:41:47
          The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston.
          The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm.
          Instrument depth was derived from reconciling all trustworthy pressure sensors on the mooring (i.e., Sea-Bird) and the mooring line length..
-        -NC2IOS  processing: 2020/08/19 10:22:30
+        -NC2IOS  processing: 2020/08/27 16:41:47
          NetCDF file converted to IOSShell format.
     $END
 

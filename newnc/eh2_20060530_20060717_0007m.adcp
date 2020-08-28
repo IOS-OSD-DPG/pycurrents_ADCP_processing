@@ -1,4 +1,4 @@
-*2020/08/19 10:23:32.44
+*2020/08/27 16:59:30.22
 *IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON
 
 *FILE
@@ -168,11 +168,12 @@
         n_cells:                     27
         pings_per_ensemble:          190
         cell_size:                   2.0
+        blank:                       1.76 m
         corr_threshold:              64
         n_codereps:                  5
         min_pgood:                   0
-        evel_threshold:              2000 m s-1
-        time_between_ping_groups:    -1351.9912152777779
+        evel_threshold:              2000 mm s-1
+        time_between_ping_groups:    00:01.00
         coord:                       00011111
         coord_sys:                   enu
         use_pitchroll:               yes
@@ -183,8 +184,8 @@
         sensors_src:                 01111111
         sensors_avail:               00011101
         bin1_dist:                   4.20
-        xmit_pulse:                  2.40
-        fls_target_threshold:        50
+        xmit_length:                 240
+        fls_target_threshold:        50 counts
         xmit_lag:                    49
         h_adcp_beam_angle:           20
         ranges:                      
@@ -221,15 +222,15 @@
 
     !   Name     Vers  Date       Time     Recs In   Recs Out
     !   -------- ----  ---------- -------- --------- ---------
-        ADCP2NC  1     2020-07-07 10:41:05     1183      1174
-        NC2IOS   1.0   2020/08/19 10:23:32     1174      1174
+        ADCP2NC  1     2020-08-27 16:59:29     1183      1174
+        NC2IOS   1.0   2020/08/27 16:59:30     1174      1174
     $END
     $REMARKS
-        -ADCP2NC  processing: 2020-07-07 10:41:05
+        -ADCP2NC  processing: 2020-08-27 16:59:29
          The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston.
          The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm.
          Instrument depth was derived from the shipboard depth sounder and the mooring line length..
-        -NC2IOS  processing: 2020/08/19 10:23:32
+        -NC2IOS  processing: 2020/08/27 16:59:30
          NetCDF file converted to IOSShell format.
     $END
 

@@ -14,7 +14,6 @@ Outputs:
 """
 
 from pycurrents_ADCP_processing import ADCP_processing_L0, ADCP_processing_L1, add_var2nc, ADCP_IOS_Header_file
-import os
 
 
 # Define raw ADCP file and associated metadata file
