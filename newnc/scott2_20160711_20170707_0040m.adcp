@@ -1,0 +1,274 @@
+*2020/08/05 12:16:15.74
+*IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON
+
+255
+*FILE
+    START TIME          : UTC 2016/07/10 19:00:00.00
+    END TIME            : UTC 2016/12/07 15:00:00.00
+    TIME INCREMENT      : 0 1 0 0 0  ! (day hr min sec ms)
+    TIME UNITS          : Hours
+    NUMBER OF RECORDS   : 3598
+    DATA DESCRIPTION    : adcp
+    NUMBER OF CHANNELS  : 30
+
+    $TABLE: CHANNELS
+    ! No Name                               Units            Minimum          Maximum
+    !--- ---------------------------------  ---------------  ---------------  ---------------
+       1 UTC Date                           YYYY-MM-DD                   n/a              n/a
+       2 UTC Time                           HH:MM:SS                     n/a              n/a
+       3 Eastward_Sea_Water_Velocity        m s-1              -4.104206E+01     4.099034E+01
+       4 Northward_Sea_Water_Velocity       m s-1              -4.099023E+01     4.099829E+01
+       5 Upward_Sea_Water_Velocity          m s-1              -3.276300E+01     3.273200E+01
+       6 Error_Velocity_In_Sea_Water        m s-1              -3.276700E+01     3.276600E+01
+       7 Quality Flag For Lcewap01                              0.000000E+00     4.000000E+00
+       8 Quality Flag For Lcnsap01                              0.000000E+00     4.000000E+00
+       9 Quality Flag For Lrzaap01                              0.000000E+00     4.000000E+00
+      10 Adcp_Echo_Intensity_Beam_1         counts              0.000000E+00     2.550000E+02
+      11 Adcp_Echo_Intensity_Beam_2         counts              0.000000E+00     2.550000E+02
+      12 Adcp_Echo_Intensity_Beam_3         counts              0.000000E+00     2.550000E+02
+      13 Adcp_Echo_Intensity_Beam_4         counts              0.000000E+00     2.550000E+02
+      14 Adcp_Correlation_Magnitude_Beam_1  counts              0.000000E+00     2.550000E+02
+      15 Adcp_Correlation_Magnitude_Beam_2  counts              0.000000E+00     2.550000E+02
+      16 Adcp_Correlation_Magnitude_Beam_3  counts              0.000000E+00     2.550000E+02
+      17 Adcp_Correlation_Magnitude_Beam_4  counts              0.000000E+00     2.550000E+02
+      18 Percent_Good_Beam_1                percent             0.000000E+00     2.550000E+02
+      19 Percent_Good_Beam_2                percent             0.000000E+00     2.550000E+02
+      20 Percent_Good_Beam_3                percent             0.000000E+00     2.550000E+02
+      21 Percent_Good_Beam_4                percent             0.000000E+00     2.550000E+02
+      22 Pitch                              degree             -3.276600E+02     3.265000E+02
+      23 Heading                            degree              0.000000E+00     6.553500E+02
+      24 Roll                               degree             -3.276600E+02     3.276700E+02
+      25 Adcp Transducer Temp.              degree_C           -3.276800E+02     3.276700E+02
+      26 Height Of Sea Surface              m                   4.871194E+09     4.871194E+09
+      27 Instrument Depth                   m                  -2.895865E+06     2.265284E+10
+      28 Pressure                           dbar                0.000000E+00     2.147478E+06
+      29 Quality Flag For Prespr01                              0.000000E+00     4.000000E+00
+      30 Speed Of Sound                     m s-1               0.000000E+00     6.553500E+04
+    $END
+
+    $TABLE: CHANNEL DETAIL
+    ! No  Pad            Start  Width  Format      Type  Decimal_Places
+    !---  -------------  -----  -----  ----------  ----  --------------
+       1  ' '                   ' '    YYYY-MM-DD  D     ' '           
+       2  ' '                   ' '    HH:MM:SS    T     ' '           
+       3  -9.900000E+01         14     E           R4    6             
+       4  -9.900000E+01         14     E           R4    6             
+       5  -9.900000E+01         14     E           R4    6             
+       6  -9.900000E+01         14     E           R4    6             
+       7  -9.900000E+01         14     E           I     6             
+       8  -9.900000E+01         14     E           I     6             
+       9  -9.900000E+01         14     E           I     6             
+      10  -9.900000E+01         14     E           R4    6             
+      11  -9.900000E+01         14     E           R4    6             
+      12  -9.900000E+01         14     E           R4    6             
+      13  -9.900000E+01         14     E           R4    6             
+      14  -9.900000E+01         14     E           R4    6             
+      15  -9.900000E+01         14     E           R4    6             
+      16  -9.900000E+01         14     E           R4    6             
+      17  -9.900000E+01         14     E           R4    6             
+      18  -9.900000E+01         14     E           R4    6             
+      19  -9.900000E+01         14     E           R4    6             
+      20  -9.900000E+01         14     E           R4    6             
+      21  -9.900000E+01         14     E           R4    6             
+      22  -9.900000E+01         14     E           R4    6             
+      23  -9.900000E+01         14     E           R4    6             
+      24  -9.900000E+01         14     E           R4    6             
+      25  -9.900000E+01         14     E           R4    6             
+      26  -9.900000E+01         14     E           R4    6             
+      27  -9.900000E+01         14     E           R4    6             
+      28  -9.900000E+01         14     E           R4    6             
+      29  -9.900000E+01         14     E           R4    6             
+    $END
+
+*ADMINISTRATION
+    AGENCY              : IOS, Ocean Sciences Division, Sidney, B.C.
+    COUNTRY             : Canada
+    PROJECT             : BC-shelf
+    SCIENTIST           : Hannah C.
+    PLATFORM            : John P. Tully
+
+*LOCATION
+    GEOGRAPHIC AREA     : Northern-Vancouver-Island-Shelf 
+    STATION             : SCOTT2
+    LATITUDE            :  51  7.626000 N  ! (deg min)
+    LONGITUDE           : 129  28.47000 W  ! (deg min)
+    WATER DEPTH         : 289.0
+    MAGNETIC DECLINATION: 17.59
+
+*DEPLOYMENT
+    MISSION             : 2016-12
+    TYPE                : Sub Surface
+    TIME ANCHOR DROPPED : 2016-07-10 21:37:00 UTC
+    $REMARKS
+        2174 lbs with 2 m chain
+    $END
+
+*RECOVERY
+    MISSION             : 2017-23
+    TIME ANCHOR RELEASED: 2017-07-07 22:07:00 UTC
+
+*INSTRUMENT
+    TYPE                : Workhorse-adcp
+    SERIAL NUMBER       : WH20706
+    DEPTH               : 40
+    ORIENTATION         : up
+
+    $ARRAY: BIN DEPTHS (M)
+          2.1
+          3.1
+          4.1
+          5.1
+          6.1
+          7.1
+          8.1
+          9.1
+         10.1
+         11.1
+         12.1
+         13.1
+         14.1
+         15.1
+         16.1
+         17.1
+         18.1
+         19.1
+         20.1
+         21.1
+         22.1
+         23.1
+         24.1
+         25.1
+         26.1
+         27.1
+         28.1
+         29.1
+         30.1
+         31.1
+         32.1
+         33.1
+         34.1
+         35.1
+         36.1
+         37.1
+         38.1
+         39.1
+         40.1
+         41.1
+         42.1
+         43.1
+         44.1
+         45.1
+         46.1
+    $END
+    $REMARKS
+        Instrument depth in meters.
+    $END
+
+*RAW
+    START TIME          : UTC 2016-07-10 18:00:00.000
+    FIRST GOOD REC TIME : UTC 2016-07-10 22:00:00.000
+    END TIME            : UTC 2016-12-07 12:00:00.000
+    TIME INCREMENT      : 0 1 0 0 0  ! (day hr min sec ms)
+    NUMBER OF RECORDS   : 3598
+    $REMARKS
+        The data and following metadata were extracted from the raw ADCP binary file using
+        a Python script adapted from Jody Klymak to perform the processing and netCDF file output
+
+        name:                        Workhorse-adcp
+        sourceprog:                  instrument
+        prog_ver:                    50.40
+        config:                      NA
+        beam_angle:                  20
+        numbeams:                    4
+        beam_freq:                   1200
+        beam_pattern:                convex
+        orientation:                 up
+        n_beams:                     4
+        n_cells:                     45
+        pings_per_ensemble:          64
+        cell_size:                   1.0
+        corr_threshold:              64
+        n_codereps:                  5
+        min_pgood:                   0
+        evel_threshold:              2000 m s-1
+        time_between_ping_groups:    -8683.689466898148
+        coord:                       00011111
+        coord_sys:                   enu
+        use_pitchroll:               yes
+        use_3beam:                   yes
+        bin_mapping:                 yes
+        xducer_misalign:             0
+        magnetic_var:                17.59
+        sensors_src:                 01111101
+        sensors_avail:               00111101
+        bin1_dist:                   2.10
+        xmit_pulse:                  1.20
+        fls_target_threshold:        50
+        xmit_lag:                    24
+        h_adcp_beam_angle:           20
+        ranges:                      
+           2.1
+           3.1
+           4.1
+           5.1
+           6.1
+           7.1
+           8.1
+           9.1
+          10.1
+          11.1
+          12.1
+          13.1
+          14.1
+          15.1
+          16.1
+          17.1
+          18.1
+          19.1
+          20.1
+          21.1
+          22.1
+          23.1
+          24.1
+          25.1
+          26.1
+          27.1
+          28.1
+          29.1
+          30.1
+          31.1
+          32.1
+          33.1
+          34.1
+          35.1
+          36.1
+          37.1
+          38.1
+          39.1
+          40.1
+          41.1
+          42.1
+          43.1
+          44.1
+          45.1
+          46.1
+    $END
+
+*HISTORY
+
+    !   Name     Vers  Date       Time     Recs In   Recs Out
+    !   -------- ----  ---------- -------- --------- ---------
+        ADCP2NC  1     2020-07-07 10:36:16     3605      3598
+        NC2IOS   1.0   2020/08/05 12:16:15     3598      3598
+    $END
+    $REMARKS
+        -ADCP2NC  processing: 2020-07-07 10:36:16
+         The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston.
+         The data were extracted from the raw ADCP binary file using an R routine provided by Emily Chisholm.
+         Instrument depth was derived from reconciling all trustworthy pressure sensors on the mooring (i.e., Sea-Bird) and the mooring line length..
+        -NC2IOS  processing: 2020/08/05 12:16:15
+         NetCDF file converted to IOSShell format.
+    $END
+
+*END OF HEADER
+To get the actual data, please see scott2_20160711_20170707_0040m.adcp.L1.nc
