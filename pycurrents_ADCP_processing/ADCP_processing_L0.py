@@ -13,11 +13,13 @@ import datetime
 import warnings
 from pycurrents.adcp.rdiraw import rawfile
 from pycurrents.adcp.rdiraw import SysCfg
-from pycurrents_ADCP_processing.ADCP_processing_L1 import mean_orientation, convert_time_var, check_depths
+from pycurrents_ADCP_processing.ADCP_processing_L1 import mean_orientation, \
+    convert_time_var, check_depths
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
 
 
-def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres_flag, pg_flag, vb_flag, vb_pg_flag):
+def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue,
+                       pres_flag, pg_flag, vb_flag, vb_pg_flag):
     # out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
     # metadata_dict: dictionary object of metadata items
     # instrument_depth: sensor depth recorded by instrument
@@ -41,8 +43,10 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     # var.attrs['long_name'] = "distance"
     var.attrs['long_name'] = "bin_distances_from_ADCP_transducer_along_measurement_axis"
 
-    # VEL_MAGNETIC_EAST: Velocity component towards magnetic east (not corrected for magnetic declination)
-    # all velocities have many of the same attribute values, but not all, so each velocity is done separately
+    # VEL_MAGNETIC_EAST: Velocity component towards magnetic east (not corrected for
+    # magnetic declination)
+    # all velocities have many of the same attribute values, but not all, so each
+    # velocity is done separately
     var = out_obj.VEL_MAGNETIC_EAST
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
@@ -56,7 +60,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['valid_max'] = uvw_vel_max
     var.attrs['valid_min'] = uvw_vel_min
 
-    # VEL_MAGNETIC_NORTH: Velocity component towards magnetic north (uncorrected for magnetic declination)
+    # VEL_MAGNETIC_NORTH: Velocity component towards magnetic north (uncorrected for
+    # magnetic declination)
     var = out_obj.VEL_MAGNETIC_NORTH
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
@@ -81,7 +86,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'w'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::VCSP'
-    var.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) in the water body by moored ' \
+    var.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) ' \
+                                      'in the water body by moored ' \
                                       'acoustic doppler current profiler (ADCP)'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
@@ -101,7 +107,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'e'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::ERRV'
-    var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current ' \
+    var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by ' \
+                                      'moored acoustic doppler current ' \
                                       'profiler (ADCP)'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
     var.attrs['sdn_uom_name'] = 'Metres per second'
@@ -133,7 +140,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_01'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored ' \
+                                      'acoustic doppler current ' \
                                       'profiler (ADCP) beam 1'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
@@ -150,7 +158,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_02'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored ' \
+                                      'acoustic doppler current ' \
                                       'profiler (ADCP) beam 2'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
@@ -167,7 +176,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_03'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored ' \
+                                      'acoustic doppler current ' \
                                       'profiler (ADCP) beam 3'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
@@ -184,7 +194,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
     var.attrs['serial_number'] = metadata_dict['serialNumber']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_04'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored ' \
+                                      'acoustic doppler current ' \
                                       'profiler (ADCP) beam 4'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
     var.attrs['sdn_uom_name'] = 'Counts'
@@ -206,7 +217,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_01'
-        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by ' \
+                                          'moored acoustic doppler ' \
                                           'current profiler (ADCP) beam 1'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
         var.attrs['sdn_uom_name'] = 'Percent'
@@ -223,7 +235,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue, pres
         var.attrs['serial_number'] = metadata_dict['serialNumber']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_02'
-        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by ' \
+                                          'moored acoustic doppler ' \
                                           'current profiler (ADCP) beam 2'
         var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
         var.attrs['sdn_uom_name'] = 'Percent'
