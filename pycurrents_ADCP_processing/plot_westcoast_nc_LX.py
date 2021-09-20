@@ -708,6 +708,7 @@ def filter_XXh(nc, num_hrs=30):
     """
     Perform XXh averaging on velocity data (30-hour, 35-hour, ...)
     :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
+    :param num_hrs: Number of hours to use in the rolling average; default is 30 hours
     :returns : filtered East and North velocity data called ew_filter_final and ns_filter_final; 1D numpy arrays
                of values of same size as the time series within nc, padded with nan's
     """
