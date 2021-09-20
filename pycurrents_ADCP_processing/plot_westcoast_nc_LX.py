@@ -40,8 +40,14 @@ import pandas as pd
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
-    # Rotate North and East velocities to along- and cross-shore velocities given an along-shore angle
-    # along_angle measured in degrees counter-clockwise from geographic East
+    """
+    Rotate North and East velocities to along- and cross-shore velocities given an along-shore angle
+    :param u_true: East velocity data; array format
+    :param v_true: North velocity data; array format
+    :param along_angle: along-shore angle; measured in degrees counter-clockwise from geographic East
+    :return: along-shore and cross-shore velocities in array format
+    """
+
     along_angle = np.deg2rad(along_angle)
 
     u_along = u_true * np.cos(along_angle) + v_true * np.sin(along_angle)
@@ -51,12 +57,15 @@ def resolve_to_alongcross(u_true, v_true, along_angle):
 
 
 def get_L1_start_end(ncdata):
-    # Obtain the number of leading and trailing ensembles that were set to nans in L1 processing
-    # from the processing_history global attribute.
-    # Then get the index of the last ensemble cut from the beginning of the time series
-    # and the index of the first ensemble cut from the end of the time series.
-    # ncdata: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-
+    """
+    Obtain the number of leading and trailing ensembles that were set to nans in L1 processing
+    from the processing_history global attribute.
+    Then get the index of the last ensemble cut from the beginning of the time series
+    and the index of the first ensemble cut from the end of the time series.
+    ncdata: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+    Returns: a tuple of the form (a, b), where a is the index of the first good ensemble and b is the index of the
+             last good ensemble
+    """
     digits_in_process_hist = [int(s) for s in ncdata.attrs['processing_history'].split() if s.isdigit()]
     # The indices used are conditional upon the contents of the processing history remaining unchanged
     # in L1 and before L2. Appending to the end of the processing history is ok
@@ -66,8 +75,12 @@ def get_L1_start_end(ncdata):
 
 
 def fmamidir(u, v):
-    # Computes principal component direction of u and v
-
+    """
+    Computes principal component direction of u and v
+    :param u: Eastward velocity in array format
+    :param v: Northward velocity in array format
+    :returns : major and minor axes
+    """
     ub = np.nanmean(u)
     vb = np.nanmean(v)
     uu = np.nanmean(u ** 2)
@@ -94,6 +107,12 @@ def fmamidir(u, v):
 
 
 def fpcdir(x, y):
+    """
+    Obtain the principal component angle of East and North velocity data
+    :param x: Eastward velocity data in array format
+    :param y: Northward velocity data in array format
+    :return: principal orientation angle
+    """
     if x.shape != y.shape:
         ValueError('u and v are different sizes!')
     else:
@@ -155,6 +174,13 @@ def vb_flag(dataset):
 
 
 def get_plot_dir(filename, dest_dir):
+    """
+    Function for creating the name of the output plot subdirectory, based on the processing level of the input
+    netCDF file
+    :param filename: name of input netCDF file containing ADCP data
+    :param dest_dir: name of folder for all output files
+    :return: name of subfolder for output files based on processing level of the input netCDF file
+    """
     if 'L0' in filename.data.tolist():
         plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
     elif 'L1' in filename.data.tolist():
@@ -167,32 +193,43 @@ def get_plot_dir(filename, dest_dir):
     return plot_dir
 
 
-def plots_diagnostic(nc, dest_dir, level0=False):
+def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None):
     """
     Preliminary plots:
     (1) Backscatter against depth, (2) mean velocity, and (3) principle component direction
     Credits: David Spear, Roy Hourston
     Inputs:
-        - d: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-    Outputs:
-        None
+        - nc: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+        - dest_dir: name of folder to contain output files
+        - level0 (optional): boolean value; True if nc is a level 0-processed dataset, default False
+        - time_range (optional): tuple of form (a, b), where a is the index of the first time stamp to include and b
+                                 is the index of the last time stamp to include; default None
+        - bin_range (optional): tuple of form (a, b), where a is the index of the minimum bin to include and b is the
+                                index of the maximum bin to include; default None
+    Returns:
+        Absolute path of the figure made by this function
     """
+    if time_range is None:
+        time_range = (None, None)
+    if bin_range is None:
+        bin_range = (None, None)
+
     # Subplot 1/3: Plot avg backscatter against depth
 
     # First calculate depths
-    depths = calculate_depths(nc)
+    depths = calculate_depths(nc)[bin_range[0]:bin_range[1]]
 
     # Check if vertical beam data present in Sentinel V file
     flag_vb = vb_flag(nc)
 
     # Calculate average backscatter (amplitude intensity)
-    amp_mean_b1 = np.nanmean(nc.TNIHCE01.data, axis=1)
-    amp_mean_b2 = np.nanmean(nc.TNIHCE02.data, axis=1)
-    amp_mean_b3 = np.nanmean(nc.TNIHCE03.data, axis=1)
-    amp_mean_b4 = np.nanmean(nc.TNIHCE04.data, axis=1)
+    amp_mean_b1 = np.nanmean(nc.TNIHCE01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+    amp_mean_b2 = np.nanmean(nc.TNIHCE02.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+    amp_mean_b3 = np.nanmean(nc.TNIHCE03.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+    amp_mean_b4 = np.nanmean(nc.TNIHCE04.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
 
     if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        amp_mean_b5 = np.nanmean(nc.TNIHCE05.data, axis=1)
+        amp_mean_b5 = np.nanmean(nc.TNIHCE05.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
         colours = ['b', 'g', 'c', 'm', 'y'] #list of plotting colours
     else:
@@ -224,26 +261,18 @@ def plots_diagnostic(nc, dest_dir, level0=False):
     # Subplot 2/3: Mean velocity
     ax = fig.add_subplot(1, 3, 2)
 
-    # Calculate average velocities
-    u_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
-    v_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
-    w_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
-
+    # Calculate average velocities (mean over time for each bin)
     if level0:
-        for i in range(len(u_mean)):
-            u_mean[i] = np.nanmean(nc.VEL_MAGNETIC_EAST.data[i, :])
-            v_mean[i] = np.nanmean(nc.VEL_MAGNETIC_NORTH.data[i, :])
-            w_mean[i] = np.nanmean(nc.LRZAAP01.data[i, :])
+        u_mean = np.nanmean(nc.VEL_MAGNETIC_EAST.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        v_mean = np.nanmean(nc.VEL_MAGNETIC_NORTH.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
     else:
-        for i in range(len(u_mean)):
-            u_mean[i] = np.nanmean(nc.LCEWAP01.data[i, :])
-            v_mean[i] = np.nanmean(nc.LCNSAP01.data[i, :])
-            w_mean[i] = np.nanmean(nc.LRZAAP01.data[i, :])
+        u_mean = np.nanmean(nc.LCEWAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        v_mean = np.nanmean(nc.LCNSAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
 
     if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        w5_mean = np.zeros(int(nc.numberOfCells), dtype='float32')
-        for i in range(len(u_mean)):
-            w5_mean[i] = np.nanmean(nc.LRZUVP01.data[i, :])
+        w5_mean = np.nanmean(nc.LRZUVP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
 
         if level0:
             names = ['VEL_MAGNETIC_EAST', 'VEL_MAGNETIC_NORTH', 'LRZAAP01', 'LRZUVP01']
@@ -257,7 +286,7 @@ def plots_diagnostic(nc, dest_dir, level0=False):
             names = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01']
         vels = [u_mean, v_mean, w_mean]
 
-    # Plot
+    # Plot averaged velocities over depth
     for i in range(len(names)):
         f2 = ax.plot(vels[i], depths, label=names[i], linewidth=1, marker='o', markersize=2, color=colours[i])
     ax.set_ylim(depths[-1], depths[0])  # set vertical limits
@@ -272,18 +301,19 @@ def plots_diagnostic(nc, dest_dir, level0=False):
 
     # Subplot 3/3: Principal axis
 
-    orientation = np.zeros(int(nc.numberOfCells), dtype='float32')
-    for ibin in range(len(orientation)):
-        if level0:
-            xx = nc.VEL_MAGNETIC_EAST.data[ibin, :]
-            yy = nc.VEL_MAGNETIC_NORTH.data[ibin, :]
-        else:
-            xx = nc.LCEWAP01.data[ibin, :]
-            yy = nc.LCNSAP01.data[ibin, :]
-        orientation[ibin] = fpcdir(xx, yy)  # convert to CW direction
+    orientation = np.zeros(len(depths), dtype='float32')
+    if level0:
+        xx = nc.VEL_MAGNETIC_EAST.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]]
+        yy = nc.VEL_MAGNETIC_NORTH.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]]
+    else:
+        xx = nc.LCEWAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]]
+        yy = nc.LCNSAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]]
+
+    for ibin in range(len(xx)):
+        orientation[ibin] = fpcdir(xx[ibin], yy[ibin])  # convert to CW direction
 
     mean_orientation = np.round(np.nanmean(orientation), decimals=1)
-    middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])  #text plotting coordinate
+    middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])  #coordinate for plotting text
     mean_depth = np.nanmean(depths)  #text plotting coordinate
 
     # Make the subplot
@@ -317,7 +347,19 @@ def plots_diagnostic(nc, dest_dir, level0=False):
     return os.path.abspath(fig_name)
 
 
-def limit_data(ncdata, ew_data, ns_data):
+def limit_data(ncdata, ew_data, ns_data, time_range=None, bin_range=None):
+    """
+    Limits data to be plotted to only "good" data, either automatically or with user-input time and bin ranges
+    :param ncdata: xarray dataset-type object containing ADCP data from a netCDF file
+    :param ew_data: east-west velocity data
+    :param ns_data: north-south velocity data
+    :param time_range: optional; a tuple of the form (a, b) where a is the index of the first good ensemble and b is
+                       the index of the last good ensemble in the dataset
+    :param bin_range: optional; a tuple of the form (a, b) where a is the index of the minimum good bin and b is the
+                      index of the maximum good bin in the dataset
+    :return: time_lim, cleaned time data; bin_depths_lim; cleaned bin depth data; ns_lim, cleaned north-south velocity
+             data; and ew_lim; cleaned east-west velocity data
+    """
     if ncdata.orientation == 'up':
         bin_depths = ncdata.instrument_depth - ncdata.distance.data
     else:
@@ -325,19 +367,27 @@ def limit_data(ncdata, ew_data, ns_data):
     print(bin_depths)
 
     # data.time should be limited to the data.time with no NA values; bins must be limited
-    if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
-        new_first_last = get_L1_start_end(ncdata=ncdata)
+    if time_range is None:
+        if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
+            new_first_last = get_L1_start_end(ncdata=ncdata)
+        else:
+            new_first_last = (0, len(ew_data[0]))
     else:
-        new_first_last = (0, len(ew_data[0]))
+        new_first_last = time_range
 
     # Remove bins where surface backscatter occurs
     time_lim = ncdata.time.data[new_first_last[0]:new_first_last[1]]
 
-    bin_depths_lim = bin_depths[bin_depths >= 0]
-    print(bin_depths_lim)
+    if bin_range is None:
+        bin_depths_lim = bin_depths[bin_depths >= 0]
 
-    ew_lim = ew_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
-    ns_lim = ns_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
+        ew_lim = ew_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]] #Limit velocity data
+        ns_lim = ns_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
+    else:
+        bin_depths_lim = bin_depths[bin_range[0]: bin_range[1]]
+
+        ew_lim = ew_data[bin_range[0]: bin_range[1], new_first_last[0]:new_first_last[1]]
+        ns_lim = ns_data[bin_range[0]: bin_range[1], new_first_last[0]:new_first_last[1]]
 
     return time_lim, bin_depths_lim, ns_lim, ew_lim
 
@@ -365,15 +415,34 @@ def get_vminvmax(v1_data, v2_data):
     return vminvmax
 
 
-def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False, filter_type='raw'):
-    # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
+def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False, filter_type='raw', colourmap_lim=None):
+    """
+    Function for plotting north and east velocities from ADCP data.
+    :param nc: ADCP dataset from a netCDF file read in using the xarray package
+    :param dest_dir: name of directory for containing output files
+    :param time_lim: cleaned time data; array type
+    :param bin_depths_lim: cleaned bin depth data; array type
+    :param ns_lim: cleaned north-south velocity data; array type
+    :param ew_lim: cleaned east-west velocity data; array type
+    :param level0: boolean indicating whether the input dataset (nc) underwent L0 processing or not; default False
+    :param filter_type: options are 'raw' (default), '30h' (or, 35h, etc, average), or 'Godin' (Godin Filtered)
+    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum colour map limit for the plot
+                          and b is the maximum colour map limit for the plot (both floats); default is None in which
+                          case the function chooses the colour map limits for the plot
+    :return: Absolute file path of the figure this function creates
+    """
 
-    magnetic = '' #specify "Magnetic (North)" for L0 files, since magnetic declination wasn't applied to them
+    # specify "Magnetic (North)" for L0 files, since magnetic declination wasn't applied to them
+    # Default North is geographic
+    magnetic = ''
     if level0:
         magnetic = 'Magnetic '
 
-    # vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
-    vminvmax = get_vminvmax(ns_lim, ew_lim)
+    if colourmap_lim is None:
+        vminvmax = get_vminvmax(ns_lim, ew_lim)
+    else:
+        vminvmax = colourmap_lim
+
     fig = plt.figure(figsize=(13.75, 10))
     ax = fig.add_subplot(2, 1, 1)
 
@@ -444,8 +513,12 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
 
 def determine_dom_angle(u_true, v_true):
-    # Determine the dominant angle in degrees
-    # along_angle measured in degrees relative to geographic East, counter-clockwise
+    """
+    Determine the dominant angle in degrees. The along_angle measured in degrees relative to geographic East,
+    counter-clockwise.
+    :param u_true: Eastward velocity data relative to geographic North
+    :param v_true: Northward velocity data relative to geographic North
+    """
     angles = np.arange(0, 180)
     max_rms = 0.
     max_angle = 0.
@@ -462,7 +535,22 @@ def determine_dom_angle(u_true, v_true):
     return along_angle, cross_angle
 
 
-def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw', along_angle=None):
+def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw', along_angle=None, colourmap_lim=None):
+    """
+    Function for plotting north and east velocities from ADCP data.
+    :param data: ADCP dataset from a netCDF file read in using the xarray package
+    :param dest_dir: name of directory for containing output files
+    :param time_lim: cleaned time data; array type
+    :param bin_depths_lim: cleaned bin depth data; array type
+    :param ns_lim: cleaned north-south velocity data; array type
+    :param ew_lim: cleaned east-west velocity data; array type
+    :param filter_type: options are 'raw' (default), '30h' (or, 35h, etc, average), or 'Godin' (Godin Filtered)
+    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum colour map limit for the plot
+                          and b is the maximum colour map limit for the plot (both floats); default is None in which
+                          case the function chooses the colour map limits for the plot
+    :return: Absolute file path of the figure this function creates
+    """
+
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
     if along_angle is None:
@@ -475,8 +563,11 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     AS = u_along
     CS = u_cross
 
-    # vminvmax = [-0.5, 0.5] #vertical min and max of the colour bar in the plots
-    vminvmax = get_vminvmax(AS, CS)
+    if colourmap_lim is None:
+        vminvmax = get_vminvmax(AS, CS)
+    else:
+        vminvmax = colourmap_lim
+
     fig = plt.figure(figsize=(13.75, 10))
     ax1 = fig.add_subplot(2, 1, 1)
 
@@ -557,7 +648,10 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
 
 
 def num_ens_per_hr(nc):
-    # Calculate the number of ensembles recorded per hour
+    """
+    Calculate the number of ensembles recorded per hour
+    :param nc: dataset object obtained from reading in an ADCP netCDF file with the xarray package
+    """
     time_incr = float(nc.time.data[1] - nc.time.data[0])
     hr2min = 60
     min2sec = 60
@@ -567,12 +661,14 @@ def num_ens_per_hr(nc):
 
 
 def filter_godin(nc):
-    # Make North and East lowpassed plots using the simple 3-day Godin filter
-    # Running average of 24 hours first, then another time with a 24 hour filter, the again with a 25 hour filter
-    # Repeat with along- and cross-shore velocities
-    # nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
-    # Output: 1D numpy array of values of same size as the time series within nc, padded with nan's
-
+    """
+    Make North and East lowpassed plots using the simple 3-day Godin filter
+    Running average of 24 hours first, then another time with a 24 hour filter, the again with a 25 hour filter
+    Repeat with along- and cross-shore velocities
+    :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
+    :returns : filtered East and North velocity data called ew_filter_final and ns_filter_final; 1D numpy arrays
+               of values of same size as the time series within nc, padded with nan's
+    """
     # Determine the number of ensembles taken per hour
     ens_per_hr = num_ens_per_hr(nc)
     print('Time stamps per hour:', ens_per_hr, sep=' ')
@@ -609,9 +705,13 @@ def filter_godin(nc):
 
 
 def filter_XXh(nc, num_hrs=30):
-    # Perform XXh averaging on velocity data (30-hour, 35-hour, ...)
-    # nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
-    # Output: 1D numpy array of values of same size as the time series within nc, padded with nan's
+    """
+    Perform XXh averaging on velocity data (30-hour, 35-hour, ...)
+    :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
+    :param num_hrs: Number of hours to use in the rolling average; default is 30 hours
+    :returns : filtered East and North velocity data called ew_filter_final and ns_filter_final; 1D numpy arrays
+               of values of same size as the time series within nc, padded with nan's
+    """
 
     # Determine the number of ensembles taken per hour
     ens_per_hr = num_ens_per_hr(nc)
@@ -637,11 +737,17 @@ def filter_XXh(nc, num_hrs=30):
 
 
 def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, direction):
-    # Function to take one bin from the unfiltered (raw) data and the corresponding bin in the filtered
-    # data, and plot the time series together on one plot. Restrict time series to 1 month.
-    # dat_filt: data filtered using the method defined in filter_type
-    # filter_type options: 'Godin' or 'xxh' (e.g., '30h', '35h')
-    # direction: 'east' or 'north'
+    """
+    Function to take one bin from the unfiltered (raw) data and the corresponding bin in the filtered
+    data, and plot the time series together on one plot. Restrict time series to 1 month.
+    :param nc: xarray dataset-type object containing ADCP data from a netCDF file
+    :param dest_dir: destination directory for output files
+    :param time: time data
+    :param dat_raw: raw velocity data
+    :param dat_filt: velocity data filtered using the method defined in filter_type
+    :param filter_type: options are 'Godin' or 'xxh' (e.g., '30h', '35h')
+    :param direction: 'east' or 'north'
+    """
 
     if direction == 'magnetic_east':
         vel_code = 'VEL_MAGNETIC_EAST'
@@ -694,40 +800,49 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     return os.path.abspath(plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None):
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None, bin_range=None, colourmap_lim=None):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
         - dest_dir: destination directory for output files
         - filter_type: "Godin", "30h", or "35h"
-        - along_angle: Along-shore angle measured in degrees relative to geographic East, counter-clockwise
+        - along_angle: Along-shore angle measured in degrees relative to geographic East, counter-clockwise; can be
+                       user-input but defaults to None, in which case the function calculates the along-shore angle
+        - time_range (optional): tuple of form (a, b), where a is the index of the first time stamp to include and b
+                                 is the index of the last time stamp to include; default None
+        - bin_range (optional): tuple of form (a, b), where a is the index of the minimum bin to include and b is the
+                                index of the maximum bin to include; default None
+        - colourmap_lim (optional): user-input tuple of the form (a, b), where a is the minimum colour map limit for the plot
+                          and b is the maximum colour map limit for the plot (both floats); default is None in which
+                          case the function chooses the colour map limits for the plot
     Outputs:
         - list of absolute file names of output files
     """
     ncdata = xr.open_dataset(ncfile)
 
     if "L0" in ncfile:
-        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, True)
+        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, True, time_range, bin_range)
 
-        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.VEL_MAGNETIC_EAST.data, ncdata.VEL_MAGNETIC_NORTH.data)
+        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.VEL_MAGNETIC_EAST.data,
+                                                              ncdata.VEL_MAGNETIC_NORTH.data, time_range, bin_range)
         # North/East velocity plots
-        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, True)
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, True, 'raw', colourmap_lim)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle, colourmap_lim)
 
     else:
-        fname_diagnostic = plots_diagnostic(ncdata, dest_dir)
-
-        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data)
+        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, False, time_range, bin_range)
+        # Limit data if limits are not input by user
+        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data,
+                                                              time_range, bin_range)
         # North/East velocity plots
-        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim)
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, False, 'raw', colourmap_lim)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle, colourmap_lim)
 
-
-    # Redo whole process with filtered data
+    # Redo whole process with tidal-filtered data
 
     if filter_type == "Godin":
         ew_filt, ns_filt = filter_godin(ncdata)
@@ -739,18 +854,18 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         ValueError("filter_type value not understood !")
 
     # Limit data
-    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt)
+    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt, time_range, bin_range)
 
     # East/North
     if "L0" in ncfile:
         fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, True,
-                                       filter_type)
+                                       filter_type, colourmap_lim)
     else:
         fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, False,
-                                       filter_type)
+                                       filter_type, colourmap_lim)
 
     # Along-shore/cross-shore
-    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type, along_angle)
+    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type, along_angle, colourmap_lim)
 
     # Compare velocity in bin 1
     if 'L0' in ncfile:
