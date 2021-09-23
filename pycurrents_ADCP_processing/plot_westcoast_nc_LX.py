@@ -922,12 +922,15 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
             bin_range = None
 
     if "L0" in ncfile:
+        # Make diagnostic plot of time-averaged velocities, backscatter, and principal component
         fname_diagnostic = plots_diagnostic(ncdata, dest_dir, True, time_range, bin_range)
 
+        # Subset time, bins, east and north velocities
         time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(
             ncdata, ncdata.VEL_MAGNETIC_EAST.data, ncdata.VEL_MAGNETIC_NORTH.data, time_range,
             bin_range)
-        
+
+        # Plot pressure PRESPR01 vs time
         fname_pres = plot_adcp_pressure(ncdata, dest_dir)
         
         # North/East velocity plots
@@ -944,6 +947,8 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data,
                                                               ncdata.LCNSAP01.data, time_range,
                                                               bin_range)
+
+        # Plot pressure PRESPR01 vs time
         fname_pres = plot_adcp_pressure(ncdata, dest_dir)
         
         # North/East velocity plots
