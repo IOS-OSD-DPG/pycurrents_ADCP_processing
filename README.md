@@ -47,12 +47,14 @@ L2 processing contains:
 * Python 3.7
 
 ## Usage 
-Sample usage of *ADCP_processing_L1.py*, *ADCP_processing_L0.py*, *add_var2nc.py* and *ADCP_IOS_Header_file.py* is laid out in *create_nc.py*. An example of how to create uniform time data (for replacing invalid time data in a raw ADCP file) can be found in *generate_time_range.py*.
+Sample usage of *ADCP_processing_L1.py*, *ADCP_processing_L0.py*, *add_var2nc.py* and *ADCP_IOS_Header_file.py* is laid out in *create_nc.py*. An example of how to create uniform time data (for replacing invalid time data in a raw ADCP file) can be found in *generate_time_range.py*. Sample usage of the plotting functions in *plot_westcoast_nc_LX.py* is given in the file *example_plot_westcoast.py*.
 
 ## Credits
 *ADCP_pycurrents_L1.py* is based off of the gist, *RdiToNetcdf.ipynb*, by Jody Klymak (https://github.com/jklymak), and includes contributions from Di Wan (https://github.com/onedwd) and Eric Firing (https://github.com/efiring). *add_var2nc.py* was written by Di Wan. *ADCP_IOS_Header_file.py* was written by Lu Guan (https://github.com/guanlu129).
 
 ## Helpful links
+A web app based off this package can be found on the IOS Data Management Apps (DMAPPS) page at https://dmapps.waterproperties.ca/en/. Credits: Tom Roe.
+
 Documentation:
 * `pycurrents` package and log: https://currents.soest.hawaii.edu/hgstage/pycurrents/file/tip
 * netCDF documentation: https://www.unidata.ucar.edu/software/netcdf/docs/index.html
