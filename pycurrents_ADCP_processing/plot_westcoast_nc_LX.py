@@ -9,7 +9,8 @@ netCDF-format data. The types of plots are:
     2. Along and cross-shelf current velocities (one plot containing a subplot for each)
     3. North and East Godin or 30h-averaged filtered current velocities
     4. Along and cross-shelf Godin or 30h-averaged filtered current velocities
-    5. Bin plot for one month's worth of velocity data comparing raw and filtered (Godin or 30h-averaged) data
+    5. Bin plot for one month's worth of velocity data comparing raw and filtered
+       (Godin or 30h-averaged) data
     6. Diagnostic plot containing subplots of:
         1. Time-averaged backscatter over depth
         2. Time-averaged velocity over depth
@@ -41,10 +42,12 @@ import pandas as pd
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
     """
-    Rotate North and East velocities to along- and cross-shore velocities given an along-shore angle
+    Rotate North and East velocities to along- and cross-shore velocities given
+    an along-shore angle
     :param u_true: East velocity data; array format
     :param v_true: North velocity data; array format
-    :param along_angle: along-shore angle; measured in degrees counter-clockwise from geographic East
+    :param along_angle: along-shore angle; measured in degrees counter-clockwise
+           from geographic East
     :return: along-shore and cross-shore velocities in array format
     """
 
@@ -63,8 +66,8 @@ def get_L1_start_end(ncdata):
     Then get the index of the last ensemble cut from the beginning of the time series
     and the index of the first ensemble cut from the end of the time series.
     ncdata: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-    Returns: a tuple of the form (a, b), where a is the index of the first good ensemble and b is the index of the
-             last good ensemble
+    Returns: a tuple of the form (a, b), where a is the index of the first good ensemble and b
+             is the index of the last good ensemble
     """
     digits_in_process_hist = [int(s) for s in ncdata.attrs['processing_history'].split() if s.isdigit()]
     # The indices used are conditional upon the contents of the processing history remaining unchanged
@@ -135,14 +138,15 @@ def fpcdir(x, y):
         theta = np.arctan2(e1, e2) * rad_deg
         theta = -theta  # change rotation angle to be CCW from North
 
-    return theta
+        return theta
 
 
 def calculate_depths(dataset):
     """
     Calculate ADCP bin depths in the water column
     Inputs:
-        - dataset: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+        - dataset: dataset-type object created by reading in a netCDF ADCP
+                   file with the xarray package
     Outputs:
         - numpy array of ADCP bin depths
     """
@@ -159,7 +163,8 @@ def vb_flag(dataset):
     flag = 0 if Sentinel V file has vertical beam data, or file not from Sentinel V
     flag = 1 if Sentinel V file does not have vertical beam data
     Inputs:
-        - dataset: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+        - dataset: dataset-type object created by reading in a netCDF ADCP file
+                   with the xarray package
     Outputs:
         - value of flag
     """
@@ -175,11 +180,12 @@ def vb_flag(dataset):
 
 def get_plot_dir(filename, dest_dir):
     """
-    Function for creating the name of the output plot subdirectory, based on the processing level of the input
-    netCDF file
+    Function for creating the name of the output plot subdirectory, based on the
+    processing level of the input netCDF file
     :param filename: name of input netCDF file containing ADCP data
     :param dest_dir: name of folder for all output files
-    :return: name of subfolder for output files based on processing level of the input netCDF file
+    :return: name of subfolder for output files based on processing level of the
+             input netCDF file
     """
     if 'L0' in filename.data.tolist():
         plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
@@ -189,23 +195,58 @@ def get_plot_dir(filename, dest_dir):
         plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     else:
         ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
+        return None
 
     return plot_dir
+
+
+def plot_adcp_pressure(nc, dest_dir):
+    """Plot pressure, PRESPR01, vs time"""
+    
+    fig = plt.figure(dpi=400)
+    
+    plt.plot(nc.time.data, nc.PRESPR01.data)
+    
+    # Flip over x-axis if instrument oriented 'up'
+    if nc.orientation == 'up':
+        plt.gca().invert_yaxis()
+    
+    plt.ylabel("Pressure (dbar)")
+    plt.title("{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
+                                         nc.instrument_serial_number.data))
+
+    # Create plots subfolder
+    plot_dir = get_plot_dir(nc.filename, dest_dir)
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+    
+    png_name = plot_dir + "{}_{}_{}_PRESPR01.png".format(
+        nc.station, nc.deployment_number, nc.instrument_serial_number.data)
+    
+    fig.savefig(png_name)
+    plt.close(fig)
+    
+    return png_name
 
 
 def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None):
     """
     Preliminary plots:
-    (1) Backscatter against depth, (2) mean velocity, and (3) principle component direction
+    (1) Backscatter against depth, (2) mean velocity, and (3) principle component
+    direction
     Credits: David Spear, Roy Hourston
     Inputs:
-        - nc: dataset-type object created by reading in a netCDF ADCP file with the xarray package
+        - nc: dataset-type object created by reading in a netCDF ADCP file with the
+              xarray package
         - dest_dir: name of folder to contain output files
-        - level0 (optional): boolean value; True if nc is a level 0-processed dataset, default False
-        - time_range (optional): tuple of form (a, b), where a is the index of the first time stamp to include and b
-                                 is the index of the last time stamp to include; default None
-        - bin_range (optional): tuple of form (a, b), where a is the index of the minimum bin to include and b is the
-                                index of the maximum bin to include; default None
+        - level0 (optional): boolean value; True if nc is a level 0-processed dataset,
+                             default False
+        - time_range (optional): tuple of form (a, b), where a is the index of the
+                                 first time stamp to include and b is the index of the
+                                 last time stamp to include; default None
+        - bin_range (optional): tuple of form (a, b), where a is the index of the
+                                minimum bin to include and b is the index of the
+                                maximum bin to include; default None
     Returns:
         Absolute path of the figure made by this function
     """
@@ -223,13 +264,18 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
     flag_vb = vb_flag(nc)
 
     # Calculate average backscatter (amplitude intensity)
-    amp_mean_b1 = np.nanmean(nc.TNIHCE01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-    amp_mean_b2 = np.nanmean(nc.TNIHCE02.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-    amp_mean_b3 = np.nanmean(nc.TNIHCE03.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-    amp_mean_b4 = np.nanmean(nc.TNIHCE04.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+    amp_mean_b1 = np.nanmean(nc.TNIHCE01.data[bin_range[0]:bin_range[1],
+                             time_range[0]:time_range[1]], axis=1)
+    amp_mean_b2 = np.nanmean(nc.TNIHCE02.data[bin_range[0]:bin_range[1],
+                             time_range[0]:time_range[1]], axis=1)
+    amp_mean_b3 = np.nanmean(nc.TNIHCE03.data[bin_range[0]:bin_range[1],
+                             time_range[0]:time_range[1]], axis=1)
+    amp_mean_b4 = np.nanmean(nc.TNIHCE04.data[bin_range[0]:bin_range[1],
+                             time_range[0]:time_range[1]], axis=1)
 
     if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        amp_mean_b5 = np.nanmean(nc.TNIHCE05.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        amp_mean_b5 = np.nanmean(nc.TNIHCE05.data[bin_range[0]:bin_range[1],
+                                 time_range[0]:time_range[1]], axis=1)
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
         colours = ['b', 'g', 'c', 'm', 'y'] #list of plotting colours
     else:
@@ -245,7 +291,8 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
 
     beam_no = 1
     for dat, col in zip(amp, colours):
-        f1 = ax.plot(dat, depths, label='Beam {}'.format(beam_no), linewidth=1, marker='o', markersize=2, color=col)
+        f1 = ax.plot(dat, depths, label='Beam {}'.format(beam_no), linewidth=1, marker='o',
+                     markersize=2, color=col)
         beam_no += 1
     ax.set_ylim(depths[-1], depths[0])
     ax.legend(loc='lower left')
@@ -263,16 +310,23 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
 
     # Calculate average velocities (mean over time for each bin)
     if level0:
-        u_mean = np.nanmean(nc.VEL_MAGNETIC_EAST.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-        v_mean = np.nanmean(nc.VEL_MAGNETIC_NORTH.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-        w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        u_mean = np.nanmean(nc.VEL_MAGNETIC_EAST.data[bin_range[0]:bin_range[1],
+                            time_range[0]:time_range[1]], axis=1)
+        v_mean = np.nanmean(nc.VEL_MAGNETIC_NORTH.data[bin_range[0]:bin_range[1],
+                            time_range[0]:time_range[1]], axis=1)
+        w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1],
+                            time_range[0]:time_range[1]], axis=1)
     else:
-        u_mean = np.nanmean(nc.LCEWAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-        v_mean = np.nanmean(nc.LCNSAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
-        w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        u_mean = np.nanmean(nc.LCEWAP01.data[bin_range[0]:bin_range[1],
+                            time_range[0]:time_range[1]], axis=1)
+        v_mean = np.nanmean(nc.LCNSAP01.data[bin_range[0]:bin_range[1],
+                            time_range[0]:time_range[1]], axis=1)
+        w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1],
+                            time_range[0]:time_range[1]], axis=1)
 
     if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        w5_mean = np.nanmean(nc.LRZUVP01.data[bin_range[0]:bin_range[1], time_range[0]:time_range[1]], axis=1)
+        w5_mean = np.nanmean(nc.LRZUVP01.data[bin_range[0]:bin_range[1],
+                             time_range[0]:time_range[1]], axis=1)
 
         if level0:
             names = ['VEL_MAGNETIC_EAST', 'VEL_MAGNETIC_NORTH', 'LRZAAP01', 'LRZUVP01']
@@ -288,7 +342,8 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
 
     # Plot averaged velocities over depth
     for i in range(len(names)):
-        f2 = ax.plot(vels[i], depths, label=names[i], linewidth=1, marker='o', markersize=2, color=colours[i])
+        f2 = ax.plot(vels[i], depths, label=names[i], linewidth=1, marker='o', markersize=2,
+                     color=colours[i])
     ax.set_ylim(depths[-1], depths[0])  # set vertical limits
     ax.legend(loc='lower left')
     ax.set_xlabel('Velocity (m/s)')
@@ -313,7 +368,8 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
         orientation[ibin] = fpcdir(xx[ibin], yy[ibin])  # convert to CW direction
 
     mean_orientation = np.round(np.nanmean(orientation), decimals=1)
-    middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])  #coordinate for plotting text
+    # coordinate for plotting text
+    middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])
     mean_depth = np.nanmean(depths)  #text plotting coordinate
 
     # Make the subplot
@@ -321,8 +377,9 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
     f3 = ax.plot(orientation, depths, linewidth=1, marker='o', markersize=2)
     ax.set_ylim(depths[-1], depths[0])  # set vertical limits
     ax.set_xlabel('Orientation')
-    ax.text(x=middle_orientation, y=mean_depth, s='Mean orientation = ' + str(mean_orientation) + '$^\circ$',
-            horizontalalignment='center', verticalalignment='center', fontsize=10)
+    ax.text(x=middle_orientation, y=mean_depth, s='Mean orientation = {}$^\circ$'.format(
+        str(mean_orientation)), horizontalalignment='center', verticalalignment='center',
+            fontsize=10)
     ax.grid()  # set grid
     ax.tick_params(axis='both', direction='in', top=True, right=True)
     ax.set_title('Principal Axis', fontweight='semibold')  # subplot title
@@ -349,16 +406,17 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
 
 def limit_data(ncdata, ew_data, ns_data, time_range=None, bin_range=None):
     """
-    Limits data to be plotted to only "good" data, either automatically or with user-input time and bin ranges
+    Limits data to be plotted to only "good" data, either automatically or with user-input
+    time and bin ranges
     :param ncdata: xarray dataset-type object containing ADCP data from a netCDF file
     :param ew_data: east-west velocity data
     :param ns_data: north-south velocity data
-    :param time_range: optional; a tuple of the form (a, b) where a is the index of the first good ensemble and b is
-                       the index of the last good ensemble in the dataset
-    :param bin_range: optional; a tuple of the form (a, b) where a is the index of the minimum good bin and b is the
-                      index of the maximum good bin in the dataset
-    :return: time_lim, cleaned time data; bin_depths_lim; cleaned bin depth data; ns_lim, cleaned north-south velocity
-             data; and ew_lim; cleaned east-west velocity data
+    :param time_range: optional; a tuple of the form (a, b) where a is the index of the first
+                       good ensemble and b is the index of the last good ensemble in the dataset
+    :param bin_range: optional; a tuple of the form (a, b) where a is the index of the minimum
+                      good bin and b is the index of the maximum good bin in the dataset
+    :return: time_lim, cleaned time data; bin_depths_lim; cleaned bin depth data; ns_lim,
+             cleaned north-south velocity data; and ew_lim; cleaned east-west velocity data
     """
     if ncdata.orientation == 'up':
         bin_depths = ncdata.instrument_depth - ncdata.distance.data
@@ -396,7 +454,8 @@ def get_vminvmax(v1_data, v2_data):
     """
     Get range of pcolor color bar
     Inputs:
-        - v1_data, v2_data: 2 raw or filtered velocity data components (East and North or Along- and Cross-shore)
+        - v1_data, v2_data: 2 raw or filtered velocity data components
+          (East and North or Along- and Cross-shore)
     Outputs:
         - 2-element list containing the color bar min and max
     """
@@ -415,7 +474,8 @@ def get_vminvmax(v1_data, v2_data):
     return vminvmax
 
 
-def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False, filter_type='raw', colourmap_lim=None):
+def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False,
+                   filter_type='raw', colourmap_lim=None):
     """
     Function for plotting north and east velocities from ADCP data.
     :param nc: ADCP dataset from a netCDF file read in using the xarray package
@@ -424,10 +484,13 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
     :param bin_depths_lim: cleaned bin depth data; array type
     :param ns_lim: cleaned north-south velocity data; array type
     :param ew_lim: cleaned east-west velocity data; array type
-    :param level0: boolean indicating whether the input dataset (nc) underwent L0 processing or not; default False
-    :param filter_type: options are 'raw' (default), '30h' (or, 35h, etc, average), or 'Godin' (Godin Filtered)
-    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum colour map limit for the plot
-                          and b is the maximum colour map limit for the plot (both floats); default is None in which
+    :param level0: boolean indicating whether the input dataset (nc) underwent L0
+                   processing or not; default False
+    :param filter_type: options are 'raw' (default), '30h' (or, 35h, etc, average),
+                        or 'Godin' (Godin Filtered)
+    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum
+                          colour map limit for the plot and b is the maximum colour map
+                          limit for the plot (both floats); default is None in which
                           case the function chooses the colour map limits for the plot
     :return: Absolute file path of the figure this function creates
     """
@@ -446,25 +509,27 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
     fig = plt.figure(figsize=(13.75, 10))
     ax = fig.add_subplot(2, 1, 1)
 
-    f1 = ax.pcolor(time_lim, bin_depths_lim, ns_lim[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
+    f1 = ax.pcolormesh(time_lim, bin_depths_lim, ns_lim[:, :], cmap='RdBu_r', vmin=vminvmax[0],
+                       vmax=vminvmax[1], shading='auto')
     cbar = fig.colorbar(f1, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
     ax.set_ylabel('Depth [m]', fontsize=14)
 
     if filter_type == '30h':
         ax.set_title(
-            'ADCP ({}North, 30h average) {}-{} {}m'.format(magnetic, nc.attrs['station'],
-                                                           nc.attrs['deployment_number'],
-                                                           str(int(nc.instrument_depth))), fontsize=14)
+            'ADCP ({}North, 30h average) {}-{} {}m'.format(
+                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+                str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
         ax.set_title(
-            'ADCP ({}North, Godin Filtered) {}-{} {}m'.format(magnetic, nc.attrs['station'],
-                                                              nc.attrs['deployment_number'],
-                                                              str(int(nc.instrument_depth))), fontsize=14)
+            'ADCP ({}North, Godin Filtered) {}-{} {}m'.format(
+                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+                str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
         ax.set_title(
-            'ADCP ({}North, raw) {}-{} {}m'.format(magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                                                   str(int(nc.instrument_depth))), fontsize=14)
+            'ADCP ({}North, raw) {}-{} {}m'.format(
+                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+                str(int(nc.instrument_depth))), fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -473,23 +538,25 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     ax2 = fig.add_subplot(2, 1, 2)
 
-    f2 = ax2.pcolor(time_lim, bin_depths_lim, ew_lim[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
+    f2 = ax2.pcolormesh(time_lim, bin_depths_lim, ew_lim[:, :], cmap='RdBu_r', vmin=vminvmax[0],
+                        vmax=vminvmax[1], shading='auto')
     cbar = fig.colorbar(f2, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
-        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m'.format(magnetic, filter_type, nc.attrs['station'],
-                                                                   nc.attrs['deployment_number'],
-                                                                   str(int(nc.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m'.format(
+            magnetic, filter_type, nc.attrs['station'], nc.attrs['deployment_number'],
+            str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'Godin':
-        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m'.format(magnetic, nc.attrs['station'],
-                                                                       nc.attrs['deployment_number'],
-                                                                       str(int(nc.instrument_depth))), fontsize=14)
+        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m'.format(
+            magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+            str(int(nc.instrument_depth))), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
-            'ADCP ({}East, raw) {}-{} {}m'.format(magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                                                  str(int(nc.instrument_depth))), fontsize=14)
+            'ADCP ({}East, raw) {}-{} {}m'.format(
+                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
+                str(int(nc.instrument_depth))), fontsize=14)
 
     if nc.orientation == 'up':
         plt.gca().invert_yaxis()
@@ -514,8 +581,8 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
 def determine_dom_angle(u_true, v_true):
     """
-    Determine the dominant angle in degrees. The along_angle measured in degrees relative to geographic East,
-    counter-clockwise.
+    Determine the dominant angle in degrees. The along_angle measured in degrees relative to
+    geographic East, counter-clockwise.
     :param u_true: Eastward velocity data relative to geographic North
     :param v_true: Northward velocity data relative to geographic North
     """
@@ -535,7 +602,8 @@ def determine_dom_angle(u_true, v_true):
     return along_angle, cross_angle
 
 
-def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw', along_angle=None, colourmap_lim=None):
+def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw',
+                   along_angle=None, colourmap_lim=None):
     """
     Function for plotting north and east velocities from ADCP data.
     :param data: ADCP dataset from a netCDF file read in using the xarray package
@@ -544,10 +612,13 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     :param bin_depths_lim: cleaned bin depth data; array type
     :param ns_lim: cleaned north-south velocity data; array type
     :param ew_lim: cleaned east-west velocity data; array type
-    :param filter_type: options are 'raw' (default), '30h' (or, 35h, etc, average), or 'Godin' (Godin Filtered)
-    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum colour map limit for the plot
-                          and b is the maximum colour map limit for the plot (both floats); default is None in which
-                          case the function chooses the colour map limits for the plot
+    :param filter_type: options are 'raw' (default), '30h' (or, 35h, etc, average), or 'Godin'
+                        (Godin Filtered)
+    :param along_angle: along-shore angle in degrees
+    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum colour map
+                          limit for the plot and b is the maximum colour map limit for the plot
+                          (both floats); default is None in which case the function chooses the
+                          colour map limits for the plot
     :return: Absolute file path of the figure this function creates
     """
 
@@ -571,29 +642,29 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     fig = plt.figure(figsize=(13.75, 10))
     ax1 = fig.add_subplot(2, 1, 1)
 
-    f1 = ax1.pcolor(time_lim, bin_depths_lim, AS[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
+    f1 = ax1.pcolormesh(time_lim, bin_depths_lim, AS[:, :], cmap='RdBu_r', vmin=vminvmax[0],
+                        vmax=vminvmax[1], shading='auto')
     cbar = fig.colorbar(f1, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax1.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:
         ax1.set_title(
-            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(filter_type, along_angle,
-                                                                                data.attrs['station'],
-                                                                                data.attrs['deployment_number'],
-                                                                                math.ceil(data.instrument_depth)),
+            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+                filter_type, along_angle, data.attrs['station'], data.attrs['deployment_number'],
+                math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
-            'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(along_angle, data.attrs['station'],
-                                                                                    data.attrs['deployment_number'],
-                                                                                    math.ceil(data.instrument_depth)),
+            'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+                along_angle, data.attrs['station'], data.attrs['deployment_number'],
+                math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'raw':
-        ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(along_angle, data.attrs['station'],
-                                                                                   data.attrs['deployment_number'],
-                                                                                   math.ceil(data.instrument_depth)),
-                      fontsize=14)
+        ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+            along_angle, data.attrs['station'], data.attrs['deployment_number'],
+            math.ceil(data.instrument_depth)),
+            fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -602,31 +673,29 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
 
     ax2 = fig.add_subplot(2, 1, 2)
 
-    f2 = ax2.pcolor(time_lim, bin_depths_lim, CS[:, :], cmap='RdBu_r', vmin=vminvmax[0], vmax=vminvmax[1])
+    f2 = ax2.pcolormesh(time_lim, bin_depths_lim, CS[:, :], cmap='RdBu_r', vmin=vminvmax[0],
+                        vmax=vminvmax[1], shading='auto')
     cbar = fig.colorbar(f2, shrink=0.8)
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
         ax2.set_title(
-            'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(filter_type, cross_angle,
-                                                                                data.attrs['station'],
-                                                                                data.attrs['deployment_number'],
-                                                                                math.ceil(data.instrument_depth)),
+            'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+                filter_type, cross_angle, data.attrs['station'], data.attrs['deployment_number'],
+                math.ceil(data.instrument_depth)),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
-            'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(str(cross_angle),
-                                                                                    data.attrs['station'],
-                                                                                    data.attrs['deployment_number'],
-                                                                                    str(math.ceil(
-                                                                                        data.instrument_depth))),
+            'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+                str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
+                str(math.ceil(data.instrument_depth))),
             fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
-            'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(str(cross_angle), data.attrs['station'],
-                                                                         data.attrs['deployment_number'],
-                                                                         str(math.ceil(data.instrument_depth))),
+            'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+                str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
+                str(math.ceil(data.instrument_depth))),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
@@ -663,11 +732,13 @@ def num_ens_per_hr(nc):
 def filter_godin(nc):
     """
     Make North and East lowpassed plots using the simple 3-day Godin filter
-    Running average of 24 hours first, then another time with a 24 hour filter, the again with a 25 hour filter
-    Repeat with along- and cross-shore velocities
-    :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
-    :returns : filtered East and North velocity data called ew_filter_final and ns_filter_final; 1D numpy arrays
-               of values of same size as the time series within nc, padded with nan's
+    Running average of 24 hours first, then another time with a 24 hour filter,
+    then again with a 25 hour filter. Repeat with along- and cross-shore velocities
+    :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D
+               numpy array of values
+    :returns : filtered East and North velocity data called ew_filter_final and
+               ns_filter_final; 1D numpy arrays of values of same size as the time
+               series within nc, padded with nan's
     """
     # Determine the number of ensembles taken per hour
     ens_per_hr = num_ens_per_hr(nc)
@@ -684,18 +755,20 @@ def filter_godin(nc):
         ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
         ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
     # 24h rolling average
-    ew_filt_temp1 = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
-    ns_filt_temp1 = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
+    ew_filt_temp1 = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True,
+                                  win_type=None).median()
+    ns_filt_temp1 = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True,
+                                  win_type=None).median()
     # 24h rolling average
     ew_filt_temp2 = ew_filt_temp1.rolling(window=num_hrs * window, min_periods=None, center=True,
                                           win_type=None).median()
     ns_filt_temp2 = ns_filt_temp1.rolling(window=num_hrs * window, min_periods=None, center=True,
                                           win_type=None).median()
     # 25h rolling average
-    ew_filt_final = ew_filt_temp2.rolling(window=(num_hrs + 1) * window, min_periods=None, center=True,
-                                          win_type=None).median()
-    ns_filt_final = ns_filt_temp2.rolling(window=(num_hrs + 1) * window, min_periods=None, center=True,
-                                          win_type=None).median()
+    ew_filt_final = ew_filt_temp2.rolling(window=(num_hrs + 1) * window, min_periods=None,
+                                          center=True, win_type=None).median()
+    ns_filt_final = ns_filt_temp2.rolling(window=(num_hrs + 1) * window, min_periods=None,
+                                          center=True, win_type=None).median()
 
     # Convert to numpy arrays
     ew_filt_final = ew_filt_final.to_numpy().transpose()
@@ -707,10 +780,11 @@ def filter_godin(nc):
 def filter_XXh(nc, num_hrs=30):
     """
     Perform XXh averaging on velocity data (30-hour, 35-hour, ...)
-    :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy array of values
+    :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy
+    array of values
     :param num_hrs: Number of hours to use in the rolling average; default is 30 hours
-    :returns : filtered East and North velocity data called ew_filter_final and ns_filter_final; 1D numpy arrays
-               of values of same size as the time series within nc, padded with nan's
+    :returns : filtered East and North velocity data called ew_filter_final and ns_filter_final;
+    1D numpy arrays of values of same size as the time series within nc, padded with nan's
     """
 
     # Determine the number of ensembles taken per hour
@@ -726,8 +800,10 @@ def filter_XXh(nc, num_hrs=30):
     else:
         ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
         ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
-    ew_filt_final = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
-    ns_filt_final = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True, win_type=None).median()
+    ew_filt_final = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True,
+                                  win_type=None).median()
+    ns_filt_final = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True,
+                                  win_type=None).median()
 
     # Convert to numpy arrays
     ew_filt_final = ew_filt_final.to_numpy().transpose()
@@ -738,8 +814,9 @@ def filter_XXh(nc, num_hrs=30):
 
 def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, direction):
     """
-    Function to take one bin from the unfiltered (raw) data and the corresponding bin in the filtered
-    data, and plot the time series together on one plot. Restrict time series to 1 month.
+    Function to take one bin from the unfiltered (raw) data and the corresponding bin in
+    the filtered data, and plot the time series together on one plot. Restrict time
+    series to 1 month.
     :param nc: xarray dataset-type object containing ADCP data from a netCDF file
     :param dest_dir: destination directory for output files
     :param time: time data
@@ -757,6 +834,8 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
         vel_code = 'LCEWAP01'
     elif direction == 'north':
         vel_code = 'LCNSAP01'
+    else:
+        ValueError('direction', direction, 'not valid')
 
     # Calculate the number of ensembles in 1 month
     ens_per_hr = num_ens_per_hr(nc)
@@ -776,7 +855,8 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
 
     f1 = ax1.plot(time[:ens_per_mth], dat_raw[bin_index, :ens_per_mth], color='k', label='Raw')
     if filter_type == 'Godin':
-        f2 = ax1.plot(time[:ens_per_mth], dat_filt[bin_index, :ens_per_mth], color='b', label='Godin Filtered')
+        f2 = ax1.plot(time[:ens_per_mth], dat_filt[bin_index, :ens_per_mth], color='b',
+                      label='Godin Filtered')
     elif 'h' in filter_type:
         f2 = ax1.plot(time[:ens_per_mth], dat_filt[bin_index, :ens_per_mth], color='b',
                       label='{} average'.format(filter_type))
@@ -793,86 +873,127 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
         os.makedirs(plot_dir)
 
     plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-        str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(vel_code, bin_index + 1,
-                                                                                 filter_type)
+        str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(
+        vel_code, bin_index + 1, filter_type)
     fig.savefig(plot_name)
     plt.close()
     return os.path.abspath(plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None, bin_range=None, colourmap_lim=None):
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None,
+                           bin_range=None, colourmap_lim=None):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
         - dest_dir: destination directory for output files
         - filter_type: "Godin", "30h", or "35h"
-        - along_angle: Along-shore angle measured in degrees relative to geographic East, counter-clockwise; can be
-                       user-input but defaults to None, in which case the function calculates the along-shore angle
-        - time_range (optional): tuple of form (a, b), where a is the index of the first time stamp to include and b
-                                 is the index of the last time stamp to include; default None
-        - bin_range (optional): tuple of form (a, b), where a is the index of the minimum bin to include and b is the
-                                index of the maximum bin to include; default None
-        - colourmap_lim (optional): user-input tuple of the form (a, b), where a is the minimum colour map limit for the plot
-                          and b is the maximum colour map limit for the plot (both floats); default is None in which
-                          case the function chooses the colour map limits for the plot
+        - along_angle: Along-shore angle measured in degrees relative to geographic East,
+                       counter-clockwise; can be user-input but defaults to None, in which
+                       case the function calculates the along-shore angle
+        - time_range (optional): tuple of form (a, b), where a is the index of the first
+                                 time stamp to include and b is the index of the last time
+                                 stamp to include; default None
+        - bin_range (optional): tuple of form (a, b), where a is the index of the minimum
+                                bin to include and b is the index of the maximum bin to
+                                include; default None
+        - colourmap_lim (optional): user-input tuple of the form (a, b), where a is the
+                                    minimum colour map limit for the plot and b is the
+                                    maximum colour map limit for the plot (both floats);
+                                    default is None in which case the function chooses the
+                                    colour map limits for the plot
     Outputs:
         - list of absolute file names of output files
     """
     ncdata = xr.open_dataset(ncfile)
+    
+    # Check that time range and bin range limits are not out of range
+    if time_range is not None:
+        if time_range[1] > len(ncdata.time.data):
+            UserWarning('User-input time range is out of range for input dataset; setting '
+                        'value to None for automatic recalculation')
+            print('Upper time index limit', time_range[1], '>', len(ncdata.time.data))
+            time_range = None
+            
+    if bin_range is not None:
+        if bin_range[1] > len(ncdata.distance.data):
+            UserWarning('User-input bin range is out of range for input dataset; setting '
+                        'value to None for automatic recalculation')
+            print('Upper bin index limit', bin_range[1], '>', len(ncdata.distance.data))
+            bin_range = None
 
     if "L0" in ncfile:
+        # Make diagnostic plot of time-averaged velocities, backscatter, and principal component
         fname_diagnostic = plots_diagnostic(ncdata, dest_dir, True, time_range, bin_range)
 
-        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.VEL_MAGNETIC_EAST.data,
-                                                              ncdata.VEL_MAGNETIC_NORTH.data, time_range, bin_range)
+        # Subset time, bins, east and north velocities
+        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(
+            ncdata, ncdata.VEL_MAGNETIC_EAST.data, ncdata.VEL_MAGNETIC_NORTH.data, time_range,
+            bin_range)
+
+        # Plot pressure PRESPR01 vs time
+        fname_pres = plot_adcp_pressure(ncdata, dest_dir)
+        
         # North/East velocity plots
-        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, True, 'raw', colourmap_lim)
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                                  True, 'raw', colourmap_lim)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle, colourmap_lim)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                                  'raw', along_angle, colourmap_lim)
 
     else:
         fname_diagnostic = plots_diagnostic(ncdata, dest_dir, False, time_range, bin_range)
         # Limit data if limits are not input by user
-        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data,
-                                                              time_range, bin_range)
+        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data,
+                                                              ncdata.LCNSAP01.data, time_range,
+                                                              bin_range)
+
+        # Plot pressure PRESPR01 vs time
+        fname_pres = plot_adcp_pressure(ncdata, dest_dir)
+        
         # North/East velocity plots
-        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, False, 'raw', colourmap_lim)
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                                  False, 'raw', colourmap_lim)
 
         # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw', along_angle, colourmap_lim)
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw',
+                                  along_angle, colourmap_lim)
 
     # Redo whole process with tidal-filtered data
 
     if filter_type == "Godin":
         ew_filt, ns_filt = filter_godin(ncdata)
-    elif filter_type == "30h":
-        ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=30)
-    elif filter_type == "35h":
-        ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=35)
+    elif filter_type.endswith("h"):
+        ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=int(filter_type[:-1]))
     else:
         ValueError("filter_type value not understood !")
 
     # Limit data
-    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt, time_range, bin_range)
+    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt,
+                                                                    time_range, bin_range)
 
     # East/North
     if "L0" in ncfile:
-        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, True,
-                                       filter_type, colourmap_lim)
+        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
+                                       ew_filt_lim, True, filter_type, colourmap_lim)
     else:
-        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, False,
-                                       filter_type, colourmap_lim)
+        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
+                                       ew_filt_lim, False, filter_type, colourmap_lim)
 
     # Along-shore/cross-shore
-    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, filter_type, along_angle, colourmap_lim)
+    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
+                                   ew_filt_lim, filter_type, along_angle, colourmap_lim)
 
     # Compare velocity in bin 1
     if 'L0' in ncfile:
-        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type,
-                                             direction='magnetic_east')
+        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
+                                             filter_type, direction='magnetic_east')
     else:
-        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim, filter_type,
-                                             direction='east')
+        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
+                                             filter_type, direction='east')
 
-    return [fname_diagnostic, fname_ne, fname_ac, fname_ne_filt, fname_ac_filt, fname_binplot]
+    # Assemble all file names of the plots produced
+    figname_list = [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
+                    fname_ac_filt, fname_binplot]
+
+    return figname_list
