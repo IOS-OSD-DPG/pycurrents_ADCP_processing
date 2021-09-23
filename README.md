@@ -53,7 +53,7 @@ Sample usage of *ADCP_processing_L1.py*, *ADCP_processing_L0.py*, *add_var2nc.py
 *ADCP_pycurrents_L1.py* is based off of the gist, *RdiToNetcdf.ipynb*, by Jody Klymak (https://github.com/jklymak), and includes contributions from Di Wan (https://github.com/onedwd) and Eric Firing (https://github.com/efiring). *add_var2nc.py* was written by Di Wan. *ADCP_IOS_Header_file.py* was written by Lu Guan (https://github.com/guanlu129).
 
 ## Helpful links
-A web app based off this package can be found on the IOS Data Management Apps (DMAPPS) page at https://dmapps.waterproperties.ca/en/. Credits: Tom Roe.
+A web app based off this package can be found on the IOS Data Management Apps (DM Apps) page at https://dmapps.waterproperties.ca/en/. Credits: Tom Roe.
 
 Documentation:
 * `pycurrents` package and log: https://currents.soest.hawaii.edu/hgstage/pycurrents/file/tip
