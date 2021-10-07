@@ -15,6 +15,7 @@ netCDF-format data. The types of plots are:
         1. Time-averaged backscatter over depth
         2. Time-averaged velocity over depth
         3. Mean orientation
+    7. Pressure (PRESPR01) vs time to help determine if/when boat strikes occur
     
 Plots can be made from L0-, L1- or L2-processed data.
 
@@ -200,8 +201,12 @@ def get_plot_dir(filename, dest_dir):
     return plot_dir
 
 
-def plot_adcp_pressure(nc, dest_dir):
-    """Plot pressure, PRESPR01, vs time"""
+def plot_adcp_pressure(nc, dest_dir, resampled=None):
+    """Plot pressure, PRESPR01, vs time
+    :param nc: xarray dataset object from xarray.open_dataset(ncpath)
+    :param dest_dir: name of subfolder to which plot will be saved
+    :param resampled: "30min" if resampled to 30 minutes; None if not resampled
+    """
     
     fig = plt.figure(dpi=400)
     
@@ -212,16 +217,26 @@ def plot_adcp_pressure(nc, dest_dir):
         plt.gca().invert_yaxis()
     
     plt.ylabel("Pressure (dbar)")
-    plt.title("{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
-                                         nc.instrument_serial_number.data))
 
     # Create plots subfolder
     plot_dir = get_plot_dir(nc.filename, dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
-    
-    png_name = plot_dir + "{}_{}_{}_PRESPR01.png".format(
-        nc.station, nc.deployment_number, nc.instrument_serial_number.data)
+
+    if resampled is None:
+        plt.title("{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
+                                             nc.instrument_serial_number.data))
+
+        png_name = plot_dir + "{}_{}_{}_PRESPR01.png".format(
+            nc.station, nc.deployment_number, nc.instrument_serial_number.data)
+    else:
+        plt.title("{}-{} {} PRESPR01 {} subsampled".format(
+            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
+            resampled))
+
+        png_name = plot_dir + "{}_{}_{}_PRESPR01_{}_subsamp.png".format(
+            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
+            resampled)
     
     fig.savefig(png_name)
     plt.close(fig)
@@ -229,7 +244,7 @@ def plot_adcp_pressure(nc, dest_dir):
     return png_name
 
 
-def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None):
+def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None, resampled=None):
     """
     Preliminary plots:
     (1) Backscatter against depth, (2) mean velocity, and (3) principle component
@@ -247,6 +262,7 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
         - bin_range (optional): tuple of form (a, b), where a is the index of the
                                 minimum bin to include and b is the index of the
                                 maximum bin to include; default None
+        - resampled (optional): "30min" if resampled to 30 minutes; None if not resampled
     Returns:
         Absolute path of the figure made by this function
     """
@@ -387,17 +403,24 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
     if nc.orientation == 'up':
         plt.gca().invert_yaxis()
 
-    # Create centred figure title
-    fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.serial_number,
-                                                 nc.instrument_depth), fontweight='semibold')
-
     # Create plots subfolder
     plot_dir = get_plot_dir(nc.filename, dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    fig_name = plot_dir + '{}-{}_{}_nc_diagnostic.png'.format(
-        nc.station, str(nc.deployment_number), nc.serial_number)
+    # Create centred figure title
+    if resampled is None:
+        fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.serial_number,
+                                                     nc.instrument_depth), fontweight='semibold')
+        fig_name = plot_dir + '{}-{}_{}_nc_diagnostic.png'.format(
+            nc.station, str(nc.deployment_number), nc.serial_number)
+    else:
+        fig.suptitle('{}-{} {} at {} m depth, {} subsampled'.format(
+            nc.station, nc.deployment_number, nc.serial_number, nc.instrument_depth, resampled),
+            fontweight='semibold')
+        fig_name = plot_dir + '{}-{}_{}_nc_diagnostic_{}_subsamp.png'.format(
+            nc.station, str(nc.deployment_number), nc.serial_number, resampled)
+
     fig.savefig(fig_name)
     plt.close()
 
@@ -475,7 +498,7 @@ def get_vminvmax(v1_data, v2_data):
 
 
 def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False,
-                   filter_type='raw', colourmap_lim=None):
+                   filter_type='raw', colourmap_lim=None, resampled=None):
     """
     Function for plotting north and east velocities from ADCP data.
     :param nc: ADCP dataset from a netCDF file read in using the xarray package
@@ -492,6 +515,7 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
                           colour map limit for the plot and b is the maximum colour map
                           limit for the plot (both floats); default is None in which
                           case the function chooses the colour map limits for the plot
+    :param resampled: "30min" if resampled to 30 minutes; None if not resampled
     :return: Absolute file path of the figure this function creates
     """
 
@@ -500,6 +524,14 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
     magnetic = ''
     if level0:
         magnetic = 'Magnetic '
+
+    # For making figure naming easier
+    if resampled is None:
+        resampled_str = ''
+        resampled_4fname = ''
+    else:
+        resampled_str = ', {} subsampled'.format(resampled)
+        resampled_4fname = '_{}_subsamp'.format(resampled)
 
     if colourmap_lim is None:
         vminvmax = get_vminvmax(ns_lim, ew_lim)
@@ -517,19 +549,19 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     if filter_type == '30h':
         ax.set_title(
-            'ADCP ({}North, 30h average) {}-{} {}m'.format(
+            'ADCP ({}North, 30h average) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth))), fontsize=14)
+                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
     elif filter_type == 'Godin':
         ax.set_title(
-            'ADCP ({}North, Godin Filtered) {}-{} {}m'.format(
+            'ADCP ({}North, Godin Filtered) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth))), fontsize=14)
+                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax.set_title(
-            'ADCP ({}North, raw) {}-{} {}m'.format(
+            'ADCP ({}North, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth))), fontsize=14)
+                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -545,18 +577,18 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
-        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m'.format(
+        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m{}'.format(
             magnetic, filter_type, nc.attrs['station'], nc.attrs['deployment_number'],
-            str(int(nc.instrument_depth))), fontsize=14)
+            str(int(nc.instrument_depth)), resampled_str), fontsize=14)
     elif filter_type == 'Godin':
-        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m'.format(
+        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m{}'.format(
             magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-            str(int(nc.instrument_depth))), fontsize=14)
+            str(int(nc.instrument_depth)), resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
-            'ADCP ({}East, raw) {}-{} {}m'.format(
+            'ADCP ({}East, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth))), fontsize=14)
+                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
 
     if nc.orientation == 'up':
         plt.gca().invert_yaxis()
@@ -569,10 +601,10 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     if level0:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(int(nc.instrument_depth))) + '-magn_NE_{}.png'.format(filter_type)
+            str(int(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
     else:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(int(nc.instrument_depth))) + '-NE_{}.png'.format(filter_type)
+            str(int(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_name)
     plt.close()
 
@@ -603,7 +635,7 @@ def determine_dom_angle(u_true, v_true):
 
 
 def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw',
-                   along_angle=None, colourmap_lim=None):
+                   along_angle=None, colourmap_lim=None, resampled=None):
     """
     Function for plotting north and east velocities from ADCP data.
     :param data: ADCP dataset from a netCDF file read in using the xarray package
@@ -619,8 +651,17 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
                           limit for the plot and b is the maximum colour map limit for the plot
                           (both floats); default is None in which case the function chooses the
                           colour map limits for the plot
+    :param resampled: "30min" if resampled to 30 minutes; None if not resampled
     :return: Absolute file path of the figure this function creates
     """
+
+    # For making figure naming easier
+    if resampled is None:
+        resampled_str = ''
+        resampled_4fname = ''
+    else:
+        resampled_str = ', {} subsampled'.format(resampled)
+        resampled_4fname = '_{}_subsamp'.format(resampled)
 
     # filter_type options: 'raw' (default), '30h' (or, 35h, etc, average), 'Godin' (Godin Filtered)
     # cross_angle in degrees; defaults to 25
@@ -649,21 +690,22 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
 
     ax1.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:
+        # XXh-type filter (e.g., 30h rolling mean, etc)
         ax1.set_title(
-            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 filter_type, along_angle, data.attrs['station'], data.attrs['deployment_number'],
-                math.ceil(data.instrument_depth)),
+                math.ceil(data.instrument_depth), resampled_str),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
-            'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+            'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 along_angle, data.attrs['station'], data.attrs['deployment_number'],
-                math.ceil(data.instrument_depth)),
+                math.ceil(data.instrument_depth), resampled_str),
             fontsize=14)
     elif filter_type == 'raw':
-        ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+        ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
             along_angle, data.attrs['station'], data.attrs['deployment_number'],
-            math.ceil(data.instrument_depth)),
+            math.ceil(data.instrument_depth), resampled_str),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
@@ -681,21 +723,21 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     ax2.set_ylabel('Depth [m]', fontsize=14)
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
         ax2.set_title(
-            'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+            'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 filter_type, cross_angle, data.attrs['station'], data.attrs['deployment_number'],
-                math.ceil(data.instrument_depth)),
+                math.ceil(data.instrument_depth), resampled_str),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
-            'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+            'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
-                str(math.ceil(data.instrument_depth))),
+                str(math.ceil(data.instrument_depth)), resampled_str),
             fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
-            'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m'.format(
+            'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
-                str(math.ceil(data.instrument_depth))),
+                str(math.ceil(data.instrument_depth)), resampled_str),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
@@ -708,18 +750,19 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    plot_name = plot_dir + data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
-        math.ceil(data.instrument_depth)) + '-AC_{}.png'.format(filter_type)
-    fig.savefig(plot_name)
+    plot_name = data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
+        math.ceil(data.instrument_depth)) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
+    fig.savefig(plot_dir + plot_name)
     plt.close()
 
-    return os.path.abspath(plot_name)
+    return os.path.abspath(plot_dir + plot_name)
 
 
 def num_ens_per_hr(nc):
     """
     Calculate the number of ensembles recorded per hour
-    :param nc: dataset object obtained from reading in an ADCP netCDF file with the xarray package
+    :param nc: dataset object obtained from reading in an ADCP netCDF file with the
+               xarray package
     """
     time_incr = float(nc.time.data[1] - nc.time.data[0])
     hr2min = 60
@@ -812,7 +855,8 @@ def filter_XXh(nc, num_hrs=30):
     return ew_filt_final, ns_filt_final
 
 
-def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, direction):
+def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, direction,
+                         resampled=None):
     """
     Function to take one bin from the unfiltered (raw) data and the corresponding bin in
     the filtered data, and plot the time series together on one plot. Restrict time
@@ -824,6 +868,7 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     :param dat_filt: velocity data filtered using the method defined in filter_type
     :param filter_type: options are 'Godin' or 'xxh' (e.g., '30h', '35h')
     :param direction: 'east' or 'north'
+    :param resampled: "30min" if resampled to 30 minutes; None if not resampled
     """
 
     if direction == 'magnetic_east':
@@ -863,25 +908,176 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
 
     ax1.set_ylabel('Velocity [m s$^{-1}$]', fontsize=14)
     ax1.legend(loc='lower left')
-    ax1.set_title(
-        'ADCP {}-{} {} bin {} at {}m'.format(nc.attrs['station'], nc.attrs['deployment_number'],
-                                             vel_code, bin_index + 1, bin_depth), fontsize=14)
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(nc.filename, dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-        str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(
-        vel_code, bin_index + 1, filter_type)
-    fig.savefig(plot_name)
+    if resampled is None:
+        ax1.set_title(
+            'ADCP {}-{} {} bin {} at {}m'.format(nc.attrs['station'], nc.attrs['deployment_number'],
+                                                 vel_code, bin_index + 1, bin_depth), fontsize=14)
+        plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+            str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(
+            vel_code, bin_index + 1, filter_type)
+    else:
+        ax1.set_title('ADCP {}-{} {} bin {} at {}m, {} subsampled'.format(
+            nc.attrs['station'], nc.attrs['deployment_number'], vel_code, bin_index + 1, bin_depth,
+            resampled), fontsize=14)
+        plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+            str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
+            vel_code, bin_index + 1, filter_type, resampled)
+
+    fig.savefig(plot_dir + plot_name)
     plt.close()
-    return os.path.abspath(plot_name)
+    return os.path.abspath(plot_dir + plot_name)
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None,
-                           bin_range=None, colourmap_lim=None):
+def resample_adcp_interp(ncname, ncdata):
+    # Code from Di Wan
+    # Not implemented because this method "creates" data
+    u1 = ncdata.resample(time='5min').interpolate("linear")
+    # print('u1', u1)
+    print(u1.time)
+    # u2 = u1.resample(time='5min').mean(dim='time', keep_attrs=True)
+    u2 = u1.rolling(time=6, center=True).mean(keep_attrs=True)
+    # print('u2', u2)
+    u3 = u2.resample(time='1H').interpolate("linear").transpose("distance", "time")
+    # print('u3', u3)
+    ncout_name = ncname.replace('.adcp', '_resampled.adcp')
+
+    # Add global attributes from ncdata to u3
+    for key, value in ncdata.attrs.items():
+        u3.attrs[key] = value
+    # Add variable attributes from ncdata to u3
+    for varname in ncdata.data_vars:
+        if varname in u3.data_vars:
+            for key, value in ncdata[varname].attrs.items():
+                u3[varname].attrs[key] = value
+        else:
+            print('Warning: {} not in resampled adcp file'.format(varname))
+
+    u3.to_netcdf(ncout_name)
+    return ncout_name
+
+
+def resample_adcp_manual(ncname, ncdata, dest_dir):
+    """Resample netCDF ADCP file for plotting by extracting one ensemble (measurement)
+    per 30 min
+    :param ncname: Full name including path of the netCDF file
+    :param ncdata: netCDF dataset object that was created by xarray.open_dataset()
+    :param dest_dir: destination directory; the name of the subfolder in which files
+                     will be output
+    """
+
+    # Convert time variable to pandas datetime format in order to access minute and time
+    time_pd = pd.to_datetime(ncdata.time.data)
+
+    # Take first difference of time to get intervals lengths between measurements
+    time_diff = np.diff(time_pd)  # nanoseconds
+    median_interval = np.nanmedian(time_diff).astype('float')  # ns
+
+    # Minute to nanosecond converter
+    min2ns = 60 * 1e9
+    desired_interval_min = 30  # 30 minutes
+
+    # Number of ensembles per half hour
+    num_per_30min = int(np.floor(median_interval / min2ns * desired_interval_min))
+
+    # Subset time first so that we can check that diffs are constant
+    time_subset = time_pd[0::num_per_30min]
+
+    # Take first difference
+    time_diff = np.diff(time_subset).astype('int64')
+
+    # Find where time differences are less than 29 min or greater than 31 min
+    check_diff = np.where(
+        (time_diff < (desired_interval_min - 1) * min2ns) |
+        (time_diff > (desired_interval_min + 1) * min2ns))[0]
+
+    print(len(check_diff))
+    print(check_diff)
+
+    if len(check_diff) > 0:
+        print('Warning: data subsampling intervals are not even')
+
+    # # Get minute and second of the first time stamp
+    # min1 = pd.to_datetime(time_pd[0]).minute
+    # sec1 = pd.to_datetime(time_pd[0]).second
+    #
+    # if min1 < 30:
+    #     offset_30min = 30
+    # else:
+    #     offset_30min = -30
+    #
+    # # Get 30min measurements
+    # # Measurements not always exactly on the minute
+    # # e.g., 29min59sec away instead of 30min00sec
+    # subsampler = np.where(((time_pd.minute == min1) |
+    #                        (time_pd.minute == min1 + offset_30min)) &
+    #                       (time_pd.second == sec1))[0]
+    #
+    # print(len(subsampler))
+    # print(subsampler)
+
+    ncout = xr.Dataset(
+        coords={'time': ncdata.time.data[0::num_per_30min], 'distance': ncdata.distance.data})
+
+    # Iterate through coordinates
+    for coordname in ncout.coords:
+        print(coordname)
+        # Iterate through the variable's encoding
+        for key, value in ncdata[coordname].encoding.items():
+            ncout[coordname].encoding[key] = value
+
+        # Iterate through the variable's attrs
+        for key, value in ncdata[coordname].attrs.items():
+            ncout[coordname].attrs[key] = value
+
+    # Iterate through the variables in the input netCDF dataset
+    for varname in ncdata.data_vars:
+        if len(ncdata[varname].data.shape) == 2:
+            ncout = ncout.assign({varname: (['distance', 'time'],
+                                            ncdata[varname].data[:, 0::num_per_30min])})
+        elif len(ncdata[varname].data.shape) == 1 and ncdata[varname].dims[0] == 'time':
+            ncout = ncout.assign({varname: (['time'], ncdata[varname].data[0::num_per_30min])})
+        elif len(ncdata[varname].data.shape) == 1 and ncdata[varname].dims[0] == 'distance':
+            ncout = ncout.assign({varname: (['distance'], ncdata[varname].data)})
+        elif len(ncdata[varname].data.shape) == 0:
+            ncout = ncout.assign({varname: ([], ncdata[varname].data)})
+
+        # Iterate through the variable's encoding
+        for key, value in ncdata[varname].encoding.items():
+            ncout[varname].encoding[key] = value
+
+        # Iterate through the variable's attrs
+        for key, value in ncdata[varname].attrs.items():
+            ncout[varname].attrs[key] = value
+
+    # Add global attrs
+    for key, value in ncdata.attrs.items():
+        ncout.attrs[key] = value
+
+    # Create L1_Python_plots or L2_Python_plots subfolder if not made already
+    plot_dir = get_plot_dir(ncdata.filename, dest_dir)
+
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    ncout_name = os.path.basename(ncname).replace('.adcp', '_30min_subsamp.adcp')
+    # outdir = '/home/hourstonh/Downloads/'
+    ncout_path = plot_dir + ncout_name
+    ncout.to_netcdf(ncout_path)
+    ncout.close()
+    ncdata.close()
+
+    return ncout_path
+
+
+def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None,
+                           time_range=None, bin_range=None, colourmap_lim=None,
+                           override_resample=False):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
@@ -901,9 +1097,15 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                                     maximum colour map limit for the plot (both floats);
                                     default is None in which case the function chooses the
                                     colour map limits for the plot
+        - override_resample (optional): ADCP netCDF files exceeding 100 MB in size will be
+                                        resampled unless *True*, so as to not crash the web
+                                        app. Default False
     Outputs:
         - list of absolute file names of output files
     """
+    # Initialize list to hold the full names of all files produced by this function
+    fout_name_list = []
+
     ncdata = xr.open_dataset(ncfile)
     
     # Check that time range and bin range limits are not out of range
@@ -922,42 +1124,45 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
             bin_range = None
 
     if "L0" in ncfile:
-        # Make diagnostic plot of time-averaged velocities, backscatter, and principal component
-        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, True, time_range, bin_range)
-
-        # Subset time, bins, east and north velocities
-        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(
-            ncdata, ncdata.VEL_MAGNETIC_EAST.data, ncdata.VEL_MAGNETIC_NORTH.data, time_range,
-            bin_range)
-
-        # Plot pressure PRESPR01 vs time
-        fname_pres = plot_adcp_pressure(ncdata, dest_dir)
-        
-        # North/East velocity plots
-        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
-                                  True, 'raw', colourmap_lim)
-
-        # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
-                                  'raw', along_angle, colourmap_lim)
-
+        level0 = True
+        direction = 'magnetic_east'
     else:
-        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, False, time_range, bin_range)
-        # Limit data if limits are not input by user
-        time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data,
-                                                              ncdata.LCNSAP01.data, time_range,
-                                                              bin_range)
+        level0 = False
+        direction = 'east'
 
-        # Plot pressure PRESPR01 vs time
-        fname_pres = plot_adcp_pressure(ncdata, dest_dir)
-        
-        # North/East velocity plots
-        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
-                                  False, 'raw', colourmap_lim)
+    # Check size of file
+    ncsize = os.path.getsize(ncfile)  # bytes
+    byte2MB = 1. / 1e6
+    threshold = 100  # Megabytes
+    # If size exceeds threshold, do subsampling
+    if ncsize * byte2MB > threshold and not override_resample:
+        ncname_resampled = resample_adcp_manual(ncfile, ncdata, dest_dir)
+        # Add path to file list
+        fout_name_list.append(ncname_resampled)
+        # Re-open dataset
+        ncdata = xr.open_dataset(ncname_resampled)
+        resampled = '30min'
+    else:
+        resampled = None
 
-        # Along/Cross-shelf velocity plots
-        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, 'raw',
-                                  along_angle, colourmap_lim)
+    # Make diagnostic plots
+    fname_diagnostic = plots_diagnostic(ncdata, dest_dir, level0, time_range, bin_range,
+                                        resampled)
+    # Limit data if limits are not input by user
+    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data,
+                                                          ncdata.LCNSAP01.data, time_range,
+                                                          bin_range)
+
+    # Plot pressure PRESPR01 vs time
+    fname_pres = plot_adcp_pressure(ncdata, dest_dir, resampled)
+
+    # North/East velocity plots
+    fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                              level0, 'raw', colourmap_lim, resampled)
+
+    # Along/Cross-shelf velocity plots
+    fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                              'raw', along_angle, colourmap_lim, resampled)
 
     # Redo whole process with tidal-filtered data
 
@@ -972,28 +1177,22 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt,
                                                                     time_range, bin_range)
 
-    # East/North
-    if "L0" in ncfile:
-        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
-                                       ew_filt_lim, True, filter_type, colourmap_lim)
-    else:
-        fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
-                                       ew_filt_lim, False, filter_type, colourmap_lim)
+    fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
+                                   ew_filt_lim, level0, filter_type, colourmap_lim, resampled)
 
     # Along-shore/cross-shore
     fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
-                                   ew_filt_lim, filter_type, along_angle, colourmap_lim)
+                                   ew_filt_lim, filter_type, along_angle, colourmap_lim,
+                                   resampled)
 
-    # Compare velocity in bin 1
-    if 'L0' in ncfile:
-        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
-                                             filter_type, direction='magnetic_east')
-    else:
-        fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
-                                             filter_type, direction='east')
+    fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
+                                         filter_type, direction, resampled)
+
+    # Close netCDF file
+    ncdata.close()
 
     # Assemble all file names of the plots produced
-    figname_list = [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
-                    fname_ac_filt, fname_binplot]
+    fout_name_list += [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
+                       fname_ac_filt, fname_binplot]
 
-    return figname_list
+    return fout_name_list
