@@ -1007,6 +1007,16 @@ def create_meta_dict_L1(adcp_meta):
 
 
 def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
+    """About:
+    Perform level 1 processing on a raw ADCP file and export it as a netCDF file
+    :param inFile: full file name of raw ADCP file
+    :param file_meta: full file name of csv metadata file associated with inFile
+    :param dest_dir: string type; name of folder in which files will be output
+    :param start_year: float type; the year that measurements start for ADCP file; only
+                 required for Narrowband ADCP files
+    :param time_file: full file name of csv file containing user-generated time data;
+                required if inFile has garbled out-of-range time data
+    """
     
     # If your raw file came from a NarrowBand instrument, you must also use the
     # create_nc_L1() start_year optional kwarg (int type)
@@ -1062,7 +1072,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     print(meta_dict['model'])
     print('Read in csv metadata file')
 
-    # Read in data and start processing
+    # ------------------------Read in data and start processing--------------------
 
     # Read in raw ADCP file and model type
     if meta_dict['model'] == 'nb':
@@ -1080,6 +1090,17 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     cor = data.read(varlist=['Correlation'])
     pg = data.read(varlist=['PercentGood'])
 
+    # Create flags if pg (percent good) data or
+    # vb_pg (vertical beam percent good) data are missing
+    flag_pg = 0
+    flag_vb = 0
+    flag_vb_pg = 0
+    try:
+        # Create throwaway test variable to test for variable availability
+        test_var = pg.pg1.data[:5]
+    except AttributeError:
+        flag_pg += 1
+
     # If model == Sentinel V, read in vertical beam data
     if meta_dict['model'] == 'sv':
         # vb_leader = data.read(varlist=['VBLeader'])
@@ -1088,29 +1109,21 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         vb_cor = data.read(varlist=['VBCorrelation'])
         vb_pg = data.read(varlist=['VBPercentGood'])
 
-    # Create flags if pg data or vb_pg data are missing
-    flag_pg = 0
-    flag_vb = 0
-    flag_vb_pg = 0
-    try:
-        print(pg.pg1.data[:5])
-    except AttributeError:
-        flag_pg += 1
-
-    if meta_dict['model'] == 'sv':
         # Test for missing Sentinel V vertical beam data; if true treat file as
         # regular 4-beam file
         try:
-            print(vb_vel.vbvel.data[:5])
+            # Vertical beam velocity data also available from vb_vel.raw.VBVelocity
+            # but it's multiplied by 1e3 (to make int type)
+            test_var = vb_vel.vbvel.data[:5]
         except AttributeError:
             flag_vb += 1
         # Test for missing vertical beam percent good data
         try:
-            print(vb_pg.vb_pg.data[:5])
+            test_var = vb_pg.raw.VBPercentGood[:5]
         except AttributeError:
             flag_vb_pg += 1
 
-    # Metadata value corrections
+    # --------------------------Metadata value corrections-------------------------
 
     # Convert numeric values to numerics
     meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
@@ -1178,9 +1191,10 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     # Convert pressure
     pressure = assign_pres(vel_var=vel, metadata_dict=meta_dict)
     
-    # Depth
+    # ------------------------------Depth-------------------------------
 
-    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure using gsw package
+    # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure
+    # using gsw package
     # negative so that depth is positive; units=m
     depth = -np.round(gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude']),
                       decimals=2)
@@ -1205,7 +1219,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     # Round sensor_dep
     sensor_dep = np.round(sensor_dep, decimals=2)
 
-    # Adjust velocity data
+    # ------------------------Adjust velocity data-------------------------
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic
     # fill_value for pycurrents
@@ -1215,7 +1229,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         vb_vel.vbvel.data[vb_vel.vbvel.data == -32768.0] = np.nan
 
     # Rotate into earth if not in enu already; this makes the netCDF bigger
-    # For Sentinel V instruments, transformations are done independently of vertical beam velocity data
+    # For Sentinel V instruments, transformations are done independently of vertical
+    # beam velocity data
     if vel.trans.coordsystem != 'earth' and vel.trans.coordsystem != 'enu':
         vel1, vel2, vel3, vel4 = coordsystem_2enu(
             vel_var=vel, fixed_leader_var=fixed_leader, metadata_dict=meta_dict)
@@ -1253,6 +1268,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         if e2 != 0:
             variable[-e2:] = np.nan
 
+    # Update processing history
     if e2 != 0:
         meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
                                            "sound_speed limited by deployment ({} UTC) and recovery ({} UTC) " \
@@ -1271,7 +1287,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
 
     print('Finished QCing data; making netCDF object next')
 
-    # Make into netCDF file
+    # -------------------------Make into netCDF file---------------------------
     
     # Create xarray Dataset object containing all dimensions and variables
     # Sentinel V instruments don't have percent good ('pg') variables
@@ -1320,14 +1336,16 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vbvel.data.transpose()))
         out = out.assign(LRZUVP01_QC=(('distance', 'time'), LRZUVP01_QC.transpose()))
         out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
-        out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.VBCorrelation.transpose()))
+        out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.raw.VBCorrelation.transpose()))
         if flag_vb_pg == 0:
-            out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))  # OR vb_pg.VBPercentGood.transpose() ?
+            # OR vb_pg.VBPercentGood.transpose() ?
+            out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))
 
     # Add attributes to each variable
     fill_value = 1e+15
-    add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep, cell_size=data.CellSize,
-                       fillValue=fill_value, pg_flag=flag_pg, vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
+    add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep,
+                       cell_size=data.CellSize, fillValue=fill_value, pg_flag=flag_pg,
+                       vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
 
     # Global attributes
 
