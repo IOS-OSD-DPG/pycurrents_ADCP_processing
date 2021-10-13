@@ -111,13 +111,13 @@ def write_file(nc):
         print('{:>8}'.format('6') + " " + '{:35}'.format(nc.LERRAP01.long_name.title()) + '{:15}'.format(
             nc.LERRAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LERRAP01.attrs["data_min"]) + '{:>17}'.format(
             '%.6E' % nc.LERRAP01.attrs["data_max"]))
-        print('{:>8}'.format('7') + " " + '{:35}'.format(nc.LRZUVP01.long_name.title()) + '{:15}'.format(
+        # print('{:>8}'.format('7') + " " + '{:35}'.format(nc.LRZUVP01.long_name.title()) + '{:15}'.format(
+        #     nc.LRZUVP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LRZUVP01.attrs["data_min"]) + '{:>17}'.format(
+        #     '%.6E' % nc.LRZUVP01.attrs["data_max"]))
+        print('{:>8}'.format('8') + " " + '{:35}'.format("Upward...Velocity_By_Vertical_Beam") + '{:15}'.format(
             nc.LRZUVP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LRZUVP01.attrs["data_min"]) + '{:>17}'.format(
             '%.6E' % nc.LRZUVP01.attrs["data_max"]))
-        # print('{:>8}'.format('8') + " " + '{:35}'.format(nc.LCEWAP01_QC.long_name.title()) + '{:15}'.format(
-        #     ' ') + '{:>17}'.format('%.6E' % nc.LCEWAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-        #     '%.6E' % nc.LCEWAP01_QC.attrs["data_max"]))
-        print('{:>8}'.format('8') + " " + '{:35}'.format("Upward...Velocity_By_Vertical_Beam") + '{:15}'.format(
+        print('{:>8}'.format('8') + " " + '{:35}'.format(nc.LCEWAP01_QC.long_name.title()) + '{:15}'.format(
             ' ') + '{:>17}'.format('%.6E' % nc.LCEWAP01_QC.attrs["data_min"]) + '{:>17}'.format(
             '%.6E' % nc.LCEWAP01_QC.attrs["data_max"]))
         print('{:>8}'.format('9') + " " + '{:35}'.format(nc.LCNSAP01_QC.long_name.title()) + '{:15}'.format(
