@@ -427,7 +427,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     # Velocity variable quality flags
     var = out_obj.LCEWAP01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
+    var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'quality flag for LCEWAP01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -438,7 +438,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     
     var = out_obj.LCNSAP01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
+    var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'quality flag for LCNSAP01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -449,7 +449,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
 
     var = out_obj.LRZAAP01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
+    var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'quality flag for LRZAAP01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -773,7 +773,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     # PRESPR01_QC: pressure quality flag
     var = out_obj.PRESPR01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = 0
+    var.attrs['_FillValue'] = fillValue
     var.attrs['long_name'] = 'quality flag for PRESPR01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
                            'identification of negative pressure values'
@@ -904,7 +904,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
 
         var = out_obj.LRZUVP01_QC
         var.encoding['dtype'] = 'int'
-        var.attrs['_FillValue'] = 0
+        var.attrs['_FillValue'] = fillValue
         var.attrs['long_name'] = 'quality flag for LRZUVP01'
         var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
         var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
