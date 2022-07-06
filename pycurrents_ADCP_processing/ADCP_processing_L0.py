@@ -580,8 +580,17 @@ def create_meta_dict_L0(f_meta):
 
 
 def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
-    # Combines data from a raw ADCP file and metadata from a csv file to produce a netCDF file of ADCP data
-
+    """About:
+        Perform level 0 processing on a raw ADCP file and export it as a netCDF file
+        :param f_adcp: full file name of raw ADCP file
+        :param f_meta: full file name of csv metadata file associated with inFile
+        :param dest_dir: string type; name of folder in which files will be output
+        :param start_year: float type; the year that measurements start for ADCP file; only
+                     required for Narrowband ADCP files
+        :param time_file: full file name of csv file containing user-generated time data;
+                    required if inFile has garbled out-of-range time data
+    """
+    
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
 
@@ -626,7 +635,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
 
     print('Read in csv metadata file')
 
-    # Read in data and start processing
+    # ------------------------Read in data and start processing--------------------
 
     # Read in raw ADCP file and model type
     if meta_dict['model'] == 'nb':
@@ -643,6 +652,16 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     cor = data.read(varlist=['Correlation'])
     pg = data.read(varlist=['PercentGood'])
 
+    # Create flags if pg data or vb data or vb_pg data are missing
+    flag_pg = 0
+    flag_vb = 0
+    flag_vb_pg = 0
+    try:
+        # Create throwaway test variable to test for variable availability
+        test_var = pg.pg1.data[:5]
+    except AttributeError:
+        flag_pg += 1
+
     # If model == Sentinel V, read in vertical beam data
     if meta_dict['model'] == 'sv':
         # vb_leader = data.read(varlist=['VBLeader'])
@@ -651,32 +670,24 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
         vb_cor = data.read(varlist=['VBCorrelation'])
         vb_pg = data.read(varlist=['VBPercentGood'])
 
-    # Create flags if pg data or vb data or vb_pg data are missing
-    flag_pg = 0
-    flag_vb = 0
-    flag_vb_pg = 0
-    try:
-        print(pg.pg1.data[:5])
-    except AttributeError:
-        flag_pg += 1
-
-    if meta_dict['model'] == 'sv':
         # Test for missing Sentinel V vertical beam data; if true treat file as regular 4-beam file
         try:
-            print(vb_vel.vbvel.data[:5])
+            # Vertical beam velocity data also available from vb_vel.raw.VBVelocity
+            # but it's multiplied by 1e3 (to make int type)
+            test_var = vb_vel.vbvel.data[:5]
         except AttributeError:
             flag_vb += 1
         # Test for missing vertical beam percent good data
         try:
-            print(vb_pg.vb_pg.data[:5])
+            test_var = vb_pg.raw.VBPercentGood[:5]
         except AttributeError:
             flag_vb_pg += 1
 
-    print(flag_pg)
-    print(flag_vb)
-    print(flag_vb_pg)
+    # print(flag_pg)
+    # print(flag_vb)
+    # print(flag_vb_pg)
 
-    # Metadata value corrections
+    # --------------------------Metadata value corrections-------------------------
 
     # Convert numeric values from string to numeric type
     meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
@@ -744,7 +755,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
         warnings.warn('No pressure data available (no field of name Pressure')
         flag_no_pres += 1
 
-    # Depth
+    # ------------------------------Depth-------------------------------
 
     # Check instrument_depth from metadata csv file: compare with pressure values
     if flag_no_pres == 0:
@@ -806,10 +817,11 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
         print('Assigning Sentinel V vertical beam variables')
         out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vbvel.data.transpose()))
         out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
-        out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.VBCorrelation.transpose()))
+        out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.raw.VBCorrelation.transpose()))
         if flag_vb_pg == 0:
             print('Assigning Sentinel V vertical beam percent good variable')
-            out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))  # OR vb_pg.VBPercentGood.transpose() ?
+            # OR vb_pg.VBPercentGood.transpose() ?
+            out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))
 
     # Add attributes to each variable
     fill_value = 1e+15

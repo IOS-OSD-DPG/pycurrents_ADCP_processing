@@ -9,3 +9,7 @@
 */*/__pycache__/
 
 */__pycache__/
+
+*.xml
+
+.idea/pycurrents_ADCP_processing.iml
