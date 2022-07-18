@@ -590,8 +590,8 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
                 str(int(nc.instrument_depth)), resampled_str), fontsize=14)
 
-    if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+    # if nc.orientation == 'up':
+    plt.gca().invert_yaxis()
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(nc.filename, dest_dir)
@@ -710,8 +710,8 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    if data.orientation == 'up':
-        plt.gca().invert_yaxis()
+    # if data.orientation == 'up':
+    plt.gca().invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
 
