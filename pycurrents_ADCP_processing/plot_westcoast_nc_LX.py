@@ -601,10 +601,10 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     if level0:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(math.ceil(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
+            str(np.round(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
     else:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(math.ceil(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
+            str(np.round(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_name)
     plt.close()
 
@@ -751,7 +751,7 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
         os.makedirs(plot_dir)
 
     plot_name = data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
-        math.ceil(data.instrument_depth)) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
+        np.round(data.instrument_depth)) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_dir + plot_name)
     plt.close()
 
