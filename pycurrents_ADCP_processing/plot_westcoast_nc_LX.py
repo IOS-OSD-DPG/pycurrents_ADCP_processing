@@ -590,8 +590,8 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
                 str(int(nc.instrument_depth)), resampled_str), fontsize=14)
 
-    if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+    # if nc.orientation == 'up':
+    plt.gca().invert_yaxis()
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(nc.filename, dest_dir)
@@ -601,10 +601,10 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     if level0:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(int(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
+            str(np.round(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
     else:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(int(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
+            str(np.round(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_name)
     plt.close()
 
@@ -710,8 +710,8 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    if data.orientation == 'up':
-        plt.gca().invert_yaxis()
+    # if data.orientation == 'up':
+    plt.gca().invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
 
@@ -751,7 +751,7 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
         os.makedirs(plot_dir)
 
     plot_name = data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
-        math.ceil(data.instrument_depth)) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
+        np.round(data.instrument_depth)) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_dir + plot_name)
     plt.close()
 
