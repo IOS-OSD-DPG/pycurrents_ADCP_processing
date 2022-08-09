@@ -601,10 +601,10 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
 
     if level0:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(np.round(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
+            int(np.round(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
     else:
         plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(np.round(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
+            int(np.round(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_name)
     plt.close()
 
@@ -751,7 +751,7 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
         os.makedirs(plot_dir)
 
     plot_name = data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
-        np.round(data.instrument_depth)) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
+        int(np.round(data.instrument_depth))) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_dir + plot_name)
     plt.close()
 
@@ -919,14 +919,14 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
             'ADCP {}-{} {} bin {} at {}m'.format(nc.attrs['station'], nc.attrs['deployment_number'],
                                                  vel_code, bin_index + 1, bin_depth), fontsize=14)
         plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(
+            int(np.round(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(
             vel_code, bin_index + 1, filter_type)
     else:
         ax1.set_title('ADCP {}-{} {} bin {} at {}m, {} subsampled'.format(
             nc.attrs['station'], nc.attrs['deployment_number'], vel_code, bin_index + 1, bin_depth,
             resampled), fontsize=14)
         plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
+            int(np.round(nc.instrument_depth))) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
             vel_code, bin_index + 1, filter_type, resampled)
 
     fig.savefig(plot_dir + plot_name)
