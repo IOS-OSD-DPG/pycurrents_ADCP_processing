@@ -551,17 +551,17 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
         ax.set_title(
             'ADCP ({}North, 30h average) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+                nc.instrument_depth, resampled_str), fontsize=14)
     elif filter_type == 'Godin':
         ax.set_title(
             'ADCP ({}North, Godin Filtered) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+                nc.instrument_depth, resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax.set_title(
             'ADCP ({}North, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+                nc.instrument_depth, resampled_str), fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -579,16 +579,16 @@ def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
         ax2.set_title('ADCP ({}East, {} average) {}-{} {}m{}'.format(
             magnetic, filter_type, nc.attrs['station'], nc.attrs['deployment_number'],
-            str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+            nc.instrument_depth, resampled_str), fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m{}'.format(
             magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-            str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+            nc.instrument_depth, resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
             'ADCP ({}East, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+                nc.instrument_depth, resampled_str), fontsize=14)
 
     # if nc.orientation == 'up':
     plt.gca().invert_yaxis()
@@ -694,18 +694,18 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
         ax1.set_title(
             'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 filter_type, along_angle, data.attrs['station'], data.attrs['deployment_number'],
-                math.ceil(data.instrument_depth), resampled_str),
+                data.instrument_depth, resampled_str),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
             'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 along_angle, data.attrs['station'], data.attrs['deployment_number'],
-                math.ceil(data.instrument_depth), resampled_str),
+                data.instrument_depth, resampled_str),
             fontsize=14)
     elif filter_type == 'raw':
         ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
             along_angle, data.attrs['station'], data.attrs['deployment_number'],
-            math.ceil(data.instrument_depth), resampled_str),
+            data.instrument_depth, resampled_str),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
@@ -725,19 +725,19 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
         ax2.set_title(
             'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 filter_type, cross_angle, data.attrs['station'], data.attrs['deployment_number'],
-                math.ceil(data.instrument_depth), resampled_str),
+                data.instrument_depth, resampled_str),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
             'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
-                str(math.ceil(data.instrument_depth)), resampled_str),
+                data.instrument_depth, resampled_str),
             fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
             'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
-                str(math.ceil(data.instrument_depth)), resampled_str),
+                data.instrument_depth, resampled_str),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
