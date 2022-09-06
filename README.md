@@ -1,5 +1,7 @@
 # pycurrents_ADCP_processing
 
+Authors: Hana Hourston, Di Wan, Lu Guan
+
 For performing "level 0" (L0), "level 1" (L1), and "level 2" (L2) processing on raw moored ADCP data in Python using the UHDAS `pycurrents` package.
 
 L0 processing does not include any processing. Raw ADCP data is combined with metadata from a csv file and exported in netCDF format. 
