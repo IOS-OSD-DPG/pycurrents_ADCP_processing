@@ -40,7 +40,7 @@ L2 processing contains:
 6. Install pycurrents:  
         `pip install -e ./pycurrents`  
 6. Clone this `pycurrents_ADCP_processing` repository with git:  
-        `git clone https://github.com/hhourston/pycurrents_ADCP_processing.git`  
+        `git clone https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing.git`  
 7. cd to the `pycurrents_ADCP_processing` directory and run "setup.py":  
         `python setup.py install`
 
