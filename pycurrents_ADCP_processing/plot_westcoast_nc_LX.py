@@ -60,7 +60,7 @@ def resolve_to_alongcross(u_true, v_true, along_angle):
     return u_along, u_cross
 
 
-def get_L1_start_end(ncdata):
+def get_L1_start_end(ncdata: xr.Dataset):
     """
     Obtain the number of leading and trailing ensembles that were set to nans in L1 processing
     from the processing_history global attribute.
@@ -142,7 +142,7 @@ def fpcdir(x, y):
         return theta
 
 
-def calculate_depths(dataset):
+def calculate_depths(dataset: xr.Dataset):
     """
     Calculate ADCP bin depths in the water column
     Inputs:
@@ -158,7 +158,7 @@ def calculate_depths(dataset):
         return float(dataset.instrument_depth) + dataset.distance.data
 
 
-def vb_flag(dataset):
+def vb_flag(dataset: xr.Dataset):
     """
     Create flag for missing vertical beam data in files from Sentinel V ADCPs
     flag = 0 if Sentinel V file has vertical beam data, or file not from Sentinel V
@@ -201,7 +201,7 @@ def get_plot_dir(filename, dest_dir):
     return plot_dir
 
 
-def plot_adcp_pressure(nc, dest_dir, resampled=None):
+def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
     """Plot pressure, PRESPR01, vs time
     :param nc: xarray dataset object from xarray.open_dataset(ncpath)
     :param dest_dir: name of subfolder to which plot will be saved
@@ -244,7 +244,7 @@ def plot_adcp_pressure(nc, dest_dir, resampled=None):
     return png_name
 
 
-def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None, resampled=None):
+def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bin_range=None, resampled=None):
     """
     Preliminary plots:
     (1) Backscatter against depth, (2) mean velocity, and (3) principle component
@@ -427,7 +427,7 @@ def plots_diagnostic(nc, dest_dir, level0=False, time_range=None, bin_range=None
     return os.path.abspath(fig_name)
 
 
-def limit_data(ncdata, ew_data, ns_data, time_range=None, bin_range=None):
+def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=None):
     """
     Limits data to be plotted to only "good" data, either automatically or with user-input
     time and bin ranges
@@ -497,7 +497,7 @@ def get_vminvmax(v1_data, v2_data):
     return vminvmax
 
 
-def make_pcolor_ne(nc, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False,
+def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False,
                    filter_type='raw', colourmap_lim=None, resampled=None):
     """
     Function for plotting north and east velocities from ADCP data.
@@ -634,7 +634,7 @@ def determine_dom_angle(u_true, v_true):
     return along_angle, cross_angle
 
 
-def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw',
+def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw',
                    along_angle=None, colourmap_lim=None, resampled=None):
     """
     Function for plotting north and east velocities from ADCP data.
@@ -758,7 +758,7 @@ def make_pcolor_ac(data, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, fil
     return os.path.abspath(plot_dir + plot_name)
 
 
-def num_ens_per_hr(nc):
+def num_ens_per_hr(nc: xr.Dataset):
     """
     Calculate the number of ensembles recorded per hour
     :param nc: dataset object obtained from reading in an ADCP netCDF file with the
@@ -772,7 +772,7 @@ def num_ens_per_hr(nc):
     return int(np.round(hr2nsec / time_incr, decimals=0))
 
 
-def filter_godin(nc):
+def filter_godin(nc: xr.Dataset):
     """
     Make North and East lowpassed plots using the simple 3-day Godin filter
     Running average of 24 hours first, then another time with a 24 hour filter,
@@ -820,7 +820,7 @@ def filter_godin(nc):
     return ew_filt_final, ns_filt_final
 
 
-def filter_XXh(nc, num_hrs=30):
+def filter_XXh(nc: xr.Dataset, num_hrs=30):
     """
     Perform XXh averaging on velocity data (30-hour, 35-hour, ...)
     :param nc: xarray Dataset-type object from reading in a netCDF file; contains 1D numpy
@@ -855,7 +855,7 @@ def filter_XXh(nc, num_hrs=30):
     return ew_filt_final, ns_filt_final
 
 
-def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, direction,
+def binplot_compare_filt(nc: xr.Dataset, dest_dir, time, dat_raw, dat_filt, filter_type, direction,
                          resampled=None):
     """
     Function to take one bin from the unfiltered (raw) data and the corresponding bin in
@@ -934,7 +934,7 @@ def binplot_compare_filt(nc, dest_dir, time, dat_raw, dat_filt, filter_type, dir
     return os.path.abspath(plot_dir + plot_name)
 
 
-def resample_adcp_interp(ncname, ncdata):
+def resample_adcp_interp(ncname, ncdata: xr.Dataset):
     # Code from Di Wan
     # Not implemented because this method "creates" data
     u1 = ncdata.resample(time='5min').interpolate("linear")
@@ -962,7 +962,7 @@ def resample_adcp_interp(ncname, ncdata):
     return ncout_name
 
 
-def resample_adcp_manual(ncname, ncdata, dest_dir):
+def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
     """Resample netCDF ADCP file for plotting by extracting one ensemble (measurement)
     per 30 min
     :param ncname: Full name including path of the netCDF file
