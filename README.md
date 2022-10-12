@@ -17,7 +17,8 @@ L2 processing contains:
 * Flagging data in bins where calculated pressure is negative
 * Flagging data by backscatter increases in upward-facing ADCPs
 * Flagging data below the depth of the sea floor in downward-facing ADCPs
-* Calculation of pressure data from CTD pressure data from the same deployment (if the ADCP was missing a pressure sensor)
+* Optional: Calculation of pressure data from CTD pressure data from the same deployment (if the ADCP was missing a pressure sensor)
+* Optional: Splitting the dataset into segments if there are pressure changes due to mooring strikes. The user must provide the date-times or ensembles at which to split the dataset
 
 *add_var2nc.py* adds a geographic_area variable to a netCDF file from either the L0 or L1 process and exports a new netCDF file containing this addition.
 
