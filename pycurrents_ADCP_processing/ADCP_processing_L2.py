@@ -851,8 +851,8 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
     dsout.attrs['time_coverage_duration'] = dsout.time.data[-1] - dsout.time.data[0]
     dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
     # string format
-    dsout.attrs['time_coverage_start'] = dsout.DTUT8601.data[start_idx] + ' UTC'
-    dsout.attrs['time_coverage_end'] = dsout.DTUT8601.data[end_idx] + ' UTC'
+    dsout.attrs['time_coverage_start'] = dsout.DTUT8601.data[0] + ' UTC'
+    dsout.attrs['time_coverage_end'] = dsout.DTUT8601.data[-1] + ' UTC'
 
     return dsout
 
