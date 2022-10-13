@@ -227,16 +227,17 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
         plt.title("{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
                                              nc.instrument_serial_number.data))
 
-        png_name = plot_dir + "{}_{}_{}_PRESPR01.png".format(
-            nc.station, nc.deployment_number, nc.instrument_serial_number.data)
+        png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
+            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
+            nc.instrument_depth)
     else:
         plt.title("{}-{} {} PRESPR01 {} subsampled".format(
             nc.station, nc.deployment_number, nc.instrument_serial_number.data,
             resampled))
 
-        png_name = plot_dir + "{}_{}_{}_PRESPR01_{}_subsamp.png".format(
+        png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01_{}_subsamp.png".format(
             nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            resampled)
+            nc.instrument_depth, resampled)
     
     fig.savefig(png_name)
     plt.close(fig)
@@ -393,8 +394,9 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     f3 = ax.plot(orientation, depths, linewidth=1, marker='o', markersize=2)
     ax.set_ylim(depths[-1], depths[0])  # set vertical limits
     ax.set_xlabel('Orientation')
-    ax.text(x=middle_orientation, y=mean_depth, s='Mean orientation = {}$^\circ$'.format(
-        str(mean_orientation)), horizontalalignment='center', verticalalignment='center',
+    ax.text(x=middle_orientation, y=mean_depth,
+            s='Mean orientation = {}$^\circ$'.format(str(mean_orientation)),
+            horizontalalignment='center', verticalalignment='center',
             fontsize=10)
     ax.grid()  # set grid
     ax.tick_params(axis='both', direction='in', top=True, right=True)
@@ -412,14 +414,16 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     if resampled is None:
         fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.serial_number,
                                                      nc.instrument_depth), fontweight='semibold')
-        fig_name = plot_dir + '{}-{}_{}_nc_diagnostic.png'.format(
-            nc.station, str(nc.deployment_number), nc.serial_number)
+        fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic.png'.format(
+            nc.station, str(nc.deployment_number), nc.serial_number,
+            nc.instrument_depth)
     else:
         fig.suptitle('{}-{} {} at {} m depth, {} subsampled'.format(
             nc.station, nc.deployment_number, nc.serial_number, nc.instrument_depth, resampled),
             fontweight='semibold')
-        fig_name = plot_dir + '{}-{}_{}_nc_diagnostic_{}_subsamp.png'.format(
-            nc.station, str(nc.deployment_number), nc.serial_number, resampled)
+        fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic_{}_subsamp.png'.format(
+            nc.station, str(nc.deployment_number), nc.serial_number,
+            nc.instrument_depth, resampled)
 
     fig.savefig(fig_name)
     plt.close()

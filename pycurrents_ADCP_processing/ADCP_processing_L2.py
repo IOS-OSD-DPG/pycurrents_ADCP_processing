@@ -965,7 +965,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
         # only use the "date" part of the datetime
         # format the depth to 4 string characters by adding zeros if necessary
         out_segment_name = '{}_{}_{}_{}m.adcp.L2.nc'.format(
-            nc_adcp.station,
+            nc_adcp.station.lower(),
             nc_adcp.DTUT8601.data[st_idx][:10].replace('-', ''),
             nc_adcp.DTUT8601.data[en_idx][:10].replace('-', ''),
             f'000{str(int(np.round(depth, 0)))}'[-4:])
