@@ -706,7 +706,11 @@ def reset_vel_minmaxes(d):
 
 
 def get_user_segment_start_end_idx_depth(
-        segment_starts_ends, pressure, latitude, datetime_pd: np.ndarray):
+        segment_starts_ends, pressure, latitude,
+        datetime_pd: np.ndarray, original_instr_depth: float):
+    # Assume the first segment instrument depth was already correct
+    # before the mooring was displaced, so pass the original depth here
+
     # Convert the user-input segment starts and ends into usable format
     if type(segment_starts_ends) == dict:
         # Determine the type of the objects in the list
@@ -752,15 +756,17 @@ def get_user_segment_start_end_idx_depth(
                        segment_start_end_idx.values()):
         # Height (positive up) must be converted to depth (positive down)
         # Round to 1 decimal place
-        segment_instrument_depths[i] = np.round(np.nanmean(
-                -gsw.z_from_p(pressure[k: v], latitude)), 1)
+        if i == 0:
+            segment_instrument_depths[i] = original_instr_depth
+        else:
+            segment_instrument_depths[i] = np.round(np.nanmean(
+                    -gsw.z_from_p(pressure[k: v], latitude)), 1)
 
     return segment_start_end_idx, segment_instrument_depths
 
 
 def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
                              end_idx: int, instrument_depth: float):
-    # Have to do all subsetting manually?
 
     # Add variables
     # dsout = dsout.assign(LCEWAP01=ds['LCEWAP01'])
@@ -913,7 +919,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
     # and a numpy array of depths with length equal to the dictionary
     segment_start_end_idx, segment_instr_depths = get_user_segment_start_end_idx_depth(
         segment_starts_ends, nc_adcp.PRESPR01.data, nc_adcp.latitude,
-        nc_adcp.time.data
+        nc_adcp.time.data, nc_adcp.instrument_depth
     )
 
     # Initialize list to hold the file names of all netcdf files to be output
