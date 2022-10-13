@@ -805,7 +805,7 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
 
     # Add attributes and encoding back to the variables
     for var in dsout.keys():
-        for attr, attr_val in ds[var].items():
+        for attr, attr_val in ds[var].attrs.items():
             var.attrs[attr] = attr_val
 
     # Add global attributes
