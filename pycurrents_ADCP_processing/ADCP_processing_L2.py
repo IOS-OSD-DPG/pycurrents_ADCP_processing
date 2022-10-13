@@ -845,10 +845,13 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
         'time_coverage_duration', 'source', 'time_coverage_start',
         'time_coverage_end']
 
+    ns_to_days = 1./(60 * 60 * 24 * 1e9)
+
     dsout.attrs['instrument_depth'] = instrument_depth
     dsout.attrs['processing_history'] += ' The data were segmented by pressure changes likely due to a mooring strike.'
     # duration must be in decimal days format
-    dsout.attrs['time_coverage_duration'] = dsout.time.data[-1] - dsout.time.data[0]
+    dsout.attrs['time_coverage_duration'] = float(
+        dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
     dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
     # string format
     dsout.attrs['time_coverage_start'] = dsout.DTUT8601.data[0] + ' UTC'
