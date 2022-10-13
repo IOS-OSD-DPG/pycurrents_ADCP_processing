@@ -229,7 +229,7 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
 
         png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
             nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            nc.instrument_depth)
+            int(np.round(nc.instrument_depth, 0)))
     else:
         plt.title("{}-{} {} PRESPR01 {} subsampled".format(
             nc.station, nc.deployment_number, nc.instrument_serial_number.data,
@@ -237,7 +237,7 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
 
         png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01_{}_subsamp.png".format(
             nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            nc.instrument_depth, resampled)
+            int(np.round(nc.instrument_depth, 0)), resampled)
     
     fig.savefig(png_name)
     plt.close(fig)
@@ -413,17 +413,18 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     # Create centred figure title
     if resampled is None:
         fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.serial_number,
-                                                     nc.instrument_depth), fontweight='semibold')
+                                                     np.round(nc.instrument_depth, 1)), fontweight='semibold')
         fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic.png'.format(
             nc.station, str(nc.deployment_number), nc.serial_number,
-            nc.instrument_depth)
+            int(np.round(nc.instrument_depth, 0)))
     else:
         fig.suptitle('{}-{} {} at {} m depth, {} subsampled'.format(
-            nc.station, nc.deployment_number, nc.serial_number, nc.instrument_depth, resampled),
+            nc.station, nc.deployment_number, nc.serial_number,
+            np.round(nc.instrument_depth, 1), resampled),
             fontweight='semibold')
         fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic_{}_subsamp.png'.format(
             nc.station, str(nc.deployment_number), nc.serial_number,
-            nc.instrument_depth, resampled)
+            int(np.round(nc.instrument_depth, 0)), resampled)
 
     fig.savefig(fig_name)
     plt.close()

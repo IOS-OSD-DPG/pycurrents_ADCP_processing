@@ -805,35 +805,25 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
 
     # Add attributes and encoding back to the variables
     for var in dsout.keys():
+        try:
+            dsout[var].encoding['_FillValue'] = ds[var].encoding['_FillValue']
+        except KeyError:
+            pass
         for attr, attr_val in ds[var].attrs.items():
             # Recalculate data min and max
             if attr == 'data_min':
-                if 'time' in ds[var].coords:
-                    if 'distance' in ds[var].coords:
-                        ds[var].attrs[attr] = np.nanmin(
-                            ds[var].data[:, start_idx:end_idx])
-                    else:
-                        ds[var].attrs[attr] = np.nanmin(
-                            ds[var].data[start_idx:end_idx])
-                elif 'distance' in ds[var].coords:
-                    ds[var].attrs[attr] = np.nanmin(
-                        ds[var].data)
+                dsout[var].attrs[attr] = np.nanmin(
+                    dsout[var].data)
             elif attr == 'data_max':
-                if 'time' in ds[var].coords:
-                    if 'distance' in ds[var].coords:
-                        ds[var].attrs[attr] = np.nanmax(
-                            ds[var].data[:, start_idx:end_idx])
-                    else:
-                        ds[var].attrs[attr] = np.nanmax(
-                            ds[var].data[start_idx:end_idx])
-                elif 'distance' in ds[var].coords:
-                    ds[var].attrs[attr] = np.nanmax(
-                        ds[var].data)
+                dsout[var].attrs[attr] = np.nanmax(
+                    dsout[var].data)
             # Update sensor depth for each segment
             elif attr == 'sensor_depth':
-                ds[var].attrs[attr] = instrument_depth
+                dsout[var].attrs[attr] = instrument_depth
             else:
-                ds[var].attrs[attr] = attr_val
+                dsout[var].attrs[attr] = attr_val
+
+        # todo add _FillValue variable encoding
 
     # Add global attributes
     for key, value in ds.attrs.items():
@@ -951,7 +941,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
         segment_starts_ends, nc_adcp.PRESPR01.data, nc_adcp.latitude,
         nc_adcp.time.data, nc_adcp.instrument_depth
     )
-
+    print(segment_instr_depths)
     # Initialize list to hold the file names of all netcdf files to be output
     segment_filenames = []
 
