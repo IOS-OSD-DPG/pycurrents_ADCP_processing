@@ -806,7 +806,34 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
     # Add attributes and encoding back to the variables
     for var in dsout.keys():
         for attr, attr_val in ds[var].attrs.items():
-            var.attrs[attr] = attr_val
+            # Recalculate data min and max
+            if attr == 'data_min':
+                if 'time' in ds[var].coords:
+                    if 'distance' in ds[var].coords:
+                        ds[var].attrs[attr] = np.nanmin(
+                            ds[var].data[:, start_idx:end_idx])
+                    else:
+                        ds[var].attrs[attr] = np.nanmin(
+                            ds[var].data[start_idx:end_idx])
+                elif 'distance' in ds[var].coords:
+                    ds[var].attrs[attr] = np.nanmin(
+                        ds[var].data)
+            elif attr == 'data_max':
+                if 'time' in ds[var].coords:
+                    if 'distance' in ds[var].coords:
+                        ds[var].attrs[attr] = np.nanmax(
+                            ds[var].data[:, start_idx:end_idx])
+                    else:
+                        ds[var].attrs[attr] = np.nanmax(
+                            ds[var].data[start_idx:end_idx])
+                elif 'distance' in ds[var].coords:
+                    ds[var].attrs[attr] = np.nanmax(
+                        ds[var].data)
+            # Update sensor depth for each segment
+            elif attr == 'sensor_depth':
+                ds[var].attrs[attr] = instrument_depth
+            else:
+                ds[var].attrs[attr] = attr_val
 
     # Add global attributes
     for key, value in ds.attrs.items():
