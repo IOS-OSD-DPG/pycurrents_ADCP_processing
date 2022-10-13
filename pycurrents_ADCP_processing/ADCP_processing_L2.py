@@ -832,21 +832,30 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
     # Update any attributes that are depth- and/or time-dependent
     GLOBAL_ATTRS_TO_UPDATE = [
         'instrument_depth', 'processing_history',
-        'time_coverage_duration', 'source', 'time_coverage_start',
-        'time_coverage_end']
+        'time_coverage_duration', 'time_coverage_start', 'source',
+        'time_coverage_end', 'geospatial_vertical_min',
+        'geospatial_vertical_max']
 
     ns_to_days = 1./(60 * 60 * 24 * 1e9)
+
+    if dsout.orientation == 'up':
+        geospatial_vertical_min = dsout.instrument_depth - np.nanmax(dsout.distance.data)
+        geospatial_vertical_max = dsout.instrument_depth - np.nanmin(dsout.distance.data)
+    elif dsout.orientation == 'down':
+        geospatial_vertical_min = dsout.instrument_depth + np.nanmin(dsout.distance.data)
+        geospatial_vertical_max = dsout.instrument_depth + np.nanmax(dsout.distance.data)
 
     dsout.attrs['instrument_depth'] = instrument_depth
     dsout.attrs['processing_history'] += ' The data were segmented by pressure changes likely due to a mooring strike.'
     # duration must be in decimal days format
     dsout.attrs['time_coverage_duration'] = float(
         dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
-    dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
+    # dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
     # string format
     dsout.attrs['time_coverage_start'] = dsout.DTUT8601.data[0] + ' UTC'
     dsout.attrs['time_coverage_end'] = dsout.DTUT8601.data[-1] + ' UTC'
-
+    dsout.attrs['geospatial_vertical_min'] = geospatial_vertical_min
+    dsout.attrs['geospatial_vertical_max'] = geospatial_vertical_max
     return dsout
 
 
