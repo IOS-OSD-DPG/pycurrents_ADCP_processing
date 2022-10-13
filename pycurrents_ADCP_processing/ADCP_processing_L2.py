@@ -8,6 +8,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import warnings
 import pandas as pd
+import gsw
 from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
 
 
@@ -704,7 +705,126 @@ def reset_vel_minmaxes(d):
     return
 
 
-def create_nc_L2(f_adcp, dest_dir, f_ctd=None):
+def get_user_segment_start_end_idx_depth(
+        segment_starts_ends, pressure, latitude, datetime_pd: np.ndarray):
+    # Convert the user-input segment starts and ends into usable format
+    if type(segment_starts_ends) == dict:
+        # Determine the type of the objects in the list
+        if all([type(k) == str for k in segment_starts_ends.keys()]):
+            # object is a datetime in string format 'YYYYMMDD HH:MM:SS'
+            segment_starts_ends = {
+                pd.to_datetime(k): pd.to_datetime(v)
+                for k, v in segment_starts_ends.items()
+            }
+            # Convert it to an index (integer type)
+            idx = {}
+            for k, v in segment_starts_ends.items():
+                idx_k = np.where(
+                    abs(datetime_pd - pd.to_datetime(k)
+                        ) == min(abs(datetime_pd - pd.to_datetime(k)))
+                )[0]
+                print(idx_k)
+                idx_v = np.where(
+                    abs(datetime_pd - pd.to_datetime(v)
+                        ) == min(abs(datetime_pd - pd.to_datetime(v)))
+                )[0]
+                idx[idx_k[0]] = idx_v[0]
+            segment_start_end_idx = idx
+        elif all([type(k) == int for k in segment_starts_ends.keys()]):
+            segment_start_end_idx = segment_starts_ends
+    elif segment_starts_ends is None:
+        segment_start_end_idx = {0: len(datetime_pd)}  # {0: -1}??
+    else:
+        print(
+            f'Error: segment start and end items are type {type(segment_starts_ends)} and must be dict or None'
+        )
+
+    # Add 1 to the end index because python indexing is not inclusive
+    for k, v in segment_start_end_idx.items():
+        segment_start_end_idx[k] = v + 1
+
+    # Get the mean instrument depth for each segment
+    segment_instrument_depths = np.zeros(
+        len(segment_start_end_idx), dtype='float32')
+
+    for i, k, v in zip(range(len(segment_start_end_idx)),
+                       segment_start_end_idx.keys(),
+                       segment_start_end_idx.values()):
+        # Height (positive up) must be converted to depth (positive down)
+        # Round to 1 decimal place
+        segment_instrument_depths[i] = np.round(np.nanmean(
+                -gsw.z_from_p(pressure[k: v], latitude)), 1)
+
+    return segment_start_end_idx, segment_instrument_depths
+
+
+def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
+                             end_idx: int, instrument_depth: float):
+    # Have to do all subsetting manually?
+
+    # Add variables
+    # dsout = dsout.assign(LCEWAP01=ds['LCEWAP01'])
+    var_dict = {}
+    for key in ds.data_vars.keys():
+        if key == 'filename':
+            var_dict[key] = ([], ds[key].data)
+        elif 'time' in ds[key].coords:
+            if 'distance' in ds[key].coords:
+                var_dict[key] = (['distance', 'time'],
+                                 ds[key].data[:, start_idx:end_idx])
+            else:
+                var_dict[key] = (['time'],
+                                 ds[key].data[start_idx:end_idx])
+        elif 'distance' in ds[key].coords:
+            var_dict[key] = (['distance'], ds[key].data)
+        else:
+            var_dict[key] = ([], ds[key].data)
+
+    # for key in ds.data_vars.keys():
+    #     dsout = dsout.assign(key=ds[key])
+    #     if 'time' in ds[key].coords:
+    #         if 'distance' in ds[key].coords:
+    #             dsout = dsout.assign(
+    #                 key=(('distance', 'time'),
+    #                      ds[key].data[start_idx:end_idx, :]))
+    #         else:
+    #             dsout = dsout.assign(
+    #                 key=(('time'), ds[key].data[start_idx:end_idx]))
+    #     else:
+    #         dsout = dsout.assign(key=ds[key])
+
+    dsout = xr.Dataset(
+        coords={'time': ds.time.data[start_idx:end_idx],
+                'distance': ds.distance.data}, data_vars=var_dict)
+
+    # Add attributes and encoding back to the variables
+    for var in dsout.keys():
+        for attr, attr_val in ds[var].items():
+            var.attrs[attr] = attr_val
+
+    # Add global attributes
+    for key, value in ds.attrs.items():
+        dsout.attrs[key] = value
+
+    # Update any attributes that are depth- and/or time-dependent
+    GLOBAL_ATTRS_TO_UPDATE = [
+        'instrument_depth', 'processing_history',
+        'time_coverage_duration', 'source', 'time_coverage_start',
+        'time_coverage_end']
+
+    dsout.attrs['instrument_depth'] = instrument_depth
+    dsout.attrs['processing_history'] += ' The data were segmented by pressure changes likely due to a mooring strike.'
+    # duration must be in decimal days format
+    dsout.attrs['time_coverage_duration'] = dsout.time.data[-1] - dsout.time.data[0]
+    dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
+    # string format
+    dsout.attrs['time_coverage_start'] = dsout.DTUT8601.data[start_idx] + ' UTC'
+    dsout.attrs['time_coverage_end'] = dsout.DTUT8601.data[end_idx] + ' UTC'
+
+    return dsout
+
+
+def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=None):
     """
     Function for performing the suite of L2 processing methods on netCDF ADCP
     data.
@@ -718,19 +838,19 @@ def create_nc_L2(f_adcp, dest_dir, f_ctd=None):
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
 
-    # Set name for new output netCDF
-    nc_out_name = os.path.basename(f_adcp).replace('L1', 'L2')
-    print(nc_out_name)
-    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
-        out_absolute_name = os.path.abspath(dest_dir + '/' + nc_out_name)
-    else:
-        out_absolute_name = os.path.abspath(dest_dir + nc_out_name)
+    # # Set name for new output netCDF
+    # nc_out_name = os.path.basename(f_adcp).replace('L1', 'L2')
+    # print(nc_out_name)
+    # if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
+    #     out_absolute_name = os.path.abspath(dest_dir + '/' + nc_out_name)
+    # else:
+    #     out_absolute_name = os.path.abspath(dest_dir + nc_out_name)
 
     # Open netCDF ADCP file
     nc_adcp = xr.open_dataset(f_adcp)
 
-    # Change value of filename variable to include "L2" instead of "L1"
-    nc_adcp = nc_adcp.assign(filename=((), nc_out_name[:-3]))
+    # # Change value of filename variable to include "L2" instead of "L1"
+    # nc_adcp = nc_adcp.assign(filename=((), nc_out_name[:-3]))
 
     # Produce pre-processing plots
     plot_diagn = pwl.plots_diagnostic(nc_adcp, dest_dir)
@@ -787,16 +907,57 @@ def create_nc_L2(f_adcp, dest_dir, f_ctd=None):
     # Set bad velocity data to nans
     bad_2_nan(d=nc_adcp)
 
-    # Export the dataset object as a new netCDF file
-    nc_adcp.to_netcdf(out_absolute_name, mode='w', format='NETCDF4')
-    print('Exported L2 netCDF file')
+    # Add segmentation by pressure changes
+    # User inputs indices or datetimes
+    # returns a dictionary of the start and end indices of format {start: end}
+    # and a numpy array of depths with length equal to the dictionary
+    segment_start_end_idx, segment_instr_depths = get_user_segment_start_end_idx_depth(
+        segment_starts_ends, nc_adcp.PRESPR01.data, nc_adcp.latitude,
+        nc_adcp.time.data
+    )
 
-    nc_adcp.close()
+    # Initialize list to hold the file names of all netcdf files to be output
+    segment_filenames = []
 
+    for st_idx, en_idx, depth in zip(
+            segment_start_end_idx.keys(), segment_start_end_idx.values(),
+            segment_instr_depths
+    ):
+        # Generate as many file names as there are segments of data
+        # where the segments were determined from pressure changes
+        # based on the start and end times of the segments and their depths
+        # only use the "date" part of the datetime
+        # format the depth to 4 string characters by adding zeros if necessary
+        out_segment_name = '{}_{}_{}_{}m.adcp.L2.nc'.format(
+            nc_adcp.station,
+            nc_adcp.DTUT8601.data[st_idx][:10].replace('-', ''),
+            nc_adcp.DTUT8601.data[en_idx][:10].replace('-', ''),
+            f'000{str(int(np.round(depth, 0)))}'[-4:])
+
+        absolute_segment_name = os.path.join(dest_dir, out_segment_name)
+
+        segment_filenames.append(absolute_segment_name)
+
+        # split the dataset by creating subsets from the original
+        ds_segment = make_subset_from_dataset(nc_adcp, st_idx, en_idx, depth)
+
+        # Make plot of pressure to show change if dataset is split
+        if len(segment_instr_depths) > 1:
+            segment_pres_plot_name = pwl.plot_adcp_pressure(ds_segment, dest_dir)
+
+        # Export the dataset object as a new netCDF file
+        ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
+        print(f'Exported L2 netCDF file {out_segment_name}')
+
+        ds_segment.close()
+
+    files_to_return = [*segment_filenames, plot_diagn, plot_backsc]
     if flag_static_pres == 1:
-        return [out_absolute_name, plot_diagn, plot_pres_comp, plot_backsc]
-    else:
-        return [out_absolute_name, plot_diagn, plot_backsc]
+        files_to_return.append(plot_pres_comp)
+    elif len(segment_instr_depths) > 1:
+        files_to_return.append(segment_pres_plot_name)
+
+    return files_to_return
 
 
 def example_L2_1():
