@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import warnings
 import pandas as pd
 import gsw
+from datetime import datetime, timezone
 from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
 
 
@@ -769,15 +770,20 @@ def get_segment_start_end_idx_depth(
     return segment_start_end_idx, segment_instrument_depths, ds_is_split
 
 
-def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
-                             end_idx: int, instrument_depth: float,
-                             ds_is_split: bool):
+def make_subset_from_dataset(
+        ds: xr.Dataset, start_idx: int, end_idx: int,
+        instrument_depth: float, ds_is_split: bool, new_filename: str,
+        recovery_lat_lon=None):
 
     # Add variables
     var_dict = {}
     for key in ds.data_vars.keys():
         if key == 'filename':
-            var_dict[key] = ([], ds[key].data)
+            var_dict[key] = ([], new_filename)
+        elif key in ['latitude', 'ALATZZ01'] and recovery_lat_lon is not None:
+            var_dict[key] = ([], recovery_lat_lon[0])
+        elif key in ['longitude', 'ALONZZ01'] and recovery_lat_lon is not None:
+            var_dict[key] = ([], recovery_lat_lon[1])
         elif 'time' in ds[key].coords:
             if 'distance' in ds[key].coords:
                 var_dict[key] = (['distance', 'time'],
@@ -818,12 +824,14 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
     for key, value in ds.attrs.items():
         dsout.attrs[key] = value
 
-    # Update any attributes that are depth- and/or time-dependent
+    # todo Update any attributes that are depth- and/or time-dependent
     GLOBAL_ATTRS_TO_UPDATE = [
         'instrument_depth', 'processing_history',
         'time_coverage_duration', 'time_coverage_start', 'source',
         'time_coverage_end', 'geospatial_vertical_min',
-        'geospatial_vertical_max']
+        'geospatial_vertical_max', 'date_modified',
+        'geospatial_lat_min', 'geospatial_lat_max',
+        'geospatial_lon_min', 'geospatial_lon_max']
 
     ns_to_days = 1./(60 * 60 * 24 * 1e9)
 
@@ -847,10 +855,18 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
     dsout.attrs['time_coverage_end'] = dsout.DTUT8601.data[-1] + ' UTC'
     dsout.attrs['geospatial_vertical_min'] = geospatial_vertical_min
     dsout.attrs['geospatial_vertical_max'] = geospatial_vertical_max
+    dsout.attrs['date_modified'] = datetime.now(timezone.utc).strftime(
+        '%Y-%m-%d %H:%M:%S UTC')
+    if recovery_lat_lon is not None:
+        dsout.attrs['geospatial_lat_min'] = recovery_lat_lon[0]
+        dsout.attrs['geospatial_lat_max'] = recovery_lat_lon[0]
+        dsout.attrs['geospatial_lon_min'] = recovery_lat_lon[1]
+        dsout.attrs['geospatial_lon_max'] = recovery_lat_lon[1]
     return dsout
 
 
-def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=None):
+def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None,
+                 segment_starts_ends=None, recovery_lat_lon=None):
     """
     Function for performing the suite of L2 processing methods on netCDF ADCP
     data.
@@ -958,9 +974,9 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
     # Initialize list to hold the file names of all netcdf files to be output
     segment_filenames = []
 
-    for st_idx, en_idx, depth in zip(
+    for st_idx, en_idx, i in zip(
             segment_st_en_idx.keys(), segment_st_en_idx.values(),
-            segment_instr_depths
+            range(len(segment_instr_depths))
     ):
         # Generate as many file names as there are segments of data
         # where the segments were determined from pressure changes
@@ -975,15 +991,21 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
             nc_adcp.station.lower(),
             nc_adcp.DTUT8601.data[st_idx][:10].replace('-', ''),
             nc_adcp.DTUT8601.data[en_idx - 1][:10].replace('-', ''),
-            f'000{str(int(np.round(depth, 0)))}'[-4:])
+            f'000{str(int(np.round(segment_instr_depths[i], 0)))}'[-4:])
 
         absolute_segment_name = os.path.join(dest_dir, out_segment_name)
 
         segment_filenames.append(absolute_segment_name)
 
         # split the dataset by creating subsets from the original
-        ds_segment = make_subset_from_dataset(nc_adcp, st_idx, en_idx, depth,
-                                              ds_is_split)
+        if i < len(segment_instr_depths) - 1:
+            ds_segment = make_subset_from_dataset(
+                nc_adcp, st_idx, en_idx, segment_instr_depths[i],
+                ds_is_split, out_segment_name)
+        elif i == len(segment_instr_depths) - 1:
+            ds_segment = make_subset_from_dataset(
+                nc_adcp, st_idx, en_idx, segment_instr_depths[i],
+                ds_is_split, out_segment_name, recovery_lat_lon)
 
         # Make plot of pressure to show change if dataset is split
         if len(segment_instr_depths) > 1:
