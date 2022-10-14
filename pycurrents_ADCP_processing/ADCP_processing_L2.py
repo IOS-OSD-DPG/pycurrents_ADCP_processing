@@ -737,7 +737,7 @@ def get_user_segment_start_end_idx_depth(
         elif all([type(k) == int for k in segment_starts_ends.keys()]):
             segment_start_end_idx = segment_starts_ends
     elif segment_starts_ends is None:
-        segment_start_end_idx = {0: len(datetime_pd)}  # {0: -1}??
+        segment_start_end_idx = {0: len(datetime_pd) - 1}  # {0: -1}??
     else:
         print(
             f'Error: segment start and end items are type {type(segment_starts_ends)} and must be dict or None'
