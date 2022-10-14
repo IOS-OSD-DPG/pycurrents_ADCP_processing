@@ -705,11 +705,14 @@ def reset_vel_minmaxes(d):
     return
 
 
-def get_user_segment_start_end_idx_depth(
+def get_segment_start_end_idx_depth(
         segment_starts_ends, pressure, latitude,
         datetime_pd: np.ndarray, original_instr_depth: float):
     # Assume the first segment instrument depth was already correct
     # before the mooring was displaced, so pass the original depth here
+
+    # Create flag
+    ds_is_split = True
 
     # Convert the user-input segment starts and ends into usable format
     if type(segment_starts_ends) == dict:
@@ -738,6 +741,7 @@ def get_user_segment_start_end_idx_depth(
             segment_start_end_idx = segment_starts_ends
     elif segment_starts_ends is None:
         segment_start_end_idx = {0: len(datetime_pd) - 1}  # {0: -1}??
+        ds_is_split = False
     else:
         print(
             f'Error: segment start and end items are type {type(segment_starts_ends)} and must be dict or None'
@@ -762,14 +766,14 @@ def get_user_segment_start_end_idx_depth(
             segment_instrument_depths[i] = np.round(np.nanmean(
                     -gsw.z_from_p(pressure[k: v], latitude)), 1)
 
-    return segment_start_end_idx, segment_instrument_depths
+    return segment_start_end_idx, segment_instrument_depths, ds_is_split
 
 
 def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
-                             end_idx: int, instrument_depth: float):
+                             end_idx: int, instrument_depth: float,
+                             ds_is_split: bool):
 
     # Add variables
-    # dsout = dsout.assign(LCEWAP01=ds['LCEWAP01'])
     var_dict = {}
     for key in ds.data_vars.keys():
         if key == 'filename':
@@ -831,7 +835,9 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
         geospatial_vertical_max = dsout.instrument_depth + np.nanmax(dsout.distance.data)
 
     dsout.attrs['instrument_depth'] = instrument_depth
-    dsout.attrs['processing_history'] += ' The data were segmented by pressure changes likely due to a mooring strike.'
+    if ds_is_split:
+        dsout.attrs['processing_history'] += ' The data were segmented by pressure ' \
+                                             'changes possibly due to a mooring strike.'
     # duration must be in decimal days format
     dsout.attrs['time_coverage_duration'] = float(
         dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
@@ -850,7 +856,8 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
     data.
     Inputs:
         - The name of a netCDF ADCP file
-        - The name of a netCDF CTD file (required if ADCP file didn't have pressure sensor data
+        - The name of a netCDF CTD file
+          (required if ADCP file didn't have pressure sensor data)
     Outputs:
         - The name of the output netCDF ADCP file
     """
@@ -943,7 +950,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
     # User inputs indices or datetimes
     # returns a dictionary of the start and end indices of format {start: end}
     # and a numpy array of depths with length equal to the dictionary
-    segment_st_en_idx, segment_instr_depths = get_user_segment_start_end_idx_depth(
+    segment_st_en_idx, segment_instr_depths, ds_is_split = get_segment_start_end_idx_depth(
         segment_starts_ends, nc_adcp.PRESPR01.data, nc_adcp.latitude,
         nc_adcp.time.data, nc_adcp.instrument_depth
     )
@@ -975,7 +982,8 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
         segment_filenames.append(absolute_segment_name)
 
         # split the dataset by creating subsets from the original
-        ds_segment = make_subset_from_dataset(nc_adcp, st_idx, en_idx, depth)
+        ds_segment = make_subset_from_dataset(nc_adcp, st_idx, en_idx, depth,
+                                              ds_is_split)
 
         # Make plot of pressure to show change if dataset is split
         if len(segment_instr_depths) > 1:
