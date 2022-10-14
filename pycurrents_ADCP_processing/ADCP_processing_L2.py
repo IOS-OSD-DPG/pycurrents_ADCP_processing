@@ -786,19 +786,6 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
         else:
             var_dict[key] = ([], ds[key].data)
 
-    # for key in ds.data_vars.keys():
-    #     dsout = dsout.assign(key=ds[key])
-    #     if 'time' in ds[key].coords:
-    #         if 'distance' in ds[key].coords:
-    #             dsout = dsout.assign(
-    #                 key=(('distance', 'time'),
-    #                      ds[key].data[start_idx:end_idx, :]))
-    #         else:
-    #             dsout = dsout.assign(
-    #                 key=(('time'), ds[key].data[start_idx:end_idx]))
-    #     else:
-    #         dsout = dsout.assign(key=ds[key])
-
     dsout = xr.Dataset(
         coords={'time': ds.time.data[start_idx:end_idx],
                 'distance': ds.distance.data}, data_vars=var_dict)
@@ -822,8 +809,6 @@ def make_subset_from_dataset(ds: xr.Dataset, start_idx: int,
                 dsout[var].attrs[attr] = instrument_depth
             else:
                 dsout[var].attrs[attr] = attr_val
-
-        # todo add _FillValue variable encoding
 
     # Add global attributes
     for key, value in ds.attrs.items():
@@ -895,11 +880,16 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
         # Identify bins through time series where their pressure is negative
         if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
             flag_static_pres += 1
-            warnings.warn('Pressure was calculated from static instrument depth in L1', UserWarning)
+            warnings.warn(
+                'Pressure was calculated from static instrument depth in L1',
+                UserWarning)
+
+        if f_ctd is not None:
             nc_sbe = xr.open_dataset(f_ctd)
 
             # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe, name_ctd=f_ctd)
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe,
+                                       name_ctd=f_ctd)
 
             # Plot static and CTD-derived pressures
             plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
@@ -910,33 +900,40 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
             # Flag bad bins by negative pressure values
             flag_by_pres(d=nc_adcp)
 
-        # Identify bins through time series where their backscatter increases, get list of their indices
+        # Identify bins through time series where their backscatter
+        # increases, get list of their indices
         flag_by_backsc(d=nc_adcp)
 
-        # Make QC plots showing time-averaged negative pressure and backscatter increases
+        # Make QC plots showing time-averaged negative pressure and
+        # backscatter increases
         plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
     else:
         # orientation == 'down'
         if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
             flag_static_pres += 1
-            warnings.warn('Pressure was calculated from static instrument depth in L1', UserWarning)
+            warnings.warn(
+                'Pressure was calculated from static instrument depth in L1',
+                UserWarning)
+
+        if f_ctd is not None:
             nc_sbe = xr.open_dataset(f_ctd)
 
             # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe, name_ctd=f_ctd)
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe,
+                                       name_ctd=f_ctd)
 
             # Plot static and CTD-derived pressures
             plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
 
             # Flag bad bins by negative pressure values
             flag_by_pres(d=nc_adcp, use_prexmcat=True)
-        else:
-            pass
 
-        # Identify bins through time series that are below the depth of the ocean floor
+        # Identify bins through time series that are below the depth
+        # of the ocean floor
         flag_below_seafloor(d=nc_adcp)
 
-        # Make QC plots showing time-averaged flagged bins that are below ocean floor depth
+        # Make QC plots showing time-averaged flagged bins that are below
+        # ocean floor depth
         plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
 
     # Set bad velocity data to nans
@@ -946,7 +943,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
     # User inputs indices or datetimes
     # returns a dictionary of the start and end indices of format {start: end}
     # and a numpy array of depths with length equal to the dictionary
-    segment_start_end_idx, segment_instr_depths = get_user_segment_start_end_idx_depth(
+    segment_st_en_idx, segment_instr_depths = get_user_segment_start_end_idx_depth(
         segment_starts_ends, nc_adcp.PRESPR01.data, nc_adcp.latitude,
         nc_adcp.time.data, nc_adcp.instrument_depth
     )
@@ -955,7 +952,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
     segment_filenames = []
 
     for st_idx, en_idx, depth in zip(
-            segment_start_end_idx.keys(), segment_start_end_idx.values(),
+            segment_st_en_idx.keys(), segment_st_en_idx.values(),
             segment_instr_depths
     ):
         # Generate as many file names as there are segments of data
@@ -963,10 +960,14 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None, segment_starts_ends=Non
         # based on the start and end times of the segments and their depths
         # only use the "date" part of the datetime
         # format the depth to 4 string characters by adding zeros if necessary
+
+        # Need to subtract 1 from en_idx because +1 is added in
+        # get_user_segment_start_end_idx_depth() for inclusive ranges
+        # but ranges are not called here
         out_segment_name = '{}_{}_{}_{}m.adcp.L2.nc'.format(
             nc_adcp.station.lower(),
             nc_adcp.DTUT8601.data[st_idx][:10].replace('-', ''),
-            nc_adcp.DTUT8601.data[en_idx][:10].replace('-', ''),
+            nc_adcp.DTUT8601.data[en_idx - 1][:10].replace('-', ''),
             f'000{str(int(np.round(depth, 0)))}'[-4:])
 
         absolute_segment_name = os.path.join(dest_dir, out_segment_name)
