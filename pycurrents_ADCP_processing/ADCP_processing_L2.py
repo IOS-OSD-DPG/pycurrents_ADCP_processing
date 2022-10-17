@@ -50,13 +50,12 @@ def add_attrs_prexmcat(dataset, name_ctd):
     return
 
 
-def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
+def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     """
     Function for calculating ADCP pressure from SBE (Sea-Bird CTD) pressure on the same mooring line
     Inputs:
         - nc_adcp: dataset-type object created by reading in a netCDF ADCP file with the xarray package
         - nc_ctd: dataset-type object created by reading in a netCDF CTD file with the xarray package
-        - name_ctd: the name of the input ctd file (string type)
     Outputs:
         - out_adcp_dataset: a new dataset-type object, the same as nc_adcp but with the new pressure
                             variable PREXMCAT derived from CTD pressure.
@@ -75,7 +74,7 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
     time_increment_adcp = date2ns(nc_adcp.time.data[1]) - date2ns(nc_adcp.time.data[0])
     time_increment_ctd = date2ns(nc_ctd.time.data[1]) - date2ns(nc_ctd.time.data[0])
     time_increment_ratio = time_increment_adcp / time_increment_ctd
-    print(time_increment_ratio)
+    # print(time_increment_ratio)
 
     if np.round(time_increment_ratio, decimals=1) < 1:
         if np.round(time_increment_ratio, decimals=1) == 1/1.5:
@@ -237,8 +236,11 @@ def add_pressure_ctd(nc_adcp, nc_ctd, name_ctd):
     out_adcp_dataset = nc_adcp.assign(PREXMCAT=(('time'), pres_adcp_from_ctd))
     print('Created new xarray dataset object containing CTD-derived pressure')
 
-    add_attrs_prexmcat(out_adcp_dataset, name_ctd=name_ctd)
+    add_attrs_prexmcat(out_adcp_dataset, name_ctd=nc_ctd.filename.data)
     print('Added attributes to PREXMCAT')
+
+    out_adcp_dataset.attrs['processing_history'] += f' CTD pressure data from file {nc_ctd.filename.data} ' \
+                                                    f'merged with input ADCP dataset.'
 
     return out_adcp_dataset
 
@@ -365,7 +367,7 @@ def flag_below_seafloor(d):
     #             v_QC[:bad_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
 
     for v_QC in vels_QC:
-        v_QC[bin_depths > d.water_depth] = 4 # bad_value flag=4
+        v_QC[bin_depths > d.water_depth] = 4  # bad_value flag=4
 
     d.attrs['processing_history'] = d.processing_history + " Level 2 processing was performed on the data."
     d.attrs['processing_history'] = d.processing_history + " Bins below the ocean floor depth were flagged as" \
@@ -377,7 +379,7 @@ def flag_below_seafloor(d):
     return
 
 
-def flag_by_backsc(d):
+def flag_by_backsc(d: xr.Dataset):
     """
     Flag where beam-averaged backscatter increases at each time step for upwards-facing ADCPs
     Inputs:
@@ -458,8 +460,8 @@ def flag_by_backsc(d):
     #                 v_QC[:, t_i] = 2  # probably_good_value flag=2, or good_value flag=1
 
     for v_QC in vels_QC:
-        v_QC[np.logical_and(diffs > 0, v_QC != 4)] = 3 # probably_bad_value
-        v_QC[np.logical_and(diffs <= 0, v_QC != 4)] = 1 # probably_good_value flag=2, or good_value flag=1
+        v_QC[np.logical_and(diffs > 0, v_QC != 4)] = 3  # probably_bad_value
+        v_QC[np.logical_and(diffs <= 0, v_QC != 4)] = 1  # probably_good_value flag=2, or good_value flag=1
 
     print('Velocity qc variables updated')
 
@@ -473,7 +475,7 @@ def flag_by_backsc(d):
     return
 
 
-def plot_pres_compare(d, dest_dir):
+def plot_pres_compare(d: xr.Dataset, dest_dir):
     """
     For plotting ADCP pressure for ADCPs without pressure sensors
     Such ADCP files had pressure calculated from static instrument depth in L1 processing
@@ -512,7 +514,7 @@ def plot_pres_compare(d, dest_dir):
     return os.path.abspath(fig_name)
 
 
-def plot_backscatter_qc(d, dest_dir):
+def plot_backscatter_qc(d:xr.Dataset, dest_dir):
     """
     Calculate depths from bin distances from instrument
     Inputs:
@@ -653,7 +655,7 @@ def plot_backscatter_qc(d, dest_dir):
     return os.path.abspath(fig_name)
 
 
-def bad_2_nan(d):
+def bad_2_nan(d:xr.Dataset):
     """
     Apply flags to velocity data.
     Inputs:
@@ -682,7 +684,7 @@ def bad_2_nan(d):
     return
 
 
-def reset_vel_minmaxes(d):
+def reset_vel_minmaxes(d:xr.Dataset):
     """
     Function for re-calculating data_min and data_max variable attributes
     Inputs:
@@ -911,8 +913,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None,
             nc_sbe = xr.open_dataset(f_ctd)
 
             # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe,
-                                       name_ctd=f_ctd)
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
 
             # Plot static and CTD-derived pressures
             plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
@@ -942,8 +943,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None,
             nc_sbe = xr.open_dataset(f_ctd)
 
             # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe,
-                                       name_ctd=f_ctd)
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
 
             # Plot static and CTD-derived pressures
             plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
