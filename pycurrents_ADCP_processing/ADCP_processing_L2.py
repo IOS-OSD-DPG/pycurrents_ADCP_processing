@@ -236,10 +236,10 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     out_adcp_dataset = nc_adcp.assign(PREXMCAT=(('time'), pres_adcp_from_ctd))
     print('Created new xarray dataset object containing CTD-derived pressure')
 
-    add_attrs_prexmcat(out_adcp_dataset, name_ctd=nc_ctd.filename.data)
+    add_attrs_prexmcat(out_adcp_dataset, name_ctd=str(nc_ctd.filename.data))
     print('Added attributes to PREXMCAT')
 
-    out_adcp_dataset.attrs['processing_history'] += f' CTD pressure data from file {nc_ctd.filename.data} ' \
+    out_adcp_dataset.attrs['processing_history'] += f' CTD pressure data from file {str(nc_ctd.filename.data)} ' \
                                                     f'merged with input ADCP dataset.'
 
     return out_adcp_dataset
