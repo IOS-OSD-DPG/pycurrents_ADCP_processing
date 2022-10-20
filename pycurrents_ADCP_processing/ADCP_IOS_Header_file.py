@@ -78,7 +78,7 @@ def write_file(nc):
     # nc.PTCHGP01.attrs["units"]
     nan = -99
 
-    # TODO make a dictionary to make writing channels easier to follow
+    # Make a dictionary to make writing channels easier to follow
     channel_dict = {}
     channels_to_use = ['DATE', 'TIME',
                        'LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LERRAP01', 'LRZUVP01',
@@ -111,27 +111,24 @@ def write_file(nc):
         else:
             if hasattr(nc, channel):
                 if channel == 'PREXMCAT':
-                    channel_dict[channel] = {
-                        'channel_num': str(channel_num),
-                        'name_to_use': 'Pressure_from_ctd',
-                        'unit': nc[channel].attrs['units'],
-                        'data_min': float(nc[channel].attrs["data_min"]),
-                        'data_max': float(nc[channel].attrs["data_max"]),
-                        'pad': '%.6E' % nan, 'width': '14', 'format': 'E',
-                        'type': 'R4',
-                        'decimal_places': '6'
-                    }
+                    name_to_use = 'Pressure_from_ctd'
+                elif channel == 'LRZUVP01':
+                    name_to_use = "Upward...Velocity_By_Vertical_Beam"
                 else:
-                    channel_dict[channel] = {
-                        'channel_num': str(channel_num),
-                        'name_to_use': nc[channel].long_name.title(),
-                        'unit': nc[channel].attrs['units'] if hasattr(nc[channel], 'units') else '',
-                        'data_min': float(nc[channel].attrs["data_min"]),
-                        'data_max': float(nc[channel].attrs["data_max"]),
-                        'pad': '%.6E' % nan, 'width': '14', 'format': 'E',
-                        'type': 'I' if 'QC' in channel else "R4",
-                        'decimal_places': '6'}
+                    name_to_use = nc[channel].long_name.title()
+
+                channel_dict[channel] = {
+                    'channel_num': str(channel_num),
+                    'name_to_use': name_to_use,
+                    'unit': nc[channel].attrs['units'] if hasattr(nc[channel], 'units') else '',
+                    'data_min': float(nc[channel].attrs["data_min"]),
+                    'data_max': float(nc[channel].attrs["data_max"]),
+                    'pad': '%.6E' % nan, 'width': '14', 'format': 'E',
+                    'type': 'I' if 'QC' in channel else "R4",
+                    'decimal_places': '6'}
+
                 channel_num += 1
+
     number_of_channels = str(channel_num - 1)
 
     print("*FILE")
@@ -166,236 +163,6 @@ def write_file(nc):
                   '{:>17}'.format('%.6E' % channel_dict[channel]['data_min']) +
                   '{:>17}'.format('%.6E' % channel_dict[channel]['data_max']))
 
-    # if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-    #     print('{:>8}'.format('1') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Date") + '{:15}'.format(
-    #         "YYYY-MM-DD") + '{:>17}'.format("n/a") + '{:>17}'.format("n/a"))
-    #     print('{:>8}'.format('2') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Time") + '{:15}'.format(
-    #         "HH:MM:SS") + '{:>17}'.format("n/a") + '{:>17}'.format("n/a"))
-    #     print('{:>8}'.format('3') + " " + '{:35}'.format(nc.LCEWAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LCEWAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LCEWAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCEWAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('4') + " " + '{:35}'.format(nc.LCNSAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LCNSAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LCNSAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCNSAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('5') + " " + '{:35}'.format(nc.LRZAAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LRZAAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LRZAAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LRZAAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('6') + " " + '{:35}'.format(nc.LERRAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LERRAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LERRAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LERRAP01.attrs["data_max"]))
-    #     # print('{:>8}'.format('7') + " " + '{:35}'.format(nc.LRZUVP01.long_name.title()) + '{:15}'.format(
-    #     #     nc.LRZUVP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LRZUVP01.attrs["data_min"]) + '{:>17}'.format(
-    #     #     '%.6E' % nc.LRZUVP01.attrs["data_max"]))
-    #     print('{:>8}'.format('8') + " " + '{:35}'.format("Upward...Velocity_By_Vertical_Beam") + '{:15}'.format(
-    #         nc.LRZUVP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LRZUVP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LRZUVP01.attrs["data_max"]))
-    #     print('{:>8}'.format('8') + " " + '{:35}'.format(nc.LCEWAP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LCEWAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCEWAP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('9') + " " + '{:35}'.format(nc.LCNSAP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LCNSAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCNSAP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('10') + " " + '{:35}'.format(nc.LRZAAP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LRZAAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LRZAAP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('11') + " " + '{:35}'.format(nc.LRZUVP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LRZUVP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LRZUVP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('12') + " " + '{:35}'.format(nc.TNIHCE01.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE01.attrs["data_max"]))
-    #     print('{:>8}'.format('13') + " " + '{:35}'.format(nc.TNIHCE02.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE02.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE02.attrs["data_max"]))
-    #     print('{:>8}'.format('14') + " " + '{:35}'.format(nc.TNIHCE03.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE03.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE03.attrs["data_max"]))
-    #     print('{:>8}'.format('15') + " " + '{:35}'.format(nc.TNIHCE04.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE04.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE04.attrs["data_max"]))
-    #     print('{:>8}'.format('16') + " " + '{:35}'.format(nc.TNIHCE05.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE05.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE05.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE05.attrs["data_max"]))
-    #     print('{:>8}'.format('17') + " " + '{:35}'.format(nc.CMAGZZ01.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ01.attrs["data_max"]))
-    #     print('{:>8}'.format('18') + " " + '{:35}'.format(nc.CMAGZZ02.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ02.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ02.attrs["data_max"]))
-    #     print('{:>8}'.format('19') + " " + '{:35}'.format(nc.CMAGZZ03.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ03.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ03.attrs["data_max"]))
-    #     print('{:>8}'.format('20') + " " + '{:35}'.format(nc.CMAGZZ04.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ04.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ04.attrs["data_max"]))
-    #     print('{:>8}'.format('21') + " " + '{:35}'.format(nc.CMAGZZ05.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ05.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ05.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ05.attrs["data_max"]))
-    #     if flag_pg == 1:
-    #         print('{:>8}'.format('22') + " " + '{:35}'.format(nc.PTCHGP01.long_name.title()) + '{:15}'.format(
-    #             nc.PTCHGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PTCHGP01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PTCHGP01.attrs["data_max"]))
-    #         print('{:>8}'.format('23') + " " + '{:35}'.format(nc.HEADCM01.long_name.title()) + '{:15}'.format(
-    #             nc.HEADCM01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.HEADCM01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.HEADCM01.attrs["data_max"]))
-    #         print('{:>8}'.format('24') + " " + '{:35}'.format(nc.ROLLGP01.long_name.title()) + '{:15}'.format(
-    #             nc.ROLLGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.ROLLGP01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.ROLLGP01.attrs["data_max"]))
-    #         print('{:>8}'.format('25') + " " + '{:35}'.format(nc.TEMPPR01.long_name.title()) + '{:15}'.format(
-    #             nc.TEMPPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TEMPPR01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.TEMPPR01.attrs["data_max"]))
-    #         print('{:>8}'.format('26') + " " + '{:35}'.format(nc.DISTTRAN.long_name.title()) + '{:15}'.format(
-    #             nc.DISTTRAN.attrs["units"]) + '{:>17}'.format('%.6E' % nc.DISTTRAN.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.DISTTRAN.attrs["data_max"]))
-    #         print('{:>8}'.format('27') + " " + '{:35}'.format(nc.PPSAADCP.long_name.title()) + '{:15}'.format(
-    #             nc.PPSAADCP.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PPSAADCP.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PPSAADCP.attrs["data_max"]))
-    #         # print('{:>8}'.format('27') + " " + '{:35}'.format(nc.DEPFP01.long_name.title()) + '{:15}'.format(nc.DEPFP01.attrs["units"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_min"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_max"]))
-    #         print('{:>8}'.format('28') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
-    #             nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PRESPR01.attrs["data_max"]))
-    #         print('{:>8}'.format('29') + " " + '{:35}'.format(nc.PRESPR01_QC.long_name.title()) + '{:15}'.format(
-    #             ' ') + '{:>17}'.format('%.6E' % nc.PRESPR01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PRESPR01_QC.attrs["data_max"]))
-    #         print('{:>8}'.format('30') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
-    #             nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.SVELCV01.attrs["data_max"]))
-    #     else:
-    #         # flag_pg == 0
-    #         print('{:>8}'.format('22') + " " + '{:35}'.format(nc.PCGDAP00.long_name.title()) + '{:15}'.format(
-    #             nc.PCGDAP00.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP00.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PCGDAP00.attrs["data_max"]))
-    #         print('{:>8}'.format('23') + " " + '{:35}'.format(nc.PCGDAP02.long_name.title()) + '{:15}'.format(
-    #             nc.PCGDAP02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP02.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PCGDAP02.attrs["data_max"]))
-    #         print('{:>8}'.format('24') + " " + '{:35}'.format(nc.PCGDAP03.long_name.title()) + '{:15}'.format(
-    #             nc.PCGDAP03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP03.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PCGDAP03.attrs["data_max"]))
-    #         print('{:>8}'.format('25') + " " + '{:35}'.format(nc.PCGDAP04.long_name.title()) + '{:15}'.format(
-    #             nc.PCGDAP04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP04.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PCGDAP04.attrs["data_max"]))
-    #         print('{:>8}'.format('26') + " " + '{:35}'.format(nc.PCGDAP05.long_name.title()) + '{:15}'.format(
-    #             nc.PCGDAP05.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP05.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PCGDAP05.attrs["data_max"]))
-    #         print('{:>8}'.format('27') + " " + '{:35}'.format(nc.PTCHGP01.long_name.title()) + '{:15}'.format(
-    #             nc.PTCHGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PTCHGP01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PTCHGP01.attrs["data_max"]))
-    #         print('{:>8}'.format('28') + " " + '{:35}'.format(nc.HEADCM01.long_name.title()) + '{:15}'.format(
-    #             nc.HEADCM01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.HEADCM01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.HEADCM01.attrs["data_max"]))
-    #         print('{:>8}'.format('29') + " " + '{:35}'.format(nc.ROLLGP01.long_name.title()) + '{:15}'.format(
-    #             nc.ROLLGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.ROLLGP01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.ROLLGP01.attrs["data_max"]))
-    #         print('{:>8}'.format('30') + " " + '{:35}'.format(nc.TEMPPR01.long_name.title()) + '{:15}'.format(
-    #             nc.TEMPPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TEMPPR01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.TEMPPR01.attrs["data_max"]))
-    #         print('{:>8}'.format('31') + " " + '{:35}'.format(nc.DISTTRAN.long_name.title()) + '{:15}'.format(
-    #             nc.DISTTRAN.attrs["units"]) + '{:>17}'.format('%.6E' % nc.DISTTRAN.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.DISTTRAN.attrs["data_max"]))
-    #         print('{:>8}'.format('32') + " " + '{:35}'.format(nc.PPSAADCP.long_name.title()) + '{:15}'.format(
-    #             nc.PPSAADCP.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PPSAADCP.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PPSAADCP.attrs["data_max"]))
-    #         # print('{:>8}'.format('27') + " " + '{:35}'.format(nc.DEPFP01.long_name.title()) + '{:15}'.format(nc.DEPFP01.attrs["units"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_min"]) + '{:>17}'.format('%.6E'% nc.DEPFP01.attrs["data_max"]))
-    #         print('{:>8}'.format('33') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
-    #             nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PRESPR01.attrs["data_max"]))
-    #         print('{:>8}'.format('34') + " " + '{:35}'.format(nc.PRESPR01_QC.long_name.title()) + '{:15}'.format(
-    #             ' ') + '{:>17}'.format('%.6E' % nc.PRESPR01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.PRESPR01_QC.attrs["data_max"]))
-    #         print('{:>8}'.format('35') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
-    #             nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
-    #             '%.6E' % nc.SVELCV01.attrs["data_max"]))
-    # else:
-    #     # instrumentSubtype == Workhorse, Broadband, or Narrowband
-    #     print('{:>8}'.format('1') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Date") + '{:15}'.format(
-    #         "YYYY-MM-DD") + '{:>17}'.format("n/a") + '{:>17}'.format("n/a"))
-    #     print('{:>8}'.format('2') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Time") + '{:15}'.format(
-    #         "HH:MM:SS") + '{:>17}'.format("n/a") + '{:>17}'.format("n/a"))
-    #     print('{:>8}'.format('3') + " " + '{:35}'.format(nc.LCEWAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LCEWAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LCEWAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCEWAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('4') + " " + '{:35}'.format(nc.LCNSAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LCNSAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LCNSAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCNSAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('5') + " " + '{:35}'.format(nc.LRZAAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LRZAAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LRZAAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LRZAAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('6') + " " + '{:35}'.format(nc.LERRAP01.long_name.title()) + '{:15}'.format(
-    #         nc.LERRAP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.LERRAP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LERRAP01.attrs["data_max"]))
-    #     print('{:>8}'.format('7') + " " + '{:35}'.format(nc.LCEWAP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LCEWAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCEWAP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('8') + " " + '{:35}'.format(nc.LCNSAP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LCNSAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LCNSAP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('9') + " " + '{:35}'.format(nc.LRZAAP01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.LRZAAP01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.LRZAAP01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('10') + " " + '{:35}'.format(nc.TNIHCE01.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE01.attrs["data_max"]))
-    #     print('{:>8}'.format('11') + " " + '{:35}'.format(nc.TNIHCE02.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE02.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE02.attrs["data_max"]))
-    #     print('{:>8}'.format('12') + " " + '{:35}'.format(nc.TNIHCE03.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE03.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE03.attrs["data_max"]))
-    #     print('{:>8}'.format('13') + " " + '{:35}'.format(nc.TNIHCE04.long_name.title()) + '{:15}'.format(
-    #         nc.TNIHCE04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TNIHCE04.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TNIHCE04.attrs["data_max"]))
-    #     print('{:>8}'.format('14') + " " + '{:35}'.format(nc.CMAGZZ01.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ01.attrs["data_max"]))
-    #     print('{:>8}'.format('15') + " " + '{:35}'.format(nc.CMAGZZ02.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ02.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ02.attrs["data_max"]))
-    #     print('{:>8}'.format('16') + " " + '{:35}'.format(nc.CMAGZZ03.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ03.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ03.attrs["data_max"]))
-    #     print('{:>8}'.format('17') + " " + '{:35}'.format(nc.CMAGZZ04.long_name.title()) + '{:15}'.format(
-    #         nc.CMAGZZ04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.CMAGZZ04.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.CMAGZZ04.attrs["data_max"]))
-    #     print('{:>8}'.format('18') + " " + '{:35}'.format(nc.PCGDAP00.long_name.title()) + '{:15}'.format(
-    #         nc.PCGDAP00.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP00.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PCGDAP00.attrs["data_max"]))
-    #     print('{:>8}'.format('19') + " " + '{:35}'.format(nc.PCGDAP02.long_name.title()) + '{:15}'.format(
-    #         nc.PCGDAP02.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP02.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PCGDAP02.attrs["data_max"]))
-    #     print('{:>8}'.format('20') + " " + '{:35}'.format(nc.PCGDAP03.long_name.title()) + '{:15}'.format(
-    #         nc.PCGDAP03.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP03.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PCGDAP03.attrs["data_max"]))
-    #     print('{:>8}'.format('21') + " " + '{:35}'.format(nc.PCGDAP04.long_name.title()) + '{:15}'.format(
-    #         nc.PCGDAP04.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PCGDAP04.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PCGDAP04.attrs["data_max"]))
-    #     print('{:>8}'.format('22') + " " + '{:35}'.format(nc.PTCHGP01.long_name.title()) + '{:15}'.format(
-    #         nc.PTCHGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PTCHGP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PTCHGP01.attrs["data_max"]))
-    #     print('{:>8}'.format('23') + " " + '{:35}'.format(nc.HEADCM01.long_name.title()) + '{:15}'.format(
-    #         nc.HEADCM01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.HEADCM01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.HEADCM01.attrs["data_max"]))
-    #     print('{:>8}'.format('24') + " " + '{:35}'.format(nc.ROLLGP01.long_name.title()) + '{:15}'.format(
-    #         nc.ROLLGP01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.ROLLGP01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.ROLLGP01.attrs["data_max"]))
-    #     print('{:>8}'.format('25') + " " + '{:35}'.format(nc.TEMPPR01.long_name.title()) + '{:15}'.format(
-    #         nc.TEMPPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.TEMPPR01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.TEMPPR01.attrs["data_max"]))
-    #     print('{:>8}'.format('26') + " " + '{:35}'.format(nc.DISTTRAN.long_name.title()) + '{:15}'.format(
-    #         nc.DISTTRAN.attrs["units"]) + '{:>17}'.format('%.6E' % nc.DISTTRAN.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.DISTTRAN.attrs["data_max"]))
-    #     print('{:>8}'.format('27') + " " + '{:35}'.format(nc.PPSAADCP.long_name.title()) + '{:15}'.format(
-    #         nc.PPSAADCP.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PPSAADCP.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PPSAADCP.attrs["data_max"]))
-    #     print('{:>8}'.format('28') + " " + '{:35}'.format(nc.PRESPR01.long_name.title()) + '{:15}'.format(
-    #         nc.PRESPR01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.PRESPR01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PRESPR01.attrs["data_max"]))
-    #     print('{:>8}'.format('29') + " " + '{:35}'.format(nc.PRESPR01_QC.long_name.title()) + '{:15}'.format(
-    #         ' ') + '{:>17}'.format('%.6E' % nc.PRESPR01_QC.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.PRESPR01_QC.attrs["data_max"]))
-    #     print('{:>8}'.format('30') + " " + '{:35}'.format(nc.SVELCV01.long_name.title()) + '{:15}'.format(
-    #         nc.SVELCV01.attrs["units"]) + '{:>17}'.format('%.6E' % nc.SVELCV01.attrs["data_min"]) + '{:>17}'.format(
-    #         '%.6E' % nc.SVELCV01.attrs["data_max"]))
-
     # Add in table of Channel summary
     print('{:>8}'.format('$END'))
     print()
@@ -412,67 +179,6 @@ def write_file(nc):
               '{:12}'.format(channel_dict[channel]['format']) +
               '{:6}'.format(channel_dict[channel]['type']) +
               '{:14}'.format(channel_dict[channel]['decimal_places']))
-
-    # print(
-    #     '{:>8}'.format('1') + "  " + '{:15}'.format("' '") + '{:7}'.format(' ') + '{:7}'.format("' '") + '{:12}'.format(
-    #         'YYYY-MM-DD') + '{:6}'.format('D') + '{:14}'.format("' '"))
-    # print(
-    #     '{:>8}'.format('2') + "  " + '{:15}'.format("' '") + '{:7}'.format(' ') + '{:7}'.format("' '") + '{:12}'.format(
-    #         'HH:MM:SS') + '{:6}'.format('T') + '{:14}'.format("' '"))
-    # print('{:>8}'.format('3') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('4') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('5') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('6') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('7') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('I') + '{:14}'.format('6'))
-    # print('{:>8}'.format('8') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('I') + '{:14}'.format('6'))
-    # print('{:>8}'.format('9') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('I') + '{:14}'.format('6'))
-    # print('{:>8}'.format('10') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('11') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('12') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('13') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('14') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('15') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('16') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('17') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('18') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('19') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('20') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('21') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('22') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('23') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('24') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('25') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('26') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('27') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('28') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
-    # print('{:>8}'.format('29') + "  " + '{:15}'.format('%.6E' % nan) + '{:7}'.format(' ') + '{:7}'.format(
-    #     '14') + '{:12}'.format('E') + '{:6}'.format('R4') + '{:14}'.format('6'))
 
     # Add in table of Channel detail summary
     print('{:>8}'.format('$END'))
@@ -792,8 +498,11 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     print("    $REMARKS")
     print("        -" + process_1 + " processing: " + date_time_1)
     for i in range(0, n):
-        print("         " + nc.history.split(". ")[i] + ".")
-        # print("         " + nc.processing_history.split(". ")[i] + ".")
+        if i < n - 1:
+            print("         " + nc.history.split(". ")[i] + ".")
+            # print("         " + nc.processing_history.split(". ")[i] + ".")
+        else:
+            print("         " + nc.history.split(". ")[i])
     # print("         " + '{:100}'.format(nc.history.split(". ")[i]))
     # adding more processing content, check with Hana
     print("        -" + process_2 + " processing: " + date_time_2)
