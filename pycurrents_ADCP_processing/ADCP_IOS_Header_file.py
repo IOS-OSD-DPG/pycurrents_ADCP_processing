@@ -80,7 +80,7 @@ def write_file(nc):
 
     # TODO make a dictionary to make writing channels easier to follow
     channel_dict = {}
-    channels_to_use = ['DAY', 'TIME',
+    channels_to_use = ['DATE', 'TIME',
                        'LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LERRAP01', 'LRZUVP01',
                        'LCEWAP01_QC', 'LCNSAP01_QC', 'LRZAAP01_QC', 'LRZUVP01_QC',
                        'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
@@ -92,7 +92,7 @@ def write_file(nc):
     channel_num = 1
     for channel in channels_to_use:
         # Populate the dictionary with format {channel: (name_to_use, unit, min, max)
-        if channel == 'DAY':
+        if channel == 'DATE':
             channel_dict[channel] = {
                 'channel_num': str(channel_num),
                 'name_to_use': nc.DTUT8601.time_zone + " " + "Date",
