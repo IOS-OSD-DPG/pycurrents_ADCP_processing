@@ -68,13 +68,13 @@ def write_file(nc):
     time_units_string = unit(time_increment)  # call unit function
     number_of_records = str(nc.coords["time"].size)  # number of ensumbles
     data_description = nc.attrs["instrumentType"]
-    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
-        if flag_pg == 1:
-            number_of_channels = "30"
-        else:
-            number_of_channels = "35"
-    else:
-        number_of_channels = "30"
+    # if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    #     if flag_pg == 1:
+    #         number_of_channels = "30"
+    #     else:
+    #         number_of_channels = "35"
+    # else:
+    #     number_of_channels = "30"
     # nc.PTCHGP01.attrs["units"]
     nan = -99
 
@@ -125,13 +125,14 @@ def write_file(nc):
                     channel_dict[channel] = {
                         'channel_num': str(channel_num),
                         'name_to_use': nc[channel].long_name.title(),
-                        'unit': nc[channel].attrs['units'],
+                        'unit': nc[channel].attrs['units'] if hasattr(nc[channel], 'units') else '',
                         'data_min': nc[channel].attrs["data_min"],
                         'data_max': nc[channel].attrs["data_max"],
                         'pad': '%.6E' % nan, 'width': '14', 'format': 'E',
                         'type': 'I' if 'QC' in channel else "R4",
                         'decimal_places': '6'}
                 channel_num += 1
+    number_of_channels = str(channel_num - 1)
 
     print("*FILE")
     print("    " + '{:20}'.format('START TIME') + ": UTC " + start_time)
