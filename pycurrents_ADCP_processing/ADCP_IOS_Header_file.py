@@ -671,12 +671,14 @@ def write_raw(nc):
     print()
 
 
-def write_history(nc, f_name):
+def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     # define function to write raw info
     process_1 = "ADCP2NC "
-    process_1_ver = '1' # str(nc.attrs["pred_accuracy"])
+    process_1_ver = '1'  # str(nc.attrs["pred_accuracy"])
     date_time_1 = nc.attrs["date_modified"]
-    digits_in_process_hist = [int(s) for s in nc.attrs['processing_history'].split() if s.isdigit()] #H.Hourston May 27, 2020
+    digits_in_process_hist = [
+        int(s) for s in nc.attrs['processing_history'].split() if s.isdigit()
+    ] #H.Hourston May 27, 2020
     Recs_in_1 = str(digits_in_process_hist[-2] + digits_in_process_hist[-1] + nc.coords["time"].size)
     Recs_out_1 = str(nc.coords["time"].size)
     process_2 = "NC2IOS "
@@ -685,6 +687,15 @@ def write_history(nc, f_name):
     date_time_2 = now.strftime("%Y/%m/%d %H:%M:%S.%f")[0:-7]
     Recs_in_2 = Recs_out_1
     Recs_out_2 = Recs_out_1
+
+    # Add note about L2 processing steps if applicable
+    if ds_is_segment:
+        nc.attrs['history'] += ' The dataset was split into segments where water depth changed from mooring strike(s).'
+
+    if ctd_pressure_file is not None:
+        nc.attrs['history'] += f' The ADCP dataset was missing (good quality) pressure sensor data,' \
+                               f' so pressure sensor data from {ctd_pressure_file} was merged with the ADCP dataset.'
+
     n = len(nc.history.split(". "))  # n = len(nc.processing_history.split(". "))
 
     print("*HISTORY")
@@ -715,7 +726,7 @@ def write_history(nc, f_name):
     return
 
 
-def main_header(f, dest_dir):
+def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
     #Start
     in_f_name = f.split("/")[-1]
     # Create subdir for new netCDF file if one doesn't exist yet
@@ -745,7 +756,8 @@ def main_header(f, dest_dir):
         write_deployment_recovery(nc=nc_file)
         write_instrument(nc=nc_file)
         write_raw(nc=nc_file)
-        write_history(nc=nc_file, f_name=in_f_name)
+        write_history(nc=nc_file, f_name=in_f_name, ds_is_segment=ds_is_segment,
+                      ctd_pressure_file=ctd_pressure_file)
         sys.stdout.flush() #Recommended by Tom
     finally:
         sys.stdout = orig_stdout
