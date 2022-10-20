@@ -726,7 +726,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     return
 
 
-def main_header(f, dest_dir, ds_is_segment=False):
+def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
     #Start
     in_f_name = f.split("/")[-1]
     # Create subdir for new netCDF file if one doesn't exist yet
@@ -756,7 +756,8 @@ def main_header(f, dest_dir, ds_is_segment=False):
         write_deployment_recovery(nc=nc_file)
         write_instrument(nc=nc_file)
         write_raw(nc=nc_file)
-        write_history(nc=nc_file, f_name=in_f_name)
+        write_history(nc=nc_file, f_name=in_f_name, ds_is_segment=ds_is_segment,
+                      ctd_pressure_file=ctd_pressure_file)
         sys.stdout.flush() #Recommended by Tom
     finally:
         sys.stdout = orig_stdout
