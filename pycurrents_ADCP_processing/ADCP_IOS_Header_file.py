@@ -115,8 +115,8 @@ def write_file(nc):
                         'channel_num': str(channel_num),
                         'name_to_use': 'Pressure_from_ctd',
                         'unit': nc[channel].attrs['units'],
-                        'data_min': nc[channel].attrs["data_min"],
-                        'data_max': nc[channel].attrs["data_max"],
+                        'data_min': float(nc[channel].attrs["data_min"]),
+                        'data_max': float(nc[channel].attrs["data_max"]),
                         'pad': '%.6E' % nan, 'width': '14', 'format': 'E',
                         'type': 'R4',
                         'decimal_places': '6'
@@ -126,8 +126,8 @@ def write_file(nc):
                         'channel_num': str(channel_num),
                         'name_to_use': nc[channel].long_name.title(),
                         'unit': nc[channel].attrs['units'] if hasattr(nc[channel], 'units') else '',
-                        'data_min': nc[channel].attrs["data_min"],
-                        'data_max': nc[channel].attrs["data_max"],
+                        'data_min': float(nc[channel].attrs["data_min"]),
+                        'data_max': float(nc[channel].attrs["data_max"]),
                         'pad': '%.6E' % nan, 'width': '14', 'format': 'E',
                         'type': 'I' if 'QC' in channel else "R4",
                         'decimal_places': '6'}
