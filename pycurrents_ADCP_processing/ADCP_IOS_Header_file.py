@@ -153,14 +153,18 @@ def write_file(nc):
 
     # USE THE DICTIONARY
     for channel in channel_dict.keys():
-        # print('{:>8}'.format(str(channel_num)) + " " + '{:35}'.format(channel_name) +
-        #       '{:15}'.format(channel_unit) + '{:>17}'.format('%.6E' % data_min) +
-        #       '{:>17}'.format('%.6E' % data_max))
-        print('{:>8}'.format(channel_dict[channel]['channel_num']) +
-              " " + '{:35}'.format(channel_dict[channel]['name_to_use']) +
-              '{:15}'.format(channel_dict[channel]['unit']) +
-              '{:>17}'.format('%.6E' % channel_dict[channel]['data_min']) +
-              '{:>17}'.format('%.6E' % channel_dict[channel]['data_max']))
+        if channel in ['DATE', 'TIME']:
+            print('{:>8}'.format(channel_dict[channel]['channel_num']) +
+                  " " + '{:35}'.format(channel_dict[channel]['name_to_use']) +
+                  '{:15}'.format(channel_dict[channel]['unit']) +
+                  '{:>17}'.format(channel_dict[channel]['data_min']) +
+                  '{:>17}'.format(channel_dict[channel]['data_max']))
+        else:
+            print('{:>8}'.format(channel_dict[channel]['channel_num']) +
+                  " " + '{:35}'.format(channel_dict[channel]['name_to_use']) +
+                  '{:15}'.format(channel_dict[channel]['unit']) +
+                  '{:>17}'.format('%.6E' % channel_dict[channel]['data_min']) +
+                  '{:>17}'.format('%.6E' % channel_dict[channel]['data_max']))
 
     # if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
     #     print('{:>8}'.format('1') + " " + '{:35}'.format(nc.DTUT8601.time_zone + " " + "Date") + '{:15}'.format(
