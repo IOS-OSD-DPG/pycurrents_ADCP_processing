@@ -407,7 +407,7 @@ def write_file(nc):
     # USE DICTIONARY
     for channel in channel_dict.keys():
         print('{:>8}'.format(channel_dict[channel]['channel_num']) +
-              "  " + '{:15}'.format('%.6E' % channel_dict[channel]['pad']) +
+              "  " + '{:15}'.format(channel_dict[channel]['pad']) +
               '{:7}'.format(' ') + '{:7}'.format(channel_dict[channel]['width']) +
               '{:12}'.format(channel_dict[channel]['format']) +
               '{:6}'.format(channel_dict[channel]['type']) +
