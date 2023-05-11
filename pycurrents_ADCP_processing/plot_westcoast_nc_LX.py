@@ -570,8 +570,7 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+    plt.gca().invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
 
@@ -595,7 +594,6 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
                 str(int(nc.instrument_depth)), resampled_str), fontsize=14)
 
-    # if nc.orientation == 'up':
     plt.gca().invert_yaxis()
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
@@ -639,8 +637,8 @@ def determine_dom_angle(u_true, v_true):
     return along_angle, cross_angle
 
 
-def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, filter_type='raw',
-                   along_angle=None, colourmap_lim=None, resampled=None):
+def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                   filter_type='raw', along_angle=None, colourmap_lim=None, resampled=None):
     """
     Function for plotting north and east velocities from ADCP data.
     :param data: ADCP dataset from a netCDF file read in using the xarray package
@@ -715,7 +713,6 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    # if data.orientation == 'up':
     plt.gca().invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
@@ -747,8 +744,7 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    if data.orientation == 'up':
-        plt.gca().invert_yaxis()
+    plt.gca().invert_yaxis()
 
     # Create plots subfolder if not made already
     plot_dir = get_plot_dir(data.filename, dest_dir)
