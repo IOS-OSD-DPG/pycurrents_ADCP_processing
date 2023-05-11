@@ -988,7 +988,9 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
     desired_interval_min = 30  # 30 minutes
 
     # Number of ensembles per half hour
-    num_per_30min = int(np.floor(median_interval / min2ns * desired_interval_min))
+    # Corrected 2023-01-24
+    # num_per_30min = int(np.floor(median_interval / min2ns * desired_interval_min))
+    num_per_30min = int(np.floor(1 / median_interval * min2ns * desired_interval_min))
 
     # Subset time first so that we can check that diffs are constant
     time_subset = time_pd[0::num_per_30min]
