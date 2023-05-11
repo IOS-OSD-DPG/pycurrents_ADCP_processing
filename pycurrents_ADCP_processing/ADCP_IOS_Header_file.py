@@ -301,7 +301,7 @@ def write_instrument(nc):
     elif hasattr(nc, 'instrument_serial_number'):
         serial_number = nc.attrs["instrument_serial_number"]
     # serial_number = nc.attrs["serial_number"]  nc.attrs["instrument_serial_number"]
-    depth = str(int(nc.attrs["instrument_depth"]))
+    depth = nc.attrs["instrument_depth"]
     orientation = nc.attrs["orientation"]
 
     print("*INSTRUMENT")
