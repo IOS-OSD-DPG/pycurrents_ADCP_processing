@@ -448,7 +448,7 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
         bin_depths = ncdata.instrument_depth - ncdata.distance.data
     else:
         bin_depths = ncdata.instrument_depth + ncdata.distance.data
-    print(bin_depths)
+    # print(bin_depths)
 
     # data.time should be limited to the data.time with no NA values; bins must be limited
     if time_range is None:
@@ -494,9 +494,9 @@ def get_vminvmax(v1_data, v2_data):
 
     # determine which limit to use
     vel_lim = np.max([v1_lim, v2_lim])
-    print(vel_lim)
+    # print(vel_lim)
     vminvmax = [-vel_lim, vel_lim]
-    print(vminvmax)
+    # print(vminvmax)
     return vminvmax
 
 
@@ -582,16 +582,16 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
         ax2.set_title('ADCP ({}East, {} average) {}-{} {}m{}'.format(
             magnetic, filter_type, nc.attrs['station'], nc.attrs['deployment_number'],
-            str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+            nc.instrument_depth, resampled_str), fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m{}'.format(
             magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-            str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+            nc.instrument_depth, resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
             'ADCP ({}East, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                str(int(nc.instrument_depth)), resampled_str), fontsize=14)
+                nc.instrument_depth, resampled_str), fontsize=14)
 
     ax2.invert_yaxis()
 
@@ -671,7 +671,7 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
         along_angle, cross_angle = determine_dom_angle(ew_lim, ns_lim)
     else:
         cross_angle = along_angle - 90  # deg
-    print(along_angle, cross_angle)
+    # print(along_angle, cross_angle)
 
     u_along, u_cross = resolve_to_alongcross(ew_lim, ns_lim, along_angle)
     AS = u_along
@@ -785,7 +785,7 @@ def filter_godin(nc: xr.Dataset):
     """
     # Determine the number of ensembles taken per hour
     ens_per_hr = num_ens_per_hr(nc)
-    print('Time stamps per hour:', ens_per_hr, sep=' ')
+    # print('Time stamps per hour:', ens_per_hr, sep=' ')
     window = int(ens_per_hr)
     num_hrs = 24
 
@@ -832,7 +832,7 @@ def filter_XXh(nc: xr.Dataset, num_hrs=30):
 
     # Determine the number of ensembles taken per hour
     ens_per_hr = num_ens_per_hr(nc)
-    print(ens_per_hr)
+    # print(ens_per_hr)
     window = int(ens_per_hr)
 
     # Rolling window calculations
@@ -939,7 +939,7 @@ def resample_adcp_interp(ncname, ncdata: xr.Dataset):
     # Not implemented because this method "creates" data
     u1 = ncdata.resample(time='5min').interpolate("linear")
     # print('u1', u1)
-    print(u1.time)
+    # print(u1.time)
     # u2 = u1.resample(time='5min').mean(dim='time', keep_attrs=True)
     u2 = u1.rolling(time=6, center=True).mean(keep_attrs=True)
     # print('u2', u2)
@@ -998,8 +998,8 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
         (time_diff < (desired_interval_min - 1) * min2ns) |
         (time_diff > (desired_interval_min + 1) * min2ns))[0]
 
-    print(len(check_diff))
-    print(check_diff)
+    # print(len(check_diff))
+    # print(check_diff)
 
     if len(check_diff) > 0:
         print('Warning: data subsampling intervals are not even')
@@ -1028,7 +1028,7 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
 
     # Iterate through coordinates
     for coordname in ncout.coords:
-        print(coordname)
+        # print(coordname)
         # Iterate through the variable's encoding
         for key, value in ncdata[coordname].encoding.items():
             ncout[coordname].encoding[key] = value
