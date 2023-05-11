@@ -570,7 +570,7 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    plt.gca().invert_yaxis()
+    # plt.gca().invert_yaxis()  only need once per plot
 
     ax2 = fig.add_subplot(2, 1, 2)
 
@@ -713,7 +713,7 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    plt.gca().invert_yaxis()
+    # plt.gca().invert_yaxis()  # only need once per plot
 
     ax2 = fig.add_subplot(2, 1, 2)
 
