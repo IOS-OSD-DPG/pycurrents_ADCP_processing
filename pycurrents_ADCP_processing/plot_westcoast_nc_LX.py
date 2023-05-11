@@ -212,9 +212,7 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
     
     plt.plot(nc.time.data, nc.PRESPR01.data)
     
-    # Flip over x-axis if instrument oriented 'up'
-    if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+    plt.gca().invert_yaxis()
     
     plt.ylabel("Pressure (dbar)")
 
@@ -320,7 +318,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     ax.set_title('Mean Backscatter', fontweight='semibold')  # subplot title
     # Flip over x-axis if instrument oriented 'up'
     if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+        ax.invert_yaxis()
 
     # Subplot 2/3: Mean velocity
     ax = fig.add_subplot(1, 3, 2)
@@ -369,7 +367,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     ax.set_title('Mean Velocity', fontweight='semibold')  # subplot title
     # Flip over x-axis if instrument oriented 'up'
     if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+        ax.invert_yaxis()
 
     # Subplot 3/3: Principal axis
 
@@ -403,7 +401,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     ax.set_title('Principal Axis', fontweight='semibold')  # subplot title
     # Flip over x-axis if instrument oriented 'up'
     if nc.orientation == 'up':
-        plt.gca().invert_yaxis()
+        ax.invert_yaxis()
 
     # Create plots subfolder
     plot_dir = get_plot_dir(nc.filename, dest_dir)
@@ -502,7 +500,8 @@ def get_vminvmax(v1_data, v2_data):
     return vminvmax
 
 
-def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim, level0=False,
+def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
+                   ns_lim, ew_lim, level0=False,
                    filter_type='raw', colourmap_lim=None, resampled=None):
     """
     Function for plotting north and east velocities from ADCP data.
@@ -570,7 +569,7 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    # plt.gca().invert_yaxis()  only need once per plot
+    ax.invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
 
@@ -594,7 +593,7 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
                 str(int(nc.instrument_depth)), resampled_str), fontsize=14)
 
-    plt.gca().invert_yaxis()
+    ax2.invert_yaxis()
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(nc.filename, dest_dir)
@@ -713,7 +712,7 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    # plt.gca().invert_yaxis()  # only need once per plot
+    ax1.invert_yaxis()
 
     ax2 = fig.add_subplot(2, 1, 2)
 
@@ -744,7 +743,7 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
-    plt.gca().invert_yaxis()
+    ax2.invert_yaxis()
 
     # Create plots subfolder if not made already
     plot_dir = get_plot_dir(data.filename, dest_dir)
