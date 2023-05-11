@@ -24,6 +24,8 @@ L2 processing contains:
 
 *ADCP IOS header file.py* produces an IOS Shell header file for each netCDF file that makes the netCDF file searchable on the IOS Water Properties website (https://www.waterproperties.ca/). 
 
+Reference: [New tools for ADCP processing.](https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40993127.pdf) Canadian Technical Report of Hydrography and Ocean Sciences 336.
+
 ## Installation
 1. Before creating a virtual environment for the package, create a folder for the virtual environment and enter the folder in terminal, e.g. "adcp"  
 2. Create a virtual environment called "adcp37" with Python version 3.7:  
