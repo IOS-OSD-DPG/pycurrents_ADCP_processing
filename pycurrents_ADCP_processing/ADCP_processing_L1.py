@@ -155,7 +155,8 @@ def assign_pres(vel_var, metadata_dict):
         print('serial number:', metadata_dict['serialNumber'])
 
     # Check if model is type missing pressure sensor or if zero is a mode of pressure
-    if metadata_dict['model'] == 'bb' or metadata_dict['model'] == 'nb' or np.max(counts) == counts[index_of_zero]:
+    # Amendment 2023-09-18: change to "if pressure is static for over half the dataset" as the former became a bug
+    if metadata_dict['model'] == 'bb' or metadata_dict['model'] == 'nb' or np.max(counts) > len(pres)/2:  # or np.max(counts) == counts[index_of_zero]:
         p = np.round(gsw.conversions.p_from_z(-metadata_dict['instrument_depth'],
                                               metadata_dict['latitude']),
                      decimals=0)  # depth negative because positive is up for this function
