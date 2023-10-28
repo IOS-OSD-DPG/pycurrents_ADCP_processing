@@ -476,7 +476,7 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
     return time_lim, bin_depths_lim, ns_lim, ew_lim
 
 
-def get_vminvmax(v1_data, v2_data):
+def get_vminvmax(v1_data, v2_data=None):
     """
     Get range of pcolor color bar
     Inputs:
@@ -488,12 +488,15 @@ def get_vminvmax(v1_data, v2_data):
     v1_std = np.nanstd(v1_data)
     v1_mean = np.nanmean(v1_data)
     v1_lim = np.max([np.abs(-(v1_mean + 2 * v1_std)), np.abs(v1_mean + 2 * v1_std)])
-    v2_std = np.nanstd(v2_data)
-    v2_mean = np.nanmean(v2_data)
-    v2_lim = np.max([np.abs(-(v2_mean + 2 * v2_std)), np.abs(v2_mean + 2 * v2_std)])
+    if v2_data is not None:
+        v2_std = np.nanstd(v2_data)
+        v2_mean = np.nanmean(v2_data)
+        v2_lim = np.max([np.abs(-(v2_mean + 2 * v2_std)), np.abs(v2_mean + 2 * v2_std)])
 
-    # determine which limit to use
-    vel_lim = np.max([v1_lim, v2_lim])
+        # determine which limit to use
+        vel_lim = np.max([v1_lim, v2_lim])
+    else:
+        vel_lim = v1_lim
     # print(vel_lim)
     vminvmax = [-vel_lim, vel_lim]
     # print(vminvmax)
@@ -611,6 +614,74 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
     plt.close()
 
     return os.path.abspath(plot_name)
+
+
+def make_pcolor_speed(dest_dir: str, station: str, deployment_number: str, instrument_depth: int,
+                      time_lim: np.ndarray, bin_depths_lim: np.ndarray,
+                      ns_lim: np.ndarray, ew_lim: np.ndarray, resampled=None, colourmap_lim: tuple = None):
+    """
+    Make subplots of speed and direction for unfiltered ADCP data
+    :param dest_dir: name of directory for containing output files
+    :param station: station name
+    :param deployment_number: deployment number for mooring
+    :param instrument_depth:
+    :param time_lim: cleaned time data; array type
+    :param bin_depths_lim: cleaned bin depth data; array type
+    :param ns_lim: cleaned north-south velocity data; array type
+    :param ew_lim: cleaned east-west velocity data; array type
+    :param resampled: "30min" if resampled to 30 minutes; None if not resampled
+    :param colourmap_lim: user-input tuple of the form (a, b), where a is the minimum
+                          colour map limit for the plot and b is the maximum colour map
+                          limit for the plot (both floats); default is None in which
+                          case the function chooses the colour map limits for the plot
+    :return: Absolute file path of the figure this function creates
+    """
+
+    speed = np.repeat(np.nan, len(ns_lim.flatten())).reshape(ns_lim.shape)
+    direction = np.repeat(np.nan, len(ns_lim.flatten())).reshape(ns_lim.shape)
+
+    for i in range(len(ns_lim[:, 0])):
+        for j in range(len(ns_lim[0, :])):
+            speed[i, j] = (ns_lim[i, j]**2 + ew_lim[i, j]**2)**.5
+            direction[i, j] = np.rad2deg(np.arctan(ns_lim[i, j] / ew_lim[i, j]))  # degrees CCW from East
+
+    # Use the upper bound but set the bottom bound to zero since speed can't be negative
+    if colourmap_lim is None:
+        vminvmax = get_vminvmax(ns_lim, ew_lim)
+    else:
+        vminvmax = colourmap_lim
+
+    # Make a plot with subplots for speed and direction
+    # Use a circular color map for direction
+    fig = plt.figure(figsize=(13.75, 10))
+
+    ax = fig.add_subplot(2, 1, 1)
+    f1 = ax.pcolormesh(time_lim, bin_depths_lim, speed, cmap='Greens', shading='auto',
+                       vmin=0, vmax=vminvmax[1])
+    cbar = fig.colorbar(f1, shrink=0.8)
+    cbar.set_label('Speed [m s$^{-1}$]', fontsize=14)
+    ax.set_ylabel('Depth [m]', fontsize=14)
+    ax.invert_yaxis()
+    ax.set_title(f'ADCP current speed {station}-{deployment_number} {instrument_depth}m')
+
+    ax2 = fig.add_subplot(2, 1, 2)
+    f2 = ax2.pcolormesh(time_lim, bin_depths_lim, direction, cmap='hsv', vmin=0,
+                        vmax=180, shading='auto')
+    cbar = fig.colorbar(f2, shrink=0.8)
+    cbar.set_label('Direction [degrees]', fontsize=14)
+    ax2.set_ylabel('Depth [m]', fontsize=14)
+    ax2_title = f'ADCP current direction (CCW from East) {station}-{deployment_number} {instrument_depth}m'
+    ax2.set_title(ax2_title)
+
+    plot_name = f'{station}-{deployment_number}_{instrument_depth}m_spd_dir.png'
+    if resampled:
+        plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+    plot_name = os.path.join(dest_dir, plot_name)
+    fig.savefig(plot_name)
+    plt.close(fig)
+
+    return plot_name
 
 
 def determine_dom_angle(u_true, v_true):
@@ -1198,3 +1269,25 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                        fname_ac_filt, fname_binplot]
 
     return fout_name_list
+
+
+def test():
+    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+         'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+    #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
+
+    ds = xr.open_dataset(f)
+
+    dest_dir = 'C:\\Users\\HourstonH\\Documents\\adcp_processing\\plan_for_update\\'
+
+    if ds.orientation == 'up':
+        bin_depths = ds.instrument_depth - ds.distance.data
+    else:
+        bin_depths = ds.instrument_depth + ds.distance.data
+
+    make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                      instrument_depth=int(np.round(ds.instrument_depth)),
+                      time_lim=ds.time.data, bin_depths_lim=bin_depths, ns_lim=ds.LCNSAP01.data,
+                      ew_lim=ds.LCEWAP01.data)
+    return
