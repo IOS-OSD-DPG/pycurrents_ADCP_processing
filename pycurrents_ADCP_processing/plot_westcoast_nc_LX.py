@@ -207,13 +207,13 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
     :param dest_dir: name of subfolder to which plot will be saved
     :param resampled: "30min" if resampled to 30 minutes; None if not resampled
     """
-    
+
     fig = plt.figure(dpi=400)
-    
+
     plt.plot(nc.time.data, nc.PRESPR01.data)
-    
+
     plt.gca().invert_yaxis()
-    
+
     plt.ylabel("Pressure (dbar)")
 
     # Create plots subfolder
@@ -236,10 +236,10 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
         png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01_{}_subsamp.png".format(
             nc.station, nc.deployment_number, nc.instrument_serial_number.data,
             int(np.round(nc.instrument_depth, 0)), resampled)
-    
+
     fig.savefig(png_name)
     plt.close(fig)
-    
+
     return png_name
 
 
@@ -292,7 +292,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
         amp_mean_b5 = np.nanmean(nc.TNIHCE05.data[bin_range[0]:bin_range[1],
                                  time_range[0]:time_range[1]], axis=1)
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
-        colours = ['b', 'g', 'c', 'm', 'y'] #list of plotting colours
+        colours = ['b', 'g', 'c', 'm', 'y']  # list of plotting colours
     else:
         # Done calculating time-averaged amplitude intensity
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4]
@@ -385,7 +385,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     mean_orientation = np.round(np.nanmean(orientation), decimals=1)
     # coordinate for plotting text
     middle_orientation = np.mean([np.nanmin(orientation), np.nanmax(orientation)])
-    mean_depth = np.nanmean(depths)  #text plotting coordinate
+    mean_depth = np.nanmean(depths)  # text plotting coordinate
 
     # Make the subplot
     ax = fig.add_subplot(1, 3, 3)
@@ -465,7 +465,7 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
     if bin_range is None:
         bin_depths_lim = bin_depths[bin_depths >= 0]
 
-        ew_lim = ew_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]] #Limit velocity data
+        ew_lim = ew_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]  # Limit velocity data
         ns_lim = ns_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
     else:
         bin_depths_lim = bin_depths[bin_range[0]: bin_range[1]]
@@ -642,7 +642,7 @@ def make_pcolor_speed(dest_dir: str, station: str, deployment_number: str, instr
 
     for i in range(len(ns_lim[:, 0])):
         for j in range(len(ns_lim[0, :])):
-            speed[i, j] = (ns_lim[i, j]**2 + ew_lim[i, j]**2)**.5
+            speed[i, j] = (ns_lim[i, j] ** 2 + ew_lim[i, j] ** 2) ** .5
             direction[i, j] = np.rad2deg(np.arctan(ns_lim[i, j] / ew_lim[i, j]))  # degrees CCW from East
 
     # Use the upper bound but set the bottom bound to zero since speed can't be negative
@@ -701,7 +701,7 @@ def determine_dom_angle(u_true, v_true):
         rms = np.sqrt(np.nanmean(u_along * u_along))
         if rms > max_rms:
             max_rms = rms
-            max_angle = angle # in degrees
+            max_angle = angle  # in degrees
     along_angle = max_angle
     cross_angle = max_angle - 90.
     return along_angle, cross_angle
@@ -1148,6 +1148,84 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
     return ncout_path
 
 
+def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_depth: int,
+                time_lim: np.ndarray, bin_depths_lim: np.ndarray,
+                ns_lim: np.ndarray, ew_lim: np.ndarray, resampled=None):
+    """
+    Make subplots of speed and direction for unfiltered ADCP data
+    :param dest_dir: name of directory for containing output files
+    :param station: station name
+    :param deployment_number: deployment number for mooring
+    :param instrument_depth: instrument depth
+    :param time_lim: cleaned time data; array type
+    :param bin_depths_lim: cleaned bin depth data; array type
+    :param ns_lim: cleaned north-south velocity data; array type
+    :param ew_lim: cleaned east-west velocity data; array type
+    :param resampled: "30min" if resampled to 30 minutes; None if not resampled
+    :return: Absolute file path of the figure(s) this function creates
+    """
+
+    speed = np.repeat(np.nan, len(ns_lim.flatten())).reshape(ns_lim.shape)
+    # direction = np.repeat(np.nan, len(ns_lim.flatten())).reshape(ns_lim.shape)
+
+    for i in range(len(ns_lim[:, 0])):
+        for j in range(len(ns_lim[0, :])):
+            speed[i, j] = (ns_lim[i, j] ** 2 + ew_lim[i, j] ** 2) ** .5
+            # direction[i, j] = np.rad2deg(np.arctan(ns_lim[i, j] / ew_lim[i, j]))  # degrees CCW from East
+
+    # Plots will have 6 rows and 2 columns of subplots for a total of 12 subplots
+    num_bins = len(ns_lim[:, 0])
+    num_figures = int(np.ceil(num_bins / 12))
+    zeros = np.zeros(time_lim.size)
+
+    # Invert the depth bins to go shallowest to deepest
+    bin_depths_lim = bin_depths_lim[::-1]
+    ew_lim = ew_lim[::-1, :]
+    ns_lim = ns_lim[::-1, :]
+    speed = speed[::-1, :]
+    # direction = direction[::-1, :]
+
+    plot_list = []
+
+    for k in range(num_figures):
+        fig = plt.figure(figsize=(15, 30))
+        fig.subplots_adjust(hspace=0.75, wspace=0.35)
+
+        first_bin = 12 * k + 1
+        last_bin = 12 * k + 12
+
+        for i in range(1, 13):
+            idx = 12 * k + i - 1
+            if idx < len(bin_depths_lim):
+                ax = fig.add_subplot(6, 2, i)
+                ax.fill_between(time_lim, speed[idx, :], zeros, color='grey', alpha=0.1)
+                ax.quiver(time_lim, zeros, ew_lim[idx, :], ns_lim[idx, :], color='blue',
+                          width=0.004, units='y', scale_units='y', scale=1)
+                ax.set_ylim(-0.60, 0.60)
+                ax.set_title('Bin depth: ' + str(np.around(bin_depths_lim[idx], 1)) + 'm', fontsize=8,
+                             fontweight='semibold')
+                ax.set_ylabel('Speed (m/s)', size=8)
+                ax.yaxis.labelpad = 0
+                ax.set_yticks([-0.6, -0.3, 0, 0.3, 0.6], minor=False)
+                ax.tick_params(axis='both', direction='in', top=True, right=True, labelsize=7)
+                # p = ax.add_patch(plt.Rectangle((1, 1), 1, 1, fc='k', alpha=0.1))
+                # leg = ax.legend([p], ["Current magnitude (m/s)"], loc='lower right', fontsize=8)
+                # leg._drawFrame = False
+            else:
+                last_bin = idx - 1
+
+        plt.suptitle(f'{station}-{deployment_number} Current Speed (m/s)')
+        plot_name = f'{station}-{deployment_number}_{instrument_depth}m_quiver_bins{first_bin}-{last_bin}.png'
+        if resampled:
+            plot_name.replace('.png', f'_{resampled}_resampled.png')
+        plot_name = os.path.join(dest_dir, plot_name)
+        plt.savefig(plot_name)
+        plt.close()
+        plot_list.append(plot_name)
+
+    return plot_list
+
+
 def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None,
                            time_range=None, bin_range=None, colourmap_lim=None,
                            override_resample=False):
@@ -1180,7 +1258,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     fout_name_list = []
 
     ncdata = xr.open_dataset(ncfile)
-    
+
     # Check that time range and bin range limits are not out of range
     if time_range is not None:
         if time_range[1] > len(ncdata.time.data):
@@ -1188,7 +1266,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                         'value to None for automatic recalculation')
             print('Upper time index limit', time_range[1], '>', len(ncdata.time.data))
             time_range = None
-            
+
     if bin_range is not None:
         if bin_range[1] > len(ncdata.distance.data):
             UserWarning('User-input bin range is out of range for input dataset; setting '
@@ -1276,6 +1354,8 @@ def test():
          'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+    #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
 
     ds = xr.open_dataset(f)
 
@@ -1288,6 +1368,11 @@ def test():
 
     make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
                       instrument_depth=int(np.round(ds.instrument_depth)),
-                      time_lim=ds.time.data, bin_depths_lim=bin_depths, ns_lim=ds.LCNSAP01.data,
-                      ew_lim=ds.LCEWAP01.data)
+                      time_lim=ds.time.data, bin_depths_lim=bin_depths[:-2], ns_lim=ds.LCNSAP01.data[:-2, :],
+                      ew_lim=ds.LCEWAP01.data[:-2, :])
+
+    quiver_plot(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                instrument_depth=int(np.round(ds.instrument_depth)),
+                time_lim=ds.time.data, bin_depths_lim=bin_depths[:-2], ns_lim=ds.LCNSAP01.data[:-2, :],
+                ew_lim=ds.LCEWAP01.data[:-2, :])
     return
