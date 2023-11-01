@@ -39,6 +39,8 @@ import numpy as np
 import os
 import math
 import pandas as pd
+from scipy import signal as ssignal
+from scipy import stats as sstats
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -1226,8 +1228,284 @@ def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_
     return plot_list
 
 
+# noinspection GrazieInspection
+def rot(u, v=None, fs=1.0, nperseg=None, noverlap=None, detrend='constant', axis=-1, conf=0.95):
+    """ Rotary and cross-spectra with coherence estimate.
+    Function from https://gitlab.com/krassovski/pyap/-/raw/master/analysispkg/pkg_spectrum.py
+    Parameters
+    ----------
+    u : array_like
+        Sampled series, e.g. u-component of velocity.
+    v : array_like, optional
+        Second series or v-component of velocity.
+    fs : float, optional
+        Sampling frequency of the series. Defaults to 1.0.
+    nperseg : int, optional
+        Length of spectral window. Defaults to the power of 2 nearest to the
+        quarter of the series length.
+    noverlap : int, optional
+        Number of points to overlap between windows. If `None`,
+        ``noverlap = nperseg / 2``. Defaults to `None`.
+    detrend : str or function or `False`, optional
+        Specifies how to detrend each segment. If `detrend` is a
+        string, it is passed as the `type` argument to the `detrend`
+        function. If it is a function, it takes a segment and returns a
+        detrended segment. If `detrend` is `False`, no detrending is
+        done. Defaults to 'constant'.
+    axis : int, optional
+        Axis along which the periodogram is computed; the default is
+        over the last axis (i.e. ``axis=-1``).
+    conf : float, optional
+        Confidence limits for power spectra and confidence level for coherence to calculate,
+        e.g. conf=0.95 gives 95% confidence limits. Defaults to 0.95.
+
+    Returns
+    -------
+    Dictionary with fields:
+        dof     number of degrees of freedom
+        f       frequency vector
+        period  corresponding period
+        pxx     x-component spectrum (u)
+        pyy     y-component spectrum (v)
+        cxy     co-spectrum
+        qxy     quad-spectrum
+        hxy     admittance (transfer,response) function
+        hhxy    ratio of sx and sy
+        r2xy    coherence squared
+        phase   phase
+        pneg    clockwise component of rotary spectra
+        ppos    counter-clockwise component of rotary spectra
+        ptot    total spectra
+        orient  orientation of major axis of the ellipse
+        rotcoeff    rotary coefficient
+        stabil  stability of the ellipse
+        conf    upper and lower limits of the confidence interval relative to unity
+        cohconf confidence level for coherence squared
+
+    Adapted from a Fortran routine ROTCOL written by A.Rabinovich.
+    Reference: Gonella, 1972, DSR, Vol.19, 833-846
+    """
+    n = u.shape[axis]  # series length
+
+    if nperseg is None:
+        nperseg = int(2 ** np.round(np.log2(n / 4)))
+    if noverlap is None:
+        noverlap = np.floor(nperseg / 2)
+
+    k = np.fix(n / nperseg) + np.fix((n - nperseg / 2) / nperseg)
+
+    # power per unit frequency
+    f, sx = ssignal.welch(u, fs=fs, nperseg=nperseg, noverlap=noverlap, detrend=detrend, axis=axis)
+
+    sx = np.real(sx)  # needed in case there are NaNs in u (sx is NaN+i*NaN)
+    if v is not None:
+        _, sy = ssignal.welch(v, fs=fs, nperseg=nperseg, noverlap=noverlap, detrend=detrend, axis=axis)
+        sy = np.real(sy)  # needed in case there are NaNs in v  # TODO Check
+
+        # cross-spectra
+        # power per unit frequency
+        _, pxy = ssignal.csd(u, v, fs=fs, nperseg=nperseg, noverlap=noverlap, detrend=detrend, axis=axis)
+
+        cxy = np.real(pxy)  # co-spectrum
+        qxy = -np.imag(pxy)  # quadrature spectrum
+        hxy = abs(pxy) / sx  # admittance function
+        hhxy = sy / sx  # component spectra ratio
+
+        r2xy = np.abs(pxy) ** 2 / (sx * sy)  # coherence squared
+        phase = np.degrees(-np.angle(pxy))  # phase
+
+        # rotary spectra
+        sm = (sx + sy - 2 * qxy) / 2
+        sp = (sx + sy + 2 * qxy) / 2
+        st = sm + sp
+
+        # major axis orientation
+        orient = np.degrees(np.arctan2(cxy * 2, sx - sy) / 2)
+
+        # rotary coefficient
+        rotcoeff = (sm - sp) / st
+
+        # stability of the ellipse
+        stabil = np.sqrt((st ** 2 - (sx * sy - cxy ** 2) * 4) / (st ** 2 - 4 * qxy ** 2))
+
+        # confidence level for coherence
+        # dof = k * 2
+        # confidence = np.array([.99, .95, .90, .80])
+        # cohconf = 1 - (1 - confidence) ** (2 / dof)
+        cohconf = 1 - (1 - conf) ** (1 / k)
+    else:
+        sy = cxy = qxy = hxy = hhxy = r2xy = phase = sm = sp = st = orient = rotcoeff = stabil = cohconf = None
+
+    # confidence intervals
+    vw = 1.5  # coefficient for hann window
+    # k = np.floor((n - noverlap) / (nperseg - noverlap))  # number of windows
+    dof = 2 * np.round(k * 9 / 11 * vw)  # degrees of freedom
+    # c = dof / np.array(scipy.stats.chi2.interval(conf, df=dof))
+
+    # TSA way (takes 50% overlap into account and applies window coefficient):
+    # conf_lims = chi2conf(confidence, dof);    % limits relative to 1
+    conf_lims = dof / np.array(sstats.chi2.interval(conf, df=dof))
+    # conf_lims = np.array(scipy.stats.chi2.interval(conf, df=dof))
+    # confu = conf_lims[0]
+    # confl = conf_lims[1]
+    # confLims = sm * confLims1  # limits for each spectral value
+
+    with np.errstate(invalid='ignore', divide='ignore'):
+        period = 1 / f
+    # pack all results in an output dict
+    r = dict(dof=dof, f=f, period=period, pxx=sx, pyy=sy, cxy=cxy, qxy=qxy, hxy=hxy, hhxy=hhxy, r2xy=r2xy, phase=phase,
+             pneg=sm, ppos=sp, ptot=st, orient=orient, rotcoeff=rotcoeff, stabil=stabil,
+             conf=conf_lims, cohconf=cohconf)
+    return r
+
+
+def plot_spectrum(f, p, c=None, clabel=None,
+                  cx=None, cy=None,
+                  color=None, ccolor='k',
+                  units='m', funits='cpd',
+                  ax=None, **options):
+    """ Spectrum plot in log-log axes with confidence interval
+    Function from https://gitlab.com/krassovski/pyap/-/raw/master/analysispkg/pkg_spectrum.py
+    Parameters
+    ----------
+    f : array_like
+        Array of sample frequencies.
+    p : array_like
+        Power spectral density or power spectrum of x.
+    c : array of length 2, optional
+        Upper and lower confidence limit relative to 1. Returned by spectrum()
+        in `c`. No error bar by default.
+    clabel : str, optional
+        Label for the error bar, e.g. '95%'. No label by default.
+    cx,cy : float, optional
+        Coordinates (in data units) for the error bar. By default, cx is at
+        0.8 of x-axis span, and cy is at 3 lower confidence intervals above max
+        power value in the band spanning the error bar with label.
+    color : matplotlib compatible color, optional
+        Color cpecification for the plot line. Defaults to Matplotlib default
+        color.
+    ccolor : matplotlib compatible color or 'same', optional
+        Color specification for the error bar. If 'same', uses same color as
+        the plot line. Defaults to black, 'k'.
+    units : str, optional
+        Units for analysed series, e.g. 'm' for sea level, 'm/s' for velocity.
+        Defaults to 'm'.
+    funits : str, optional
+        Frequency units. Defaults to 'cpd'.
+    ax : Matplotlib axes handle, optional
+        Defaults to the current axes.
+    **options : kwargs
+        Extra options for matplotlib's loglog()
+    """
+
+    # exclude zero-frequency value
+    ival = f != 0
+    f = f[ival]
+    p = p[ival]
+
+    if ax is None:
+        ax = plt.gca()
+
+    # spectrum
+    hp, = ax.loglog(f, p, color=color, **options)
+    ax.set_xlabel('Frequency (' + funits + ')')
+    ax.set_ylabel(r'PSD (' + units + ')$^2$/' + funits)
+    #    ax.grid(True,which='both')
+    ax.grid(True, which='major', linewidth=1)
+    ax.grid(True, which='minor', linewidth=.5)
+
+    # error bar
+    if c is not None:
+        # attempt of automatic error bar placement
+        if cx is None or cy is None:
+            xlim = ax.get_xlim()
+            xliml = np.log10(xlim)
+            dxliml = np.abs(np.diff(xliml))
+            if cx is None:
+                cx = 10 ** (np.min(xliml) + dxliml * .8)  # at 0.8 of x-axis span
+            if cy is None:
+                # approx x-range for error bar
+                xrng = 10 ** (np.log10(cx) + dxliml * [-0.05, 0.15])
+                # find p within the error bar horizontal span, extrapolate if necessary
+                inx = np.logical_and(f > xrng[0], f < xrng[1])
+                if np.any(inx):
+                    pxr = p[inx]
+                else:
+                    pxr = np.interp(xrng, f, p)
+                # 3 lower intervals above max power value in the band
+                cy = pxr.max() * (1 / c[1]) ** 3
+        if ccolor == 'same':
+            ccolor = hp[0].get_color()
+        # Need an error bar that goes from cy*c[1] to cy*c[0];
+        # plt.errorbar plots bar from cy-clower to cy+cupper;
+        # convert c to yerr accordingly:
+        yerr = cy * ((c[::-1] - 1) * [-1, 1])[:, None]
+        ax.errorbar(cx, cy, yerr=yerr, color=ccolor, capsize=5, marker='o', markerfacecolor='none')
+        # capsize is the width of horizontal ticks at upper and lower bounds in points
+        if clabel is not None:
+            ax.text(cx, cy, '   ' + clabel, verticalalignment='center', color=ccolor)
+    return hp
+
+
+def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', units='m/s', funits='cpd',
+             fig=None, ax_neg=None, ax_pos=None, **options):
+    """ Plot rotary components spectra
+    Function from https://gitlab.com/krassovski/pyap/-/raw/master/analysispkg/pkg_spectrum.py
+    fig : matplotlib figure or subfigure
+    """
+    if fig is None and (ax_pos is None and ax_neg is None):
+        fig = plt.figure()
+    if ax_pos is None and ax_neg is None:
+        (ax_neg, ax_pos) = fig.subplots(1, 2, sharey=True)
+        ax_neg.invert_xaxis()
+    if clabel is None:
+        c = None
+    else:
+        c = r['conf']
+
+    hneg = plot_spectrum(r['f'], r['pneg'], color=color, ccolor=ccolor,
+                         units=units, funits=funits, ax=ax_neg, **options)
+    hpos = plot_spectrum(r['f'], r['ppos'], c=c, clabel=clabel, cx=cx, cy=cy, color=color, ccolor=ccolor,
+                         units=units, funits=funits, ax=ax_pos, **options)
+    ax_pos.set(ylabel=None)
+    # fig.tight_layout()
+    return fig, ax_neg, ax_pos, hneg, hpos
+
+
+def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str,
+                             bin_depth: float, ns_lim: np.ndarray, ew_lim: np.ndarray,
+                             resampled=None, axis=-1):
+    """
+    from https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_spectrum.py?ref_type=heads
+    Follow functions rot() and plot_rot()
+
+    Notes:
+    NaNs need to be treated before applying this function. Maxim recommends to fill with mean or linearly interpolate
+    if the tide is strong a better way would be to remove tide, fill gaps as above and add the tide back in
+    long gaps will distort the spectra, so avoid showing spectra for very gappy series if possible, or specify the amount of missing data as a disclaimer
+    """
+
+    # Remove/replace nans from velocity components otherwise they propagate in ssignal.welch()
+
+    r = rot(u=ew_lim, v=ns_lim, axis=axis)
+
+    fig, ax_neg, ax_pos, hneg, hpos = plot_rot(r)
+
+    plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {bin_depth}m')
+
+    # Save the figure
+    plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m.png'
+    if resampled:
+        plot_name.replace('.png', f'_{resampled}_resampled.png')
+    plot_name = os.path.join(dest_dir, plot_name)
+    plt.savefig(plot_name)
+    plt.close()
+
+    return plot_name
+
+
 def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None,
-                           time_range=None, bin_range=None, colourmap_lim=None,
+                           time_range=None, bin_range=None, bins_rot_spec=None, colourmap_lim=None,
                            override_resample=False):
     """
     Inputs:
@@ -1243,6 +1521,10 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         - bin_range (optional): tuple of form (a, b), where a is the index of the minimum
                                 bin to include and b is the index of the maximum bin to
                                 include; default None
+        - bins_rot_spec (optional): list-like object containing the indices of the bins to
+                                    plot rotary spectra for, with 0 being the bin closest to
+                                    the ADCP, OR "all", which makes a plot for each bin.
+                                    Defaults to the bottom and top bins only if None provided.
         - colourmap_lim (optional): user-input tuple of the form (a, b), where a is the
                                     minimum colour map limit for the plot and b is the
                                     maximum colour map limit for the plot (both floats);
@@ -1328,6 +1610,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt,
                                                                     time_range, bin_range)
 
+    # Northward and eastward velocity colormesh plots
     fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
                                    ew_filt_lim, level0, filter_type, colourmap_lim, resampled)
 
@@ -1336,8 +1619,36 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                                    ew_filt_lim, filter_type, along_angle, colourmap_lim,
                                    resampled)
 
+    # Compare filtered data with raw data
     fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
                                          filter_type, direction, resampled)
+
+    # Returns a list of names not a single name; apply to non-filtered data
+    fnames_quiver = quiver_plot(dest_dir, ncdata.station, ncdata.deployment_number,
+                                ncdata.instrument_depth, time_lim, bin_depths_lim, ns_lim,
+                                ew_lim, resampled)
+
+    # Rotary spectra
+    if bins_rot_spec is None:
+        # By default, choose the bottom and top bins to plot
+        bins_rot_spec = [0, len(bin_depths_lim) - 1]
+    elif bins_rot_spec == 'all':
+        bins_rot_spec = np.arange(len(bin_depths_lim))
+    # Replace any nans
+    u = ew_lim
+    u[np.isnan(u)] = np.nanmean(u)
+    v = ns_lim
+    v[np.isnan(v)] = np.nanmean(v)
+    fnames_rot_spec = []
+    for bin_idx in bins_rot_spec:
+        if bin_idx < len(bin_depths_lim):
+            fnames_rot_spec.append(
+                make_plot_rotary_spectra(dest_dir, ncdata.station, ncdata.deployment_number,
+                                         bin_depths_lim[bin_idx], v[bin_idx, :], u[bin_idx, :],
+                                         resampled, axis=-1)
+            )
+        else:
+            print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with length {len(bin_depths_lim)}')
 
     # Close netCDF file
     ncdata.close()
@@ -1345,6 +1656,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     # Assemble all file names of the plots produced
     fout_name_list += [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
                        fname_ac_filt, fname_binplot]
+    fout_name_list += fnames_quiver
 
     return fout_name_list
 
@@ -1366,6 +1678,17 @@ def test():
     else:
         bin_depths = ds.instrument_depth + ds.distance.data
 
+    # Apply flags associated with before deployment and after recovery
+    u = ds.LCEWAP01.data[:, ds.LCEWAP01_QC.data[0] == 0]
+    v = ds.LCNSAP01.data[:, ds.LCNSAP01_QC.data[0] == 0]
+
+    u = u[bin_depths > 0, :]
+    v = v[bin_depths > 0, :]
+
+    # Remove any other nans by filling them with mean
+    u[np.isnan(u)] = np.nanmean(u)
+    v[np.isnan(v)] = np.nanmean(v)
+
     make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
                       instrument_depth=int(np.round(ds.instrument_depth)),
                       time_lim=ds.time.data, bin_depths_lim=bin_depths[:-2], ns_lim=ds.LCNSAP01.data[:-2, :],
@@ -1375,4 +1698,9 @@ def test():
                 instrument_depth=int(np.round(ds.instrument_depth)),
                 time_lim=ds.time.data, bin_depths_lim=bin_depths[:-2], ns_lim=ds.LCNSAP01.data[:-2, :],
                 ew_lim=ds.LCEWAP01.data[:-2, :])
+
+    bin_idx = 20
+    make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                             bin_depth=bin_depths[bin_idx],
+                             ns_lim=v[bin_idx, :], ew_lim=u[bin_idx, :], axis=0)
     return
