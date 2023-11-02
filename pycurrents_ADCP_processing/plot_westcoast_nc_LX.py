@@ -41,6 +41,10 @@ import math
 import pandas as pd
 from scipy import signal as ssignal
 from scipy import stats as sstats
+import bisect
+from scipy.optimize import minimize_scalar
+import matplotlib.ticker as plticker
+import ttide
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -1473,7 +1477,7 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
 
 
 def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str,
-                             bin_depth: float, ns_lim: np.ndarray, ew_lim: np.ndarray,
+                             bin_number: int, bin_depths_lim: np.ndarray, ns_lim: np.ndarray, ew_lim: np.ndarray,
                              resampled=None, axis=-1):
     """
     from https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_spectrum.py?ref_type=heads
@@ -1482,16 +1486,23 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     Notes:
     NaNs need to be treated before applying this function. Maxim recommends to fill with mean or linearly interpolate
     if the tide is strong a better way would be to remove tide, fill gaps as above and add the tide back in
-    long gaps will distort the spectra, so avoid showing spectra for very gappy series if possible, or specify the amount of missing data as a disclaimer
+    long gaps will distort the spectra, so avoid showing spectra for very gappy series if possible, or specify the
+    amount of missing data as a disclaimer
     """
 
     # Remove/replace nans from velocity components otherwise they propagate in ssignal.welch()
+    u = ew_lim[bin_number, :]
+    u[np.isnan(u)] = np.nanmean(u)
+    v = ns_lim[bin_number, :]
+    v[np.isnan(v)] = np.nanmean(v)
 
-    r = rot(u=ew_lim, v=ns_lim, axis=axis)
+    bin_depth = bin_depths_lim[bin_number]
+
+    r = rot(u=u, v=v, axis=axis)
 
     fig, ax_neg, ax_pos, hneg, hpos = plot_rot(r)
 
-    plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {bin_depth}m')
+    plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {np.round(bin_depth, 2)}m bin')
 
     # Save the figure
     plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m.png'
@@ -1501,6 +1512,260 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     plt.savefig(plot_name)
     plt.close()
 
+    return plot_name
+
+
+def ttide_constituents(time: np.ndarray, si: float, ray: float):
+    """
+    From https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_tides.py?ref_type=heads#L244
+    Get a set of constituents which t_tide would use for a given series and Rayleigh number.
+
+    constituents = ['MSM', 'MM', 'MSF', 'MF', 'ALP1', '2Q1', 'SIG1', 'Q1', 'RHO1', 'O1',
+                    'TAU1', 'BET1', 'NO1', 'CHI1', 'PI1', 'P1', 'S1', 'K1', 'PSI1', 'PHI1',
+                    'THE1', 'J1', 'SO1', 'OO1', 'UPS1', 'OQ2', 'EPS2', '2N2', 'MU2', 'N2',
+                    'NU2', 'GAM2', 'H1', 'M2', 'H2', 'MKS2', 'LDA2', 'L2', 'T2', 'S2', 'R2',
+                    'K2', 'MSN2', 'ETA2', 'MO3', 'M3', 'SO3', 'MK3', 'SK3', 'MN4', 'M4',
+                    'SN4', 'MS4', 'MK4', 'S4', 'SK4', '2MK5', '2SK5', '2MN6', 'M6', '2MS6',
+                    '2MK6', '2SM6', 'MSK6', '3MK7', 'M8']
+
+    select_constituents = ['M2', 'N2', 'S2', 'O1', 'K1']
+    """
+    from ttide import t_utils as tu
+    from ttide import time as tm
+    nobs = len(time)
+    nobsu = nobs - np.remainder(nobs - 1, 2)
+    stime = tm.date2num(time[0])
+    centraltime = stime + np.floor(nobsu / 2) * si / 24.0
+    nameu = tu.constituents(ray / (si * nobsu), np.array([]), np.array([]), np.array([]), np.array([]), centraltime)[0]
+    return nameu
+
+
+def plot_ellipse(ellipse, gap, clr):
+    """Takes in a calculated ellipses and plots it, with a dot indicating a particle at the end of
+    tracing out the ellipse.
+    From
+    https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_plot_currents_comparison.py?ref_type=heads
+    """
+    # Plot real and imaginary components of the ellipse
+    plt.plot(np.real(ellipse[10 * gap:3600]), np.imag(ellipse[10 * gap:3600]), color=clr, linewidth=1)
+    plt.scatter(np.real(ellipse[-1]), np.imag(ellipse[-1]), s=3, c=clr, marker='.')
+    return
+
+
+# this is a duplicate of the subroutine in pkg_plot_currents.py
+def calculate_ellipse(major: np.ndarray, minor: np.ndarray, inc: np.ndarray, phase: np.ndarray):
+    """
+    Reads in the tidal parameters, returns a series of dots for plotting.
+    (Easier than trying to describe the ellipse analytically)
+    May need to be reworked for plotting ellipses on a map.
+    From
+    https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_plot_currents_comparison.py?ref_type=heads
+
+    major, minor, inc, phase: parameters returned from ttide.t_tide() in the 'tidecon' key value
+    """
+    # major, minor, inc, phase = tidal_params
+    # todo: add error checking here
+
+    # Convert inclination and phase to radians
+    inc = inc * np.pi / 180.0
+    phase = phase * np.pi / 180.0
+
+    # Eccentricity
+    okmajor = np.nonzero(major)
+    if len(okmajor[0]) > 0:
+        ecc = minor / major
+    else:
+        ecc = np.nan
+        major = np.nan
+
+    # Ellipse
+    nsegs = 3600
+    t = np.linspace(0, 2.0 * np.pi, nsegs)
+    ellipse = major * (np.cos(t[:] - phase) + 1j * ecc * np.sin(t[:] - phase)) * np.exp(1j * inc)
+
+    return ellipse
+
+
+def best_tick(span, mostticks):
+    # https://stackoverflow.com/questions/361681/algorithm-for-nice-grid-line-intervals-on-a-graph
+    minimum = span / mostticks
+    magnitude = 10 ** math.floor(math.log(minimum, 10))
+    residual = minimum / magnitude
+    # this table must begin with 1 and end with 10
+    table = [1, 2, 5, 10]  # options for gradations in each decimal interval
+    tick = table[bisect.bisect_right(table, residual)] if residual < 10 else 10
+    return tick * magnitude
+
+
+def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str, latitude: float,
+                             time_lim: np.ndarray, bin_depth_lim: np.ndarray, ns_lim: np.ndarray,
+                             ew_lim: np.ndarray, resampled=None):
+    """
+    Follow usage in
+    https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_tides.py?ref_type=heads#L148
+
+    Plot vertical distribution of tidal ellipses
+
+    From ttide documentation:
+    Although missing data can be handled with NaN, it is wise not to
+    have too many of them. If your time series has a lot of missing
+    data at the beginning and/or end, then truncate the input time
+    series.
+    """
+
+    def plot_tidal_ellipse(ellipse, el_color, xoff=0., yoff=0., scale=1):
+        # plot conjugated ellipse for inverted y-axis
+        gap = 0
+        plot_ellipse(np.conjugate(ellipse) * scale + (xoff + 1j * yoff), gap, el_color)
+
+    def ellipses_lims(scale):
+        """ Data limits for scaled and shifted ellipses """
+        x_span, y_span, margin, y_data_lim = ellipses_span(scale)
+        x_data_lim = -(x_span / 2 + margin), x_span / 2 + margin
+        y_data_lim = y_data_lim[0] - np.sign(y_span) * margin, y_data_lim[1] + np.sign(y_span) * margin
+        return x_data_lim, y_data_lim
+
+    def aspect_func(scale):
+        """ Difference between aspect of the area occupied by ellipses and axes aspect.
+        Used in ellipse scale optimization.
+        """
+        x_span, y_span, margin, _ = ellipses_span(scale)
+        return abs(ax_aspect - (abs(y_span) + margin) / (x_span + margin))
+
+    def ellipses_span(scale):
+        """ Span of scaled and shifted ellipses along x- and y-axis and including y_min, y_max """
+        els = np.array([])
+        # for el in ell_dict.keys():
+        for dep in bin_dict.keys():
+            for tc in bin_dict[dep]['ellipses'].keys():
+                try:
+                    els = np.append(els, bin_dict[dep]['ellipses'][tc] * scale + (0 + 1j * dep))
+                    # els = np.append(els, el[1] * scale + (0 + 1j * el[0]))  # el[0] is depth, el[1] is ellipse points
+                except:
+                    continue
+                    # els = np.append(els, 0+0j )
+        x_span = 2 * np.nanmax(np.abs(np.real(els)))
+        y_data_lim = min([y_min, np.nanmin(np.imag(els))]), max([y_max, np.nanmax(np.imag(els))])
+        y_span = y_data_lim[1] - y_data_lim[0]
+        margin = 0.1 * min(x_span, abs(y_span))
+        return x_span, y_span, margin, y_data_lim
+
+    def set_lims(a):
+        """ Ensure axes limits include x_lim, y_lim. Works only for non-inverted axes. """
+        if np.min(np.abs(a.get_xlim())) < x_lim[1]:
+            a.set_xlim(x_lim)
+        a_ylim = a.get_ylim()
+        if a_ylim[0] > y_lim[0] or a_ylim[1] < y_lim[1]:
+            a.set_ylim(min(a_ylim[0], y_lim[0]), max(a_ylim[1], y_lim[1]))
+        return
+
+    sampling_interval = np.round(pd.Timedelta(time_lim[1] - time_lim[0]).seconds / 3600, 3)  # hours
+    ray = 1
+    datetime_lim = pd.to_datetime(time_lim)
+    # Convert to cm/s
+    xin = (ew_lim * 100) + 1j * (ns_lim * 100)  # Following the function documentation
+    # todo which tidal constituents would be most useful to have? All or just major ones?
+    major_constit = ['M2', 'K1', 'N2', 'S2', 'O1', 'P1', 'Q1', 'K2']
+    bin_dict = {}
+
+    # Iterate through the bins
+    # two-level dict with bin depth first level then tidal const. second level
+    for i in range(len(xin)):
+        result = ttide.t_tide(
+            xin=xin[i, :],
+            dt=sampling_interval,  # Sampling interval in hours, default = 1
+            stime=datetime_lim[0],  # The start time of the series
+            lat=latitude,
+            constitnames=major_constit,  # ttide_constituents(datetime_lim, sampling_interval, ray),
+            shallownames=[],
+            synth=0,  # The signal-to-noise ratio of constituents to use for the "predicted" tide
+            ray=ray,  # Rayleigh criteria, default 1
+            lsq='direct',  # avoid running as a long series
+        )
+
+        ell_dict = {}
+        for k, name in enumerate(major_constit):
+            # result['tidecon'] has columns for
+            # major, major err, minor, minor err, inc (inclination), inc err, phase, phase err.
+            # Missing leading column for freq stored in result['fu']
+            # Missing trailing column for SNR stored in result['snr']
+            ell_dict[name] = calculate_ellipse(
+                major=result['tidecon'][k, 0],
+                minor=result['tidecon'][k, 2],
+                inc=result['tidecon'][k, 4],
+                phase=result['tidecon'][k, 6]
+            )
+
+        # Add to dictionary containing all the results
+        bin_dict[bin_depth_lim[i]] = {'result': result, 'ellipses': ell_dict}
+
+    # # ellipse points for plotting
+    # ell_list = [[(k, calculate_ellipse(el_par_z)) for k, el_par_z in zip(ozk, el_par_case)]
+    #             for el_par_case in ell_params]
+    # # make a flat list for all cases for unified scaling calculation
+    # combined_ell_list = []
+    # for one in ell_list:
+    #     combined_ell_list.extend(one)
+
+    # include these limits in the plot even if ellipses don't span to them
+    buffer = 10  # meters
+    y_min = 0
+    y_max = np.max(bin_depth_lim) + buffer  # ozk.max()
+
+    # Make the plot
+    n_cases = len(major_constit)  # Number of tidal constituents??
+    fig, axes = plt.subplots(1, n_cases, sharey='row', figsize=(1.5 * n_cases, 8))
+    plt.subplots_adjust(wspace=.0)
+    title = f'{station}-{deployment_number} Tidal Ellipses'
+    fig.suptitle(title)
+
+    for ax in axes:
+        ax.set_aspect('equal', adjustable='datalim')  # this is for correct ellipse aspect
+        # todo change size units to cm/s
+        ax.set_xlabel('Ellipse Size\n(cm/s)')  # do before plt.tight_layout() otherwise gets cut off
+
+    axes[0].set_ylabel('Depth (m)')  # do before plt.tight_layout() otherwise gets cut off
+
+    # do tight_layout before axes[0].get_ylim() for correct numbers (it renders fig?)
+    plt.tight_layout()
+    # axes aspect to fit the ellipses in
+    ax_aspect = abs(np.diff(axes[0].get_ylim()) / np.diff(axes[0].get_xlim()))
+    # best ellipse scale to fit the axes
+    with np.errstate(divide='ignore', invalid='ignore', all='ignore'):
+        optim = minimize_scalar(aspect_func)
+    ell_scale = optim.x[0]
+    x_lim, y_lim = ellipses_lims(ell_scale)
+    # plot ellipses
+    for ax, ell_case in zip(axes, major_constit):
+        plt.sca(ax)
+        for depth in bin_dict.keys():
+            # el[0] is depth, el[1] is ellipse points
+            plot_tidal_ellipse(bin_dict[depth]['ellipses'][ell_case], 'k', yoff=depth, scale=ell_scale)
+        set_lims(ax)  # make sure ellipses are not clipped
+
+    # same xtick for all axes
+    tick_base = best_tick(np.ptp(axes[0].get_xlim()) / ell_scale, 6)
+    loc = plticker.MultipleLocator(base=tick_base * ell_scale)
+
+    # scaled x-ticks, labels and annotations
+    for ax, case in zip(axes, major_constit):
+        ax.xaxis.set_major_locator(loc)
+        x_ticks = plticker.FuncFormatter(lambda x, pos: '{0:g}'.format(x / ell_scale))
+        ax.xaxis.set_major_formatter(x_ticks)
+        # ax.set_xlabel('Ellipse Size (m/s)')  # moved to earlier in the function
+        ax.grid(which='both')
+        ax.text(0.05, 0.98, case, ha='left', va='top', transform=ax.transAxes)
+
+    axes[0].invert_yaxis()  # do it only once; shared y-axes applies it to the rest
+    # axes[0].set_ylabel('Depth (m)')
+
+    # Save the figure
+    plot_name = f'{station}-{deployment_number}_tidal_ellipses.png'
+    if resampled:
+        plot_name.replace('.png', f'_{resampled}_resampled.png')
+    plot_name = os.path.join(dest_dir, plot_name)
+    plt.savefig(plot_name)
+    plt.close()
     return plot_name
 
 
@@ -1634,21 +1899,22 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         bins_rot_spec = [0, len(bin_depths_lim) - 1]
     elif bins_rot_spec == 'all':
         bins_rot_spec = np.arange(len(bin_depths_lim))
-    # Replace any nans
-    u = ew_lim
-    u[np.isnan(u)] = np.nanmean(u)
-    v = ns_lim
-    v[np.isnan(v)] = np.nanmean(v)
+
     fnames_rot_spec = []
     for bin_idx in bins_rot_spec:
         if bin_idx < len(bin_depths_lim):
             fnames_rot_spec.append(
                 make_plot_rotary_spectra(dest_dir, ncdata.station, ncdata.deployment_number,
-                                         bin_depths_lim[bin_idx], v[bin_idx, :], u[bin_idx, :],
+                                         bin_idx, bin_depths_lim, ns_lim, ew_lim,
                                          resampled, axis=-1)
             )
         else:
-            print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with length {len(bin_depths_lim)}')
+            print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
+                  f'length {len(bin_depths_lim)}')
+
+    fname_tidal_ellipse = make_plot_tidal_ellipses(dest_dir, ncdata.station, ncdata.deployment_number,
+                                                   ncdata.latitude.data, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                                                   resampled)
 
     # Close netCDF file
     ncdata.close()
@@ -1657,50 +1923,61 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     fout_name_list += [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
                        fname_ac_filt, fname_binplot]
     fout_name_list += fnames_quiver
+    fout_name_list += fnames_rot_spec
+    fout_name_list.append(fname_tidal_ellipse)
 
     return fout_name_list
 
 
 def test():
-    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-         'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+    #      'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
+    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
+         '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
 
     ds = xr.open_dataset(f)
 
     dest_dir = 'C:\\Users\\HourstonH\\Documents\\adcp_processing\\plan_for_update\\'
 
-    if ds.orientation == 'up':
-        bin_depths = ds.instrument_depth - ds.distance.data
-    else:
-        bin_depths = ds.instrument_depth + ds.distance.data
+    # if ds.orientation == 'up':
+    #     bin_depths = ds.instrument_depth - ds.distance.data
+    # else:
+    #     bin_depths = ds.instrument_depth + ds.distance.data
 
-    # Apply flags associated with before deployment and after recovery
-    u = ds.LCEWAP01.data[:, ds.LCEWAP01_QC.data[0] == 0]
-    v = ds.LCNSAP01.data[:, ds.LCNSAP01_QC.data[0] == 0]
+    # # Apply flags associated with before deployment and after recovery
+    # u = ds.LCEWAP01.data[:, ds.LCEWAP01_QC.data[0] == 0]
+    # v = ds.LCNSAP01.data[:, ds.LCNSAP01_QC.data[0] == 0]
+    #
+    # u = u[bin_depths > 0, :]
+    # v = v[bin_depths > 0, :]
+    #
+    # # Remove any other nans by filling them with mean
+    # u[np.isnan(u)] = np.nanmean(u)
+    # v[np.isnan(v)] = np.nanmean(v)
 
-    u = u[bin_depths > 0, :]
-    v = v[bin_depths > 0, :]
-
-    # Remove any other nans by filling them with mean
-    u[np.isnan(u)] = np.nanmean(u)
-    v[np.isnan(v)] = np.nanmean(v)
+    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ds, ds.LCEWAP01.data, ds.LCNSAP01.data)
 
     make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
                       instrument_depth=int(np.round(ds.instrument_depth)),
-                      time_lim=ds.time.data, bin_depths_lim=bin_depths[:-2], ns_lim=ds.LCNSAP01.data[:-2, :],
-                      ew_lim=ds.LCEWAP01.data[:-2, :])
+                      time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
+                      ew_lim=ew_lim)
 
     quiver_plot(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
                 instrument_depth=int(np.round(ds.instrument_depth)),
-                time_lim=ds.time.data, bin_depths_lim=bin_depths[:-2], ns_lim=ds.LCNSAP01.data[:-2, :],
-                ew_lim=ds.LCEWAP01.data[:-2, :])
+                time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
+                ew_lim=ew_lim)
 
-    bin_idx = 20
-    make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                             bin_depth=bin_depths[bin_idx],
-                             ns_lim=v[bin_idx, :], ew_lim=u[bin_idx, :], axis=0)
+    for bin_idx in [0, len(bin_depths_lim) - 1]:
+        # Plot top and bottom bins
+        make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                                 bin_number=bin_idx, bin_depths_lim=bin_depths_lim,
+                                 ns_lim=ns_lim, ew_lim=ew_lim, axis=0)
+
+    make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                             latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
+                             ns_lim=ns_lim, ew_lim=ew_lim)
     return
