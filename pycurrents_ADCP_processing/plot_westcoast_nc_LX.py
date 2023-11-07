@@ -45,6 +45,8 @@ import bisect
 from scipy.optimize import minimize_scalar
 import matplotlib.ticker as plticker
 import ttide
+from scipy.interpolate import interp1d
+from matplotlib.colors import LogNorm
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -625,7 +627,7 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
 def make_pcolor_speed(dest_dir: str, station: str, deployment_number: str, instrument_depth: int,
                       time_lim: np.ndarray, bin_depths_lim: np.ndarray,
                       ns_lim: np.ndarray, ew_lim: np.ndarray, resampled=None, colourmap_lim: tuple = None):
-    """
+    """ Skip this plot for now in favour of quiver plots
     Make subplots of speed and direction for unfiltered ADCP data
     :param dest_dir: name of directory for containing output files
     :param station: station name
@@ -1515,6 +1517,152 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     return plot_name
 
 
+def rot_freqinterp(rot_dict: dict) -> tuple:
+    # Collect all frequency values from all spectra and make this the target frequency vector
+    ftarget = np.array([])
+    for depth in rot_dict.keys():
+        fnew = rot_dict[depth]['f']
+        ftarget = np.unique(np.concatenate((ftarget, fnew)))
+
+    # Interpolate spectra values to "standard" frequencies
+
+    # Initialize 2d arrays with shape (depth, num_frequencies)
+    pneg_interp = np.zeros(len(rot_dict) * len(ftarget)).reshape((len(rot_dict), len(ftarget)))
+    ppos_interp = np.zeros(len(rot_dict) * len(ftarget)).reshape((len(rot_dict), len(ftarget)))
+
+    # Do 1d interpolation
+    for i, depth in enumerate(rot_dict.keys()):
+        # todo choose what type of interpolation to use; default is linear
+        func_pneg = interp1d(x=rot_dict[depth]['f'], y=rot_dict[depth]['pneg'])
+        func_ppos = interp1d(x=rot_dict[depth]['f'], y=rot_dict[depth]['ppos'])
+        # Apply the returned functions
+        pneg_interp[i, :] = func_pneg(ftarget)
+        ppos_interp[i, :] = func_ppos(ftarget)
+
+    return ftarget, pneg_interp, ppos_interp
+
+
+def pcolor_rot_component(dest_dir: str, station: str, deployment_number: str,
+                         x: np.ndarray, y, c: np.ndarray, clim: tuple, neg_or_pos: str,
+                         funits='cpd', resampled=False):
+    """
+    x: depth
+    y: standard frequencies; the product of interpolation
+    c: real component of pneg_interp or ppos_interp
+    clim: c limits in format (min, max)
+    neg_or_pos: "neg" for negative (CW) component, "pos" for positive (CCW) component
+    """
+    # % CW: R, z, componentfield, separateaxes, units
+    # [~,climcw,hcw] = pcolor_component(R,z,'sm',separateaxes,units); % ,'neg',[prefix '_cw']
+    # % CCW
+    # [~,climccw,hccw] = pcolor_component(R,z,'sp',separateaxes,units); % ,'pos',[prefix '_ccw']
+    fig, ax = plt.subplots()
+    f1 = ax.pcolormesh(x, y, c, cmap='jet', shading='auto',
+                       norm=LogNorm(vmin=clim[0], vmax=clim[1]))  # Maxim's code uses the jet colormap
+
+    # # Make x axis log scale
+    # ax.set_xscale('log')
+
+    # Invert y axis
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim((ymax, ymin))
+
+    # Add legend
+    cbar = fig.colorbar(f1, ax=ax)
+    cbar.set_label(r'PSD (m/s)$^2$/' + funits)
+
+    ax.set_xlabel(f'Frequency ({funits})')
+    ax.set_ylabel('Depth (m)')
+
+    title = f'{station}-{deployment_number} Rotary Spectra (XX)'
+    if neg_or_pos == 'neg':
+        title = title.replace('XX', 'neg./CW')
+    else:
+        title = title.replace('XX', 'pos./CCW')
+    ax.set_title(title)
+
+    plt.tight_layout()
+
+    # Save the figure
+    plot_name = f'{station}-{deployment_number}_depth_prof_rot_spec.png'
+    if neg_or_pos == 'neg':
+        plot_name = plot_name.replace('.png', '_neg_cw.png')
+    else:
+        plot_name = plot_name.replace('.png', '_pos_ccw.png')
+    if resampled:
+        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+    plot_name = os.path.join(dest_dir, plot_name)
+    plt.savefig(plot_name)
+    plt.close()
+    return plot_name
+
+
+def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str,
+                             bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
+                             ew_lim: np.ndarray, resampled=None):
+    """
+    Plot depth profiles of rotary spectra in a pseudo-color (pcolor) plot
+
+    Adapted from Maxim Krassovski's MatLab code
+    Calculate rotary spectra: https://gitlab.com/krassovski/Tools/-/blob/master/Signal/series/adcp_rot.m?ref_type=heads
+    Plot them: https://gitlab.com/krassovski/Tools/-/blob/master/Signal/series/adcp_report.m?ref_type=heads
+    -> rot_pcolor_plot()
+    """
+
+    # Remove nans
+    u = ew_lim
+    u[np.isnan(u)] = np.nanmean(u)
+    v = ns_lim
+    v[np.isnan(v)] = np.nanmean(v)
+
+    # Initialize dict to hold results for each bin
+    rot_dict = {}
+
+    # Iterate through all the bins
+    for bin_idx in range(len(bin_depths_lim)):
+        rot_dict[bin_depths_lim[bin_idx]] = rot(u=u[bin_idx, :], v=v[bin_idx, :], axis=0)
+
+    # Standard frequencies
+    ftarget, pneg_interp, ppos_interp = rot_freqinterp(rot_dict)
+
+    # Get color range to unify both negative and positive plots
+    cneg = np.real(pneg_interp)
+    cpos = np.real(ppos_interp)
+    cmin = np.min([np.min(cneg), np.min(cpos)])
+    cmax = np.max([np.max(cneg), np.max(cpos)])
+
+    # pcolor plot, skipping the 0 frequency
+    pneg_plot_name = pcolor_rot_component(
+        dest_dir,
+        station,
+        deployment_number,
+        x=ftarget,
+        y=rot_dict.keys(),
+        c=cneg,
+        clim=(cmin, cmax),
+        neg_or_pos='neg',
+        resampled=resampled
+    )
+
+    ppos_plot_name = pcolor_rot_component(
+        dest_dir,
+        station,
+        deployment_number,
+        x=ftarget,
+        y=rot_dict.keys(),
+        c=cpos,
+        clim=(cmin, cmax),
+        neg_or_pos='pos',
+        resampled=resampled
+    )
+
+    # todo unify color scales for pneg and ppos plots before saving them
+
+    # Spectra for selected bins/depths
+
+    return [pneg_plot_name, ppos_plot_name]
+
+
 def ttide_constituents(time: np.ndarray, si: float, ray: float):
     """
     From https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_tides.py?ref_type=heads#L244
@@ -1916,6 +2064,10 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                                                    ncdata.latitude.data, time_lim, bin_depths_lim, ns_lim, ew_lim,
                                                    resampled)
 
+    fnames_depth_prof = make_depth_prof_rot_spec(dest_dir, station=ncdata.station,
+                                                 deployment_number=ncdata.deployment_number,
+                                                 bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim)
+
     # Close netCDF file
     ncdata.close()
 
@@ -1925,23 +2077,24 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     fout_name_list += fnames_quiver
     fout_name_list += fnames_rot_spec
     fout_name_list.append(fname_tidal_ellipse)
+    fout_name_list += fnames_depth_prof
 
     return fout_name_list
 
 
 def test():
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-    #      'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
+    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+         'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
-    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
-         '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
+    #      '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
 
     ds = xr.open_dataset(f)
 
-    dest_dir = 'C:\\Users\\HourstonH\\Documents\\adcp_processing\\plan_for_update\\'
+    dest_dir = 'C:\\Users\\HourstonH\\Documents\\adcp_processing\\plan_for_update\\plots\\'
 
     # if ds.orientation == 'up':
     #     bin_depths = ds.instrument_depth - ds.distance.data
@@ -1961,23 +2114,26 @@ def test():
 
     time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ds, ds.LCEWAP01.data, ds.LCNSAP01.data)
 
-    make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                      instrument_depth=int(np.round(ds.instrument_depth)),
-                      time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
-                      ew_lim=ew_lim)
+    # make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #                   instrument_depth=int(np.round(ds.instrument_depth)),
+    #                   time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
+    #                   ew_lim=ew_lim)
+    #
+    # quiver_plot(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #             instrument_depth=int(np.round(ds.instrument_depth)),
+    #             time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
+    #             ew_lim=ew_lim)
+    #
+    # for bin_idx in [0, len(bin_depths_lim) - 1]:
+    #     # Plot top and bottom bins
+    #     make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #                              bin_number=bin_idx, bin_depths_lim=bin_depths_lim,
+    #                              ns_lim=ns_lim, ew_lim=ew_lim, axis=0)
+    #
+    # make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #                          latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
+    #                          ns_lim=ns_lim, ew_lim=ew_lim)
 
-    quiver_plot(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                instrument_depth=int(np.round(ds.instrument_depth)),
-                time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
-                ew_lim=ew_lim)
-
-    for bin_idx in [0, len(bin_depths_lim) - 1]:
-        # Plot top and bottom bins
-        make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                                 bin_number=bin_idx, bin_depths_lim=bin_depths_lim,
-                                 ns_lim=ns_lim, ew_lim=ew_lim, axis=0)
-
-    make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                             latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
-                             ns_lim=ns_lim, ew_lim=ew_lim)
+    make_depth_prof_rot_spec(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                             bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim)
     return
