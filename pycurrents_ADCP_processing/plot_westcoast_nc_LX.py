@@ -1560,8 +1560,8 @@ def pcolor_rot_component(dest_dir: str, station: str, deployment_number: str,
     f1 = ax.pcolormesh(x, y, c, cmap='jet', shading='auto',
                        norm=LogNorm(vmin=clim[0], vmax=clim[1]))  # Maxim's code uses the jet colormap
 
-    # # Make x axis log scale
-    # ax.set_xscale('log')
+    # Make x axis log scale
+    ax.set_xscale('log')
 
     # Invert y axis
     ymin, ymax = ax.get_ylim()
@@ -1624,6 +1624,11 @@ def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str
 
     # Standard frequencies
     ftarget, pneg_interp, ppos_interp = rot_freqinterp(rot_dict)
+
+    # Exclude zero frequency, assuming zero frequency is first element in ftarget
+    ftarget = ftarget[1:]
+    pneg_interp = pneg_interp[:, 1:]
+    ppos_interp = ppos_interp[:, 1:]
 
     # Get color range to unify both negative and positive plots
     cneg = np.real(pneg_interp)
@@ -2083,14 +2088,14 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
 
 def test():
-    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-         'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+    #      'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
-    #      '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
+    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
+         '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
 
     ds = xr.open_dataset(f)
 
