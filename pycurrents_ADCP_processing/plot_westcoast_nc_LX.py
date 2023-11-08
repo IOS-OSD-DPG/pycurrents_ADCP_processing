@@ -1234,6 +1234,15 @@ def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_
     return plot_list
 
 
+def sampling_freq(time) -> float:
+    """
+    Return fs in units of CPD (cycles per day)
+    """
+    s_per_day = 3600 * 24
+    dt_s = (time[1] - time[0]).astype('timedelta64[s]')  # seconds
+    return np.round(s_per_day / dt_s.astype(np.float32))
+
+
 # noinspection GrazieInspection
 def rot(u, v=None, fs=1.0, nperseg=None, noverlap=None, detrend='constant', axis=-1, conf=0.95):
     """ Rotary and cross-spectra with coherence estimate.
@@ -1479,11 +1488,14 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
 
 
 def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str,
-                             bin_number: int, bin_depths_lim: np.ndarray, ns_lim: np.ndarray, ew_lim: np.ndarray,
+                             bin_number: int, bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
+                             ew_lim: np.ndarray, fs: float,
                              resampled=None, axis=-1):
     """
     from https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_spectrum.py?ref_type=heads
     Follow functions rot() and plot_rot()
+
+    fs: sampling frequency in units of CPD
 
     Notes:
     NaNs need to be treated before applying this function. Maxim recommends to fill with mean or linearly interpolate
@@ -1500,10 +1512,13 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
 
     bin_depth = bin_depths_lim[bin_number]
 
-    r = rot(u=u, v=v, axis=axis)
+    r = rot(u=u, v=v, axis=axis, fs=fs)
 
     fig, ax_neg, ax_pos, hneg, hpos = plot_rot(r)
 
+    # Add titles to the subplots
+    ax_neg.set_title('CW')
+    ax_pos.set_title('CCW')
     plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {np.round(bin_depth, 2)}m bin')
 
     # Save the figure
@@ -1599,7 +1614,7 @@ def pcolor_rot_component(dest_dir: str, station: str, deployment_number: str,
 
 def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str,
                              bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
-                             ew_lim: np.ndarray, resampled=None):
+                             ew_lim: np.ndarray, fs: float, resampled=None):
     """
     Plot depth profiles of rotary spectra in a pseudo-color (pcolor) plot
 
@@ -1620,7 +1635,7 @@ def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str
 
     # Iterate through all the bins
     for bin_idx in range(len(bin_depths_lim)):
-        rot_dict[bin_depths_lim[bin_idx]] = rot(u=u[bin_idx, :], v=v[bin_idx, :], axis=0)
+        rot_dict[bin_depths_lim[bin_idx]] = rot(u=u[bin_idx, :], v=v[bin_idx, :], axis=0, fs=fs)
 
     # Standard frequencies
     ftarget, pneg_interp, ppos_interp = rot_freqinterp(rot_dict)
@@ -1661,9 +1676,7 @@ def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str
         resampled=resampled
     )
 
-    # todo unify color scales for pneg and ppos plots before saving them
-
-    # Spectra for selected bins/depths
+    # Spectra for selected bins/depths?
 
     return [pneg_plot_name, ppos_plot_name]
 
@@ -2037,9 +2050,9 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                                    ew_filt_lim, filter_type, along_angle, colourmap_lim,
                                    resampled)
 
-    # Compare filtered data with raw data
-    fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
-                                         filter_type, direction, resampled)
+    # # Compare filtered data with raw data
+    # fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
+    #                                      filter_type, direction, resampled)
 
     # Returns a list of names not a single name; apply to non-filtered data
     fnames_quiver = quiver_plot(dest_dir, ncdata.station, ncdata.deployment_number,
@@ -2047,6 +2060,10 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                                 ew_lim, resampled)
 
     # Rotary spectra
+
+    # Sampling frequency
+    fs = sampling_freq(time_lim)
+
     if bins_rot_spec is None:
         # By default, choose the bottom and top bins to plot
         bins_rot_spec = [0, len(bin_depths_lim) - 1]
@@ -2058,7 +2075,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         if bin_idx < len(bin_depths_lim):
             fnames_rot_spec.append(
                 make_plot_rotary_spectra(dest_dir, ncdata.station, ncdata.deployment_number,
-                                         bin_idx, bin_depths_lim, ns_lim, ew_lim,
+                                         bin_idx, bin_depths_lim, ns_lim, ew_lim, fs,
                                          resampled, axis=-1)
             )
         else:
@@ -2069,16 +2086,16 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                                                    ncdata.latitude.data, time_lim, bin_depths_lim, ns_lim, ew_lim,
                                                    resampled)
 
-    fnames_depth_prof = make_depth_prof_rot_spec(dest_dir, station=ncdata.station,
-                                                 deployment_number=ncdata.deployment_number,
-                                                 bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim)
+    fnames_depth_prof = make_depth_prof_rot_spec(
+        dest_dir, station=ncdata.station, deployment_number=ncdata.deployment_number,
+        bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, fs=fs)
 
     # Close netCDF file
     ncdata.close()
 
     # Assemble all file names of the plots produced
     fout_name_list += [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
-                       fname_ac_filt, fname_binplot]
+                       fname_ac_filt]
     fout_name_list += fnames_quiver
     fout_name_list += fnames_rot_spec
     fout_name_list.append(fname_tidal_ellipse)
@@ -2119,6 +2136,8 @@ def test():
 
     time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ds, ds.LCEWAP01.data, ds.LCNSAP01.data)
 
+    fs = sampling_freq(time_lim)
+
     # make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
     #                   instrument_depth=int(np.round(ds.instrument_depth)),
     #                   time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
@@ -2129,16 +2148,16 @@ def test():
     #             time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
     #             ew_lim=ew_lim)
     #
-    # for bin_idx in [0, len(bin_depths_lim) - 1]:
-    #     # Plot top and bottom bins
-    #     make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #                              bin_number=bin_idx, bin_depths_lim=bin_depths_lim,
-    #                              ns_lim=ns_lim, ew_lim=ew_lim, axis=0)
+    for bin_idx in [0, len(bin_depths_lim) - 1]:
+        # Plot top and bottom bins
+        make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                                 bin_number=bin_idx, bin_depths_lim=bin_depths_lim,
+                                 ns_lim=ns_lim, ew_lim=ew_lim, fs=fs, axis=0)
     #
     # make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
     #                          latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
     #                          ns_lim=ns_lim, ew_lim=ew_lim)
 
     make_depth_prof_rot_spec(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                             bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim)
+                             bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, fs=fs, ew_lim=ew_lim)
     return
