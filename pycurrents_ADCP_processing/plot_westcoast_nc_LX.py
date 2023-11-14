@@ -1465,6 +1465,8 @@ def plot_spectrum(f, p, c=None, clabel=None,
 
 def mark_frequency(fmark, fname='', ax=None, f=None, p=None, fig=None):
     """ Annotation arrow with text label above spectra plot at a specified frequency
+    Author: Maxim Krassovski
+    https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_spectrum.py?ref_type=heads
 
     Parameters
     ----------
@@ -1573,7 +1575,7 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     amount of missing data as a disclaimer
 
     inputs
-    - bin_number: starts at zero, applies to subsetted data
+    - bin_number: bin index, starts at zero, applies to subsetted data not the complete dataset at this point...
 
     """
 
@@ -1593,7 +1595,7 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
 
     # Add annotation of major frequencies M2 and K1 to ax_neg and ax_pos
     fnames = ['M2', 'K1']
-    # todo
+
     result = run_ttide(
         U=u,
         V=v,
@@ -1602,7 +1604,8 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
         latitude=latitude,
         constitnames=fnames
     )
-    for fname, fmark in zip(fnames, result['fu']):
+    for fname_S4, fmark in zip(result['nameu'], result['fu']):  # nameu might be in different order than fnames !!
+        fname = fname_S4.astype('str').strip(' ')  # Remove any trailing whitespace
         mark_frequency(fmark=fmark, fname=fname, ax=ax_neg, f=r['f'], p=r['pneg'], fig=fig)
         mark_frequency(fmark=fmark, fname=fname, ax=ax_pos, f=r['f'], p=r['ppos'], fig=fig)
 
@@ -1637,7 +1640,7 @@ def rot_freqinterp(rot_dict: dict) -> tuple:
 
     # Do 1d interpolation
     for i, depth in enumerate(rot_dict.keys()):
-        # todo choose what type of interpolation to use; default is linear
+        # Default interpolation type is linear
         func_pneg = interp1d(x=rot_dict[depth]['f'], y=rot_dict[depth]['pneg'])
         func_ppos = interp1d(x=rot_dict[depth]['f'], y=rot_dict[depth]['ppos'])
         # Apply the returned functions
@@ -1931,12 +1934,14 @@ def parse_tidal_constituents(constituents, tide_result):
         if 'nameu' in tide_result.keys():
             ind = find_constituent(tide_result['nameu'], con.ljust(4))
         else:
-            ind = None  # case where tidal analysis was not performced
+            ind = None  # case where tidal analysis was not performed
         # todo: option for obs but not mod and vice versa?
         if ind is not None:
+            # Quantity, error
             a, ea = tide_result['tidecon'][ind, 0], tide_result['tidecon'][ind, 1]
             b, eb = tide_result['tidecon'][ind, 2], tide_result['tidecon'][ind, 3]
             if tide_result['tidecon'].shape[1] == 8:
+                # Has complex components
                 c, ec = tide_result['tidecon'][ind, 4], tide_result['tidecon'][ind, 5]
                 d, ed = tide_result['tidecon'][ind, 6], tide_result['tidecon'][ind, 7]
             else:
@@ -2291,14 +2296,14 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
 
 def test():
-    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-         'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+    #      'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
-    #      '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
+    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
+         '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
 
     ds = xr.open_dataset(f)
 
@@ -2332,15 +2337,15 @@ def test():
     #             time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
     #             ew_lim=ew_lim)
     #
-    # for bin_idx in [0, len(bin_depths_lim) - 1]:
-    #     # Plot top and bottom bins
-    #     make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #                              bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
-    #                              ns_lim=ns_lim, ew_lim=ew_lim, latitude=ds.latitude.data, axis=0)
-    #
-    make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                             latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
-                             ns_lim=ns_lim, ew_lim=ew_lim)
+    for bin_idx in [0, len(bin_depths_lim) - 1]:
+        # Plot top and bottom bins
+        make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                                 bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+                                 ns_lim=ns_lim, ew_lim=ew_lim, latitude=ds.latitude.data, axis=0)
+
+    # make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #                          latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
+    #                          ns_lim=ns_lim, ew_lim=ew_lim)
 
     # make_depth_prof_rot_spec(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
     #                          bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, time_lim=time_lim, ew_lim=ew_lim)
