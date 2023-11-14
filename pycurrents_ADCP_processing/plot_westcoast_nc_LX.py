@@ -47,6 +47,7 @@ import matplotlib.ticker as plticker
 import ttide
 from scipy.interpolate import interp1d
 from matplotlib.colors import LogNorm
+import matplotlib
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -1462,6 +1463,72 @@ def plot_spectrum(f, p, c=None, clabel=None,
     return hp
 
 
+def mark_frequency(fmark, fname='', ax=None, f=None, p=None, fig=None):
+    """ Annotation arrow with text label above spectra plot at a specified frequency
+
+    Parameters
+    ----------
+
+    fmark : float
+        Frequency to mark
+    fname : str, optional
+        Text for annotation. Defaults to empty string.
+    ax : axes handle, optional
+        Use all line objects in these axes to determine vertical position of
+        the annotation. If supplied, f,p are ignored. Also denotes axes for
+        plotting. Defaults to None.
+    f,p : array_like, optional
+        x- and y-coordinates for the curve to use for vertical positioning of
+        the annotation. Defaults to None.
+    fig : matplotlib figure or None
+        Figure instance for which single bin rotary spectra have been plotted
+    """
+    if ax is None:
+        ax = plt.gca()
+    if fig is None:
+        fig = plt.gcf()
+
+    # determine y-position from all lines in the axes
+    if f is not None and p is not None:  # determine y-position from supplied f,p
+        pmark = np.interp(fmark, f, p)
+    else:
+        lines = ax.lines
+        # find highest line at this freq
+        pmark = np.nan
+        for ln in lines:
+            pmark = np.fmax(pmark,
+                            np.interp(fmark, ln.get_xdata(), ln.get_ydata(),
+                                      left=np.nan, right=np.nan))
+        if np.isnan(pmark):  # no lines at this frequency
+            # place it in the middle
+            ylim = ax.get_ylim()
+            if ax.get_yscale() == 'log':
+                pmark = 10 ** (np.mean(np.log10(ylim)))
+            else:
+                pmark = np.mean(ylim)
+
+        # raise RuntimeError('Either axes or f,p values are needed to determine y-position for frequency mark.')
+
+    arrowprops = dict(arrowstyle="simple, head_width=0.25, tail_width=0.05",
+                      color='k', lw=0.5, shrinkB=10)
+    # shrinkB is the offset in pixels from (f,p) line
+
+    ann = ax.annotate(fname, xy=(fmark, pmark), xytext=(0, 25),
+                      textcoords='offset points', horizontalalignment='center',
+                      arrowprops=arrowprops)
+
+    # matplotlib.use('qt4agg')
+    fig.canvas.draw()
+    box = matplotlib.text.Text.get_window_extent(ann)
+    ylim = ax.get_ylim()
+    yann = ax.transData.inverted().transform(box)[:, 1]
+    # from IPython import embed;    embed()  ######################
+    if ylim[1] < yann[1]:
+        ax.set_ylim([ylim[0], yann[1] * yann[1] / yann[0]])
+        # ax.grid()
+    return
+
+
 def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', units='m/s', funits='cpd',
              fig=None, ax_neg=None, ax_pos=None, **options):
     """ Plot rotary components spectra
@@ -1488,10 +1555,12 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
 
 
 def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str,
-                             bin_number: int, bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
-                             ew_lim: np.ndarray, fs: float,
+                             bin_number: int, bin_depths_lim: np.ndarray, time_lim: np.ndarray,
+                             ns_lim: np.ndarray, ew_lim: np.ndarray, latitude: float,
                              resampled=None, axis=-1):
     """
+    Make single-bin plot of rotary spectra with separate subplots for CW and CCW components
+
     from https://gitlab.com/krassovski/pyap/-/blob/master/analysispkg/pkg_spectrum.py?ref_type=heads
     Follow functions rot() and plot_rot()
 
@@ -1502,7 +1571,13 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     if the tide is strong a better way would be to remove tide, fill gaps as above and add the tide back in
     long gaps will distort the spectra, so avoid showing spectra for very gappy series if possible, or specify the
     amount of missing data as a disclaimer
+
+    inputs
+    - bin_number: starts at zero, applies to subsetted data
+
     """
+
+    fs = sampling_freq(time_lim)
 
     # Remove/replace nans from velocity components otherwise they propagate in ssignal.welch()
     u = ew_lim[bin_number, :]
@@ -1516,13 +1591,28 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
 
     fig, ax_neg, ax_pos, hneg, hpos = plot_rot(r)
 
+    # Add annotation of major frequencies M2 and K1 to ax_neg and ax_pos
+    fnames = ['M2', 'K1']
+    # todo
+    result = run_ttide(
+        U=u,
+        V=v,
+        xin_units='m/s',
+        time_lim=time_lim,
+        latitude=latitude,
+        constitnames=fnames
+    )
+    for fname, fmark in zip(fnames, result['fu']):
+        mark_frequency(fmark=fmark, fname=fname, ax=ax_neg, f=r['f'], p=r['pneg'], fig=fig)
+        mark_frequency(fmark=fmark, fname=fname, ax=ax_pos, f=r['f'], p=r['ppos'], fig=fig)
+
     # Add titles to the subplots
     ax_neg.set_title('CW')
     ax_pos.set_title('CCW')
     plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {np.round(bin_depth, 2)}m bin')
 
     # Save the figure
-    plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m.png'
+    plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m_ttide.png'
     if resampled:
         plot_name.replace('.png', f'_{resampled}_resampled.png')
     plot_name = os.path.join(dest_dir, plot_name)
@@ -1614,7 +1704,7 @@ def pcolor_rot_component(dest_dir: str, station: str, deployment_number: str,
 
 def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str,
                              bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
-                             ew_lim: np.ndarray, fs: float, resampled=None):
+                             ew_lim: np.ndarray, time_lim: np.ndarray, resampled=None):
     """
     Plot depth profiles of rotary spectra in a pseudo-color (pcolor) plot
 
@@ -1623,6 +1713,8 @@ def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str
     Plot them: https://gitlab.com/krassovski/Tools/-/blob/master/Signal/series/adcp_report.m?ref_type=heads
     -> rot_pcolor_plot()
     """
+
+    fs = sampling_freq(time_lim)
 
     # Remove nans
     u = ew_lim
@@ -1694,7 +1786,6 @@ def ttide_constituents(time: np.ndarray, si: float, ray: float):
                     'SN4', 'MS4', 'MK4', 'S4', 'SK4', '2MK5', '2SK5', '2MN6', 'M6', '2MS6',
                     '2MK6', '2SM6', 'MSK6', '3MK7', 'M8']
 
-    select_constituents = ['M2', 'N2', 'S2', 'O1', 'K1']
     """
     from ttide import t_utils as tu
     from ttide import time as tm
@@ -1719,7 +1810,7 @@ def plot_ellipse(ellipse, gap, clr):
 
 
 # this is a duplicate of the subroutine in pkg_plot_currents.py
-def calculate_ellipse(major: np.ndarray, minor: np.ndarray, inc: np.ndarray, phase: np.ndarray):
+def calculate_ellipse(major: float, minor: float, inc: float, phase: float):
     """
     Reads in the tidal parameters, returns a series of dots for plotting.
     (Easier than trying to describe the ellipse analytically)
@@ -1753,6 +1844,9 @@ def calculate_ellipse(major: np.ndarray, minor: np.ndarray, inc: np.ndarray, pha
 
 
 def best_tick(span, mostticks):
+    """
+    Author : Maxim Krassovski
+    """
     # https://stackoverflow.com/questions/361681/algorithm-for-nice-grid-line-intervals-on-a-graph
     minimum = span / mostticks
     magnitude = 10 ** math.floor(math.log(minimum, 10))
@@ -1761,6 +1855,103 @@ def best_tick(span, mostticks):
     table = [1, 2, 5, 10]  # options for gradations in each decimal interval
     tick = table[bisect.bisect_right(table, residual)] if residual < 10 else 10
     return tick * magnitude
+
+
+def run_ttide(U: np.ndarray, V: np.ndarray, xin_units: str, time_lim: np.ndarray, latitude: float,
+              constitnames: list):
+    """
+    Wrapper for ttide.t_tide()
+
+    inputs:
+    - U: east-west velocity component for a single bin, 1-D, in m/s
+    - V: north-south velocity component for a single bin, 1-D, in m/s
+    - xin_units: units to apply to the xin parameter for ttide.t_tide()
+    - time_lim: time array
+    - latitude: latitude of ADCP
+    - constitnames: list of tidal constituent names for which to compute the frequency, amplitude, and phase
+    """
+    xin = U + 1j * V
+    if xin_units == 'cm/s':
+        xin *= 100
+
+    # Round to 3 decimal places
+    sampling_interval = np.round(pd.Timedelta(time_lim[1] - time_lim[0]).seconds / 3600, 3)  # hours
+    ray = 1
+    synth = 0
+    stime = pd.to_datetime(time_lim[0])
+
+    result = ttide.t_tide(
+        xin=xin,
+        dt=sampling_interval,  # Sampling interval in hours, default = 1
+        stime=stime,  # The start time of the series
+        lat=latitude,
+        constitnames=constitnames,  # ttide_constituents(datetime_lim, sampling_interval, ray),
+        shallownames=[],
+        synth=synth,  # The signal-to-noise ratio of constituents to use for the "predicted" tide
+        ray=ray,  # Rayleigh criteria, default 1
+        lsq='direct',  # avoid running as a long series
+        out_style=None  # No printed output
+    )
+    return result
+
+
+def find_constituent(con_names, constituent):
+    """ Find the index of the requested constituent.
+    Author: Maxim Krassovski"""
+
+    # Check that the list of names is in unicode and not byte.
+    tmp = con_names.astype('U4')
+    ind = np.where(tmp == constituent)[0]
+    if len(ind) == 0:
+        return None
+    else:
+        return ind[0]
+
+
+def parse_tidal_constituents(constituents, tide_result):
+    """ Given the full tidal output from ttide, return the specified constituents.
+    Author: Maxim Krassovski
+
+    Parameters
+    ----------
+    constituents : list
+        Constituents to parse
+    tide_result : dict
+        ttide output
+
+    Returns
+    -------
+    dictionary of tuples,
+    with the keys being the constituent names and the tuples being either (amp,phase) or (maj,min,inc,phase) if complex.
+    """
+
+    tidal_par, error_par = {}, {}
+
+    for con in constituents:
+        if 'nameu' in tide_result.keys():
+            ind = find_constituent(tide_result['nameu'], con.ljust(4))
+        else:
+            ind = None  # case where tidal analysis was not performced
+        # todo: option for obs but not mod and vice versa?
+        if ind is not None:
+            a, ea = tide_result['tidecon'][ind, 0], tide_result['tidecon'][ind, 1]
+            b, eb = tide_result['tidecon'][ind, 2], tide_result['tidecon'][ind, 3]
+            if tide_result['tidecon'].shape[1] == 8:
+                c, ec = tide_result['tidecon'][ind, 4], tide_result['tidecon'][ind, 5]
+                d, ed = tide_result['tidecon'][ind, 6], tide_result['tidecon'][ind, 7]
+            else:
+                c, ec = np.nan, np.nan
+                d, ed = np.nan, np.nan
+
+        else:
+            a, ea = np.nan, np.nan
+            b, eb = np.nan, np.nan
+            c, ec = np.nan, np.nan
+            d, ed = np.nan, np.nan
+
+        tidal_par[con] = (float(a), float(b), float(c), float(d))
+        error_par[con] = (float(ea), float(eb), float(ec), float(ed))
+    return tidal_par, error_par
 
 
 def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str, latitude: float,
@@ -1825,29 +2016,24 @@ def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str
             a.set_ylim(min(a_ylim[0], y_lim[0]), max(a_ylim[1], y_lim[1]))
         return
 
-    sampling_interval = np.round(pd.Timedelta(time_lim[1] - time_lim[0]).seconds / 3600, 3)  # hours
-    ray = 1
-    datetime_lim = pd.to_datetime(time_lim)
-    # Convert to cm/s
-    xin = (ew_lim * 100) + 1j * (ns_lim * 100)  # Following the function documentation
-    # todo which tidal constituents would be most useful to have? All or just major ones?
+    # Major tidal constituents
     major_constit = ['M2', 'K1', 'N2', 'S2', 'O1', 'P1', 'Q1', 'K2']
     bin_dict = {}
 
     # Iterate through the bins
     # two-level dict with bin depth first level then tidal const. second level
-    for i in range(len(xin)):
-        result = ttide.t_tide(
-            xin=xin[i, :],
-            dt=sampling_interval,  # Sampling interval in hours, default = 1
-            stime=datetime_lim[0],  # The start time of the series
-            lat=latitude,
-            constitnames=major_constit,  # ttide_constituents(datetime_lim, sampling_interval, ray),
-            shallownames=[],
-            synth=0,  # The signal-to-noise ratio of constituents to use for the "predicted" tide
-            ray=ray,  # Rayleigh criteria, default 1
-            lsq='direct',  # avoid running as a long series
+    for i in range(len(ew_lim)):
+        result = run_ttide(
+            U=ew_lim[i, :],
+            V=ns_lim[i, :],
+            xin_units='cm/s',
+            time_lim=time_lim,
+            latitude=latitude,
+            constitnames=major_constit
         )
+
+        # Find the (maj,min,inc,phase) for each tidal constituent and use them to calculate the ellipse
+        tidal_par, error_par = parse_tidal_constituents(constituents=major_constit, tide_result=result)
 
         ell_dict = {}
         for k, name in enumerate(major_constit):
@@ -1856,10 +2042,10 @@ def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str
             # Missing leading column for freq stored in result['fu']
             # Missing trailing column for SNR stored in result['snr']
             ell_dict[name] = calculate_ellipse(
-                major=result['tidecon'][k, 0],
-                minor=result['tidecon'][k, 2],
-                inc=result['tidecon'][k, 4],
-                phase=result['tidecon'][k, 6]
+                major=tidal_par[name][0],  # result['tidecon'][k, 0],
+                minor=tidal_par[name][1],  # result['tidecon'][k, 2],
+                inc=tidal_par[name][2],  # result['tidecon'][k, 4],
+                phase=tidal_par[name][3],  # result['tidecon'][k, 6]
             )
 
         # Add to dictionary containing all the results
@@ -1887,7 +2073,6 @@ def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str
 
     for ax in axes:
         ax.set_aspect('equal', adjustable='datalim')  # this is for correct ellipse aspect
-        # todo change size units to cm/s
         ax.set_xlabel('Ellipse Size\n(cm/s)')  # do before plt.tight_layout() otherwise gets cut off
 
     axes[0].set_ylabel('Depth (m)')  # do before plt.tight_layout() otherwise gets cut off
@@ -2061,9 +2246,6 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
     # Rotary spectra
 
-    # Sampling frequency
-    fs = sampling_freq(time_lim)
-
     if bins_rot_spec is None:
         # By default, choose the bottom and top bins to plot
         bins_rot_spec = [0, len(bin_depths_lim) - 1]
@@ -2075,20 +2257,24 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         if bin_idx < len(bin_depths_lim):
             fnames_rot_spec.append(
                 make_plot_rotary_spectra(dest_dir, ncdata.station, ncdata.deployment_number,
-                                         bin_idx, bin_depths_lim, ns_lim, ew_lim, fs,
-                                         resampled, axis=-1)
+                                         bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+                                         ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
+                                         resampled=resampled, axis=-1)
             )
         else:
             print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
                   f'length {len(bin_depths_lim)}')
 
+    # Profile plots of tidal ellipses
     fname_tidal_ellipse = make_plot_tidal_ellipses(dest_dir, ncdata.station, ncdata.deployment_number,
                                                    ncdata.latitude.data, time_lim, bin_depths_lim, ns_lim, ew_lim,
                                                    resampled)
 
+    # pcolor depth profile plot of rotary spectra
     fnames_depth_prof = make_depth_prof_rot_spec(
         dest_dir, station=ncdata.station, deployment_number=ncdata.deployment_number,
-        bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, fs=fs)
+        bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
+    )
 
     # Close netCDF file
     ncdata.close()
@@ -2105,14 +2291,14 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
 
 def test():
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-    #      'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
+    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
+         'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
     # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
     #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
-    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
-         '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
+    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
+    #      '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
 
     ds = xr.open_dataset(f)
 
@@ -2136,8 +2322,6 @@ def test():
 
     time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ds, ds.LCEWAP01.data, ds.LCNSAP01.data)
 
-    fs = sampling_freq(time_lim)
-
     # make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
     #                   instrument_depth=int(np.round(ds.instrument_depth)),
     #                   time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
@@ -2148,16 +2332,16 @@ def test():
     #             time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
     #             ew_lim=ew_lim)
     #
-    for bin_idx in [0, len(bin_depths_lim) - 1]:
-        # Plot top and bottom bins
-        make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                                 bin_number=bin_idx, bin_depths_lim=bin_depths_lim,
-                                 ns_lim=ns_lim, ew_lim=ew_lim, fs=fs, axis=0)
+    # for bin_idx in [0, len(bin_depths_lim) - 1]:
+    #     # Plot top and bottom bins
+    #     make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #                              bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+    #                              ns_lim=ns_lim, ew_lim=ew_lim, latitude=ds.latitude.data, axis=0)
     #
-    # make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #                          latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
-    #                          ns_lim=ns_lim, ew_lim=ew_lim)
+    make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                             latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
+                             ns_lim=ns_lim, ew_lim=ew_lim)
 
-    make_depth_prof_rot_spec(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                             bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, fs=fs, ew_lim=ew_lim)
+    # make_depth_prof_rot_spec(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+    #                          bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, time_lim=time_lim, ew_lim=ew_lim)
     return
