@@ -2135,6 +2135,22 @@ def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str
     return plot_name
 
 
+def get_closest_bin_idx(bin_depths: np.ndarray, requested_depth: float):
+    """
+    Get the closest bin to the requested depth
+
+    Credit: https://stackoverflow.com/questions/12141150/from-list-of-integers-get-number-closest-to-a-given-value
+    """
+    # Evaluate whether the requested depth is too far out of range
+    threshold = bin_depths[2] - bin_depths[0]  # meters
+    if requested_depth > max(bin_depths) + threshold:
+        return None
+    else:
+        closest_bin = min(bin_depths, key=lambda x: abs(x - requested_depth))
+        bin_idx = np.where(bin_depths == closest_bin)[0][0]
+        return bin_idx
+
+
 def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None,
                            time_range=None, bin_range=None, bins_rot_spec=None, colourmap_lim=None,
                            override_resample=False):
