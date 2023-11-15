@@ -1538,9 +1538,9 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
     fig : matplotlib figure or subfigure
     """
     if fig is None and (ax_pos is None and ax_neg is None):
-        fig = plt.figure()
+        fig = plt.figure(figsize=(8.5, 4.5))  # (width, height) so the subplots are more square
     if ax_pos is None and ax_neg is None:
-        (ax_neg, ax_pos) = fig.subplots(1, 2, sharey=True)
+        (ax_neg, ax_pos) = fig.subplots(1, 2, sharey=True)  # , subplot_kw={'aspect': 'equal'})
         ax_neg.invert_xaxis()
     if clabel is None:
         c = None
@@ -1559,7 +1559,7 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
 def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str,
                              bin_number: int, bin_depths_lim: np.ndarray, time_lim: np.ndarray,
                              ns_lim: np.ndarray, ew_lim: np.ndarray, latitude: float,
-                             resampled=None, axis=-1):
+                             resampled=None, axis=-1, do_tidal_annotation=True):
     """
     Make single-bin plot of rotary spectra with separate subplots for CW and CCW components
 
@@ -1578,6 +1578,8 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     - bin_number: bin index, starts at zero, applies to subsetted data not the complete dataset at this point...
 
     """
+    # Cycles per hour to cycles per day
+    cph_to_cpd = 24
 
     fs = sampling_freq(time_lim)
 
@@ -1596,18 +1598,24 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     # Add annotation of major frequencies M2 and K1 to ax_neg and ax_pos
     fnames = ['M2', 'K1']
 
-    result = run_ttide(
-        U=u,
-        V=v,
-        xin_units='m/s',
-        time_lim=time_lim,
-        latitude=latitude,
-        constitnames=fnames
-    )
-    for fname_S4, fmark in zip(result['nameu'], result['fu']):  # nameu might be in different order than fnames !!
-        fname = fname_S4.astype('str').strip(' ')  # Remove any trailing whitespace
-        mark_frequency(fmark=fmark, fname=fname, ax=ax_neg, f=r['f'], p=r['pneg'], fig=fig)
-        mark_frequency(fmark=fmark, fname=fname, ax=ax_pos, f=r['f'], p=r['ppos'], fig=fig)
+    if do_tidal_annotation:
+        # keep or filling of nans does not affect result frequencies
+        result = run_ttide(
+            U=u,
+            V=v,
+            xin_units='m/s',
+            time_lim=time_lim,
+            latitude=latitude,
+            constitnames=fnames
+        )
+        # nameu might be in different order than fnames !!
+        for fname_S4, fmark_cph in zip(result['nameu'], result['fu']):
+            # Convert component name to string and remove any trailing whitespace
+            fname = fname_S4.astype('str').strip(' ')
+            # Convert frequency fmark from per hour to per day
+            fmark_cpd = fmark_cph * cph_to_cpd
+            mark_frequency(fmark=fmark_cpd, fname=fname, ax=ax_neg, f=r['f'], p=r['pneg'], fig=fig)
+            mark_frequency(fmark=fmark_cpd, fname=fname, ax=ax_pos, f=r['f'], p=r['ppos'], fig=fig)
 
     # Add titles to the subplots
     ax_neg.set_title('CW')
@@ -1615,9 +1623,11 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {np.round(bin_depth, 2)}m bin')
 
     # Save the figure
-    plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m_ttide.png'
+    plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m.png'
+    if do_tidal_annotation:
+        plot_name = plot_name.replace('.png', '_ttide.png')
     if resampled:
-        plot_name.replace('.png', f'_{resampled}_resampled.png')
+        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
     plot_name = os.path.join(dest_dir, plot_name)
     plt.savefig(plot_name)
     plt.close()
@@ -1877,8 +1887,8 @@ def run_ttide(U: np.ndarray, V: np.ndarray, xin_units: str, time_lim: np.ndarray
     if xin_units == 'cm/s':
         xin *= 100
 
-    # Round to 3 decimal places
-    sampling_interval = np.round(pd.Timedelta(time_lim[1] - time_lim[0]).seconds / 3600, 3)  # hours
+    # Round to 3 decimal places, units are hours
+    sampling_interval = np.round(pd.Timedelta(time_lim[1] - time_lim[0]).seconds / 3600, 3)
     ray = 1
     synth = 0
     stime = pd.to_datetime(time_lim[0])
@@ -2337,11 +2347,22 @@ def test():
     #             time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
     #             ew_lim=ew_lim)
     #
-    for bin_idx in [0, len(bin_depths_lim) - 1]:
-        # Plot top and bottom bins
-        make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                                 bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
-                                 ns_lim=ns_lim, ew_lim=ew_lim, latitude=ds.latitude.data, axis=0)
+    standard_depths = [50, 200]  # , 'bottom']
+    # for bin_idx in [0, len(bin_depths_lim) - 1]:
+    for d in standard_depths:
+        if d == 'bottom':
+            if ds.orientation == 'up':
+                bin_idx = 0
+            else:
+                bin_idx = -1
+        else:
+            bin_idx = get_closest_bin_idx(bin_depths=bin_depths_lim, requested_depth=d)
+        if bin_idx is not None:
+            # Plot top and bottom bins
+            make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
+                                     bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+                                     ns_lim=ns_lim, ew_lim=ew_lim, latitude=ds.latitude.data, axis=0,
+                                     do_tidal_annotation=True)
 
     # make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
     #                          latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
