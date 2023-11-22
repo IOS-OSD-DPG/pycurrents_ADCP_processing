@@ -462,27 +462,29 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
     # data.time should be limited to the data.time with no NA values; bins must be limited
     if time_range is None:
         if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
-            new_first_last = get_L1_start_end(ncdata=ncdata)
+            time_first_last = get_L1_start_end(ncdata=ncdata)
         else:
-            new_first_last = (0, len(ew_data[0]))
+            time_first_last = (0, len(ew_data[0]))
     else:
-        new_first_last = time_range
+        time_first_last = time_range
 
     # Remove bins where surface backscatter occurs
-    time_lim = ncdata.time.data[new_first_last[0]:new_first_last[1]]
+    time_lim = ncdata.time.data[time_first_last[0]:time_first_last[1]]
 
     if bin_range is None:
+        bin_first_last = (np.where(bin_depths >= 0)[0][0], np.where(bin_depths >= 0)[0][-1])
         bin_depths_lim = bin_depths[bin_depths >= 0]
 
-        ew_lim = ew_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]  # Limit velocity data
-        ns_lim = ns_data[bin_depths >= 0, new_first_last[0]:new_first_last[1]]
+        ew_lim = ew_data[bin_depths >= 0, time_first_last[0]:time_first_last[1]]  # Limit velocity data
+        ns_lim = ns_data[bin_depths >= 0, time_first_last[0]:time_first_last[1]]
     else:
+        bin_first_last = (bin_range[0], bin_range[1])
         bin_depths_lim = bin_depths[bin_range[0]: bin_range[1]]
 
-        ew_lim = ew_data[bin_range[0]: bin_range[1], new_first_last[0]:new_first_last[1]]
-        ns_lim = ns_data[bin_range[0]: bin_range[1], new_first_last[0]:new_first_last[1]]
+        ew_lim = ew_data[bin_range[0]: bin_range[1], time_first_last[0]:time_first_last[1]]
+        ns_lim = ns_data[bin_range[0]: bin_range[1], time_first_last[0]:time_first_last[1]]
 
-    return time_lim, bin_depths_lim, ns_lim, ew_lim
+    return time_lim, bin_depths_lim, ns_lim, ew_lim, time_first_last, bin_first_last
 
 
 def get_vminvmax(v1_data, v2_data=None):
@@ -1157,9 +1159,9 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
     return ncout_path
 
 
-def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_depth: int,
+def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_depth: float,
                 time_lim: np.ndarray, bin_depths_lim: np.ndarray,
-                ns_lim: np.ndarray, ew_lim: np.ndarray, resampled=None):
+                ns_lim: np.ndarray, ew_lim: np.ndarray, single_bin_inds: list, resampled=None):
     """
     Make subplots of speed and direction for unfiltered ADCP data
     :param dest_dir: name of directory for containing output files
@@ -1170,9 +1172,17 @@ def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_
     :param bin_depths_lim: cleaned bin depth data; array type
     :param ns_lim: cleaned north-south velocity data; array type
     :param ew_lim: cleaned east-west velocity data; array type
+    :param single_bin_inds: indices of bins to plot [shallow, middle, deep]
     :param resampled: "30min" if resampled to 30 minutes; None if not resampled
     :return: Absolute file path of the figure(s) this function creates
     """
+
+    instrument_depth = int(np.round(instrument_depth))
+
+    # Apply the bin indices
+    ew_lim = ew_lim[single_bin_inds, :]
+    ns_lim = ns_lim[single_bin_inds, :]
+    bin_depths_lim = bin_depths_lim[single_bin_inds]
 
     speed = np.repeat(np.nan, len(ns_lim.flatten())).reshape(ns_lim.shape)
     # direction = np.repeat(np.nan, len(ns_lim.flatten())).reshape(ns_lim.shape)
@@ -1182,52 +1192,86 @@ def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_
             speed[i, j] = (ns_lim[i, j] ** 2 + ew_lim[i, j] ** 2) ** .5
             # direction[i, j] = np.rad2deg(np.arctan(ns_lim[i, j] / ew_lim[i, j]))  # degrees CCW from East
 
-    # Plots will have 6 rows and 2 columns of subplots for a total of 12 subplots
-    num_bins = len(ns_lim[:, 0])
-    num_figures = int(np.ceil(num_bins / 12))
+    max_abs_speed = np.nanmax(abs(speed))  # Use for setting y-axis limits
+
+    # Axis for placing arrows
     zeros = np.zeros(time_lim.size)
 
-    # Invert the depth bins to go shallowest to deepest
-    bin_depths_lim = bin_depths_lim[::-1]
-    ew_lim = ew_lim[::-1, :]
-    ns_lim = ns_lim[::-1, :]
-    speed = speed[::-1, :]
-    # direction = direction[::-1, :]
+    # # Invert the depth bins to go shallowest to deepest
+    # bin_depths_lim = bin_depths_lim[::-1]
+    # ew_lim = ew_lim[::-1, :]
+    # ns_lim = ns_lim[::-1, :]
+    # speed = speed[::-1, :]
+    # # direction = direction[::-1, :]
 
+    # Plots will have 6 rows and 2 columns of subplots for a total of 12 subplots
+    num_bins = len(bin_depths_lim)
+    max_bins_per_col = 6
+    max_width = 13
+    max_height = 10.35  # 30
+    if num_bins > max_bins_per_col:
+        max_bins_per_plot = 12
+        bins_per_col = max_bins_per_col
+        num_figures = int(np.ceil(num_bins / max_bins_per_plot))
+        num_cols = 2  # Number of columns in the figure
+        figsize = (max_width, max_height)
+    else:
+        # One column instead of two, and a shorter column if num_buns < 6
+        max_bins_per_plot = num_bins
+        bins_per_col = num_bins
+        num_figures = 1
+        num_cols = 1
+        # Adjust the height by a factor of how many bins
+        # figsize = (max_width/1.75, max_height * (bins_per_col / max_bins_per_col))
+        figsize = (max_width / 1.75, np.linspace(2.2, max_height, max_bins_per_col, endpoint=True)[num_bins - 1])
+
+    # print(figsize)
     plot_list = []
 
     for k in range(num_figures):
-        fig = plt.figure(figsize=(15, 30))
+        fig = plt.figure(figsize=figsize)  # Setting figsize here doesn't work
+        # print(fig.get_size_inches())
         fig.subplots_adjust(hspace=0.75, wspace=0.35)
 
-        first_bin = 12 * k + 1
-        last_bin = 12 * k + 12
-
-        for i in range(1, 13):
-            idx = 12 * k + i - 1
+        for i in range(1, max_bins_per_plot + 1):
+            idx = max_bins_per_plot * k + i - 1
             if idx < len(bin_depths_lim):
-                ax = fig.add_subplot(6, 2, i)
+                ax = fig.add_subplot(bins_per_col, num_cols, i)  # bins_per_col
                 ax.fill_between(time_lim, speed[idx, :], zeros, color='grey', alpha=0.1)
                 ax.quiver(time_lim, zeros, ew_lim[idx, :], ns_lim[idx, :], color='blue',
                           width=0.004, units='y', scale_units='y', scale=1)
-                ax.set_ylim(-0.60, 0.60)
+                # Scale because the arrows aren't usually perpendicular
+                ax.set_ylim(-max_abs_speed/1.25, max_abs_speed/1.25)
                 ax.set_title('Bin depth: ' + str(np.around(bin_depths_lim[idx], 1)) + 'm', fontsize=8,
                              fontweight='semibold')
                 ax.set_ylabel('Speed (m/s)', size=8)
                 ax.yaxis.labelpad = 0
-                ax.set_yticks([-0.6, -0.3, 0, 0.3, 0.6], minor=False)
+                # ax.set_yticks([-0.6, -0.3, 0, 0.3, 0.6], minor=False)
                 ax.tick_params(axis='both', direction='in', top=True, right=True, labelsize=7)
                 # p = ax.add_patch(plt.Rectangle((1, 1), 1, 1, fc='k', alpha=0.1))
                 # leg = ax.legend([p], ["Current magnitude (m/s)"], loc='lower right', fontsize=8)
                 # leg._drawFrame = False
-            else:
-                last_bin = idx - 1
+
+        # print(fig.get_size_inches())  # What is the real figsize??
+        fig.set_size_inches(*figsize)
 
         plt.suptitle(f'{station}-{deployment_number} Current Speed (m/s)')
-        plot_name = f'{station}-{deployment_number}_{instrument_depth}m_quiver_bins{first_bin}-{last_bin}.png'
+
+        plt.tight_layout()  # Make sure labels don't overlap
+
+        plot_name = f'{station}-{deployment_number}_{instrument_depth}m_quiver_plotCOUNTER.png'
         if resampled:
             plot_name.replace('.png', f'_{resampled}_resampled.png')
         plot_name = os.path.join(dest_dir, plot_name)
+
+        counter = 1
+        while os.path.exists(plot_name.replace('COUNTER', str(counter))):
+            counter += 1
+            if counter > 100:  # Safeguard against runaway iterations
+                break
+
+        plot_name = plot_name.replace('COUNTER', str(counter))
+
         plt.savefig(plot_name)
         plt.close()
         plot_list.append(plot_name)
@@ -1556,7 +1600,7 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
     return fig, ax_neg, ax_pos, hneg, hpos
 
 
-def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str,
+def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str, instrument_depth: float,
                              bin_number: int, bin_depths_lim: np.ndarray, time_lim: np.ndarray,
                              ns_lim: np.ndarray, ew_lim: np.ndarray, latitude: float,
                              resampled=None, axis=-1, do_tidal_annotation=True):
@@ -1578,6 +1622,9 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     - bin_number: bin index, starts at zero, applies to subsetted data not the complete dataset at this point...
 
     """
+
+    instrument_depth = int(np.round(instrument_depth))
+
     # Cycles per hour to cycles per day
     cph_to_cpd = 24
 
@@ -1620,10 +1667,12 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
     # Add titles to the subplots
     ax_neg.set_title('CW')
     ax_pos.set_title('CCW')
+
     plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {np.round(bin_depth, 2)}m bin')
 
     # Save the figure
-    plot_name = f'{station}-{deployment_number}_rotary_spectra_bin_{int(np.round(bin_depth))}m.png'
+    plot_name = (f'{station}-{deployment_number}_{instrument_depth}m'
+                 f'_rotary_spectra_bin_{int(np.round(bin_depth))}m.png')
     if do_tidal_annotation:
         plot_name = plot_name.replace('.png', '_ttide.png')
     if resampled:
@@ -2151,8 +2200,74 @@ def get_closest_bin_idx(bin_depths: np.ndarray, requested_depth: float):
         return bin_idx
 
 
+def default_single_bins(ncdata: xr.Dataset, time_range_idx: tuple, bin_range_idx: tuple):
+    """
+    Get default bottom, middle, and top bin indices for quiver and rotary spectra plots
+
+    Use percent good data or beam averaged backscatter data to find an uncontaminated shallow bin
+    """
+
+    goodness_thresh = 75  # Percentage
+
+    # Take average over time
+    if hasattr(ncdata, 'PCGDAP05'):  # Sentinel V fifth beam
+        dim1 = 5
+    else:
+        dim1 = 4
+    # Apply prior bin and time limiting
+    time_avg_pg = np.zeros(shape=(dim1, bin_range_idx[1] - bin_range_idx[0]))
+    time_avg_pg[0, :] = np.nanmean(ncdata.PCGDAP00.data[bin_range_idx[0]:bin_range_idx[1],
+                                   time_range_idx[0]:time_range_idx[1]], axis=1)
+    time_avg_pg[1, :] = np.nanmean(ncdata.PCGDAP02.data[bin_range_idx[0]:bin_range_idx[1],
+                                   time_range_idx[0]:time_range_idx[1]], axis=1)
+    time_avg_pg[2, :] = np.nanmean(ncdata.PCGDAP03.data[bin_range_idx[0]:bin_range_idx[1],
+                                   time_range_idx[0]:time_range_idx[1]], axis=1)
+    time_avg_pg[3, :] = np.nanmean(ncdata.PCGDAP04.data[bin_range_idx[0]:bin_range_idx[1],
+                                   time_range_idx[0]:time_range_idx[1]], axis=1)
+    if hasattr(ncdata, 'PCGDAP05'):
+        time_avg_pg[4, :] = np.nanmean(ncdata.PCGDAP05.data[bin_range_idx[0]:bin_range_idx[1],
+                                       time_range_idx[0]:time_range_idx[1]], axis=1)
+
+    # Avg over all 4 or 5 beams to get a single number for each bin
+    max_time_avg_pg = np.nanmax(time_avg_pg, axis=0)
+
+    if ncdata.orientation == 'up':
+        shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # size of number of bins
+        deep = 0
+    else:
+        shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][0]  # First good bin
+        deep = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # Last good bin
+
+    middle = int(abs(deep - shallow) / 2)  # Midpoint between shallow and deep bins
+
+    return [shallow, middle, deep]
+
+
+def get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata: xr.Dataset, time_range_idx,
+                        bin_range_idx, bin_depths_lim):
+    """
+    Get indices of bins to make rotary spectra and quiver/feather plots of
+    """
+    if single_bin_inds is None and single_bin_depths is None:
+        # single_bin_inds = [5, int(len(bin_depths_lim)/2), len(bin_depths_lim) - 5]
+        single_bin_inds = default_single_bins(ncdata, time_range_idx, bin_range_idx)  # (shallow, middle, deep)
+    elif single_bin_inds == 'all' or single_bin_depths == 'all':
+        single_bin_inds = np.arange(len(bin_depths_lim)).tolist()
+    elif single_bin_depths is not None:
+        single_bin_inds = [get_closest_bin_idx(bin_depths_lim, d) for d in single_bin_depths]
+
+    # Sort the indices such that the shallowest bin is first and the deepest last
+    if ncdata.orientation == 'up':
+        single_bin_inds.sort(reverse=True)
+    else:
+        single_bin_inds.sort()
+
+    return single_bin_inds
+
+
 def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None,
-                           time_range=None, bin_range=None, bins_rot_spec=None, colourmap_lim=None,
+                           time_range=None, bin_range=None, single_bin_inds=None,
+                           single_bin_depths=None, colourmap_lim=None,
                            override_resample=False):
     """
     Inputs:
@@ -2168,10 +2283,15 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         - bin_range (optional): tuple of form (a, b), where a is the index of the minimum
                                 bin to include and b is the index of the maximum bin to
                                 include; default None
-        - bins_rot_spec (optional): list-like object containing the indices of the bins to
-                                    plot rotary spectra for, with 0 being the bin closest to
-                                    the ADCP, OR "all", which makes a plot for each bin.
-                                    Defaults to the bottom and top bins only if None provided.
+        - single_bin_inds (optional): list-like object containing the indices of the bins to
+                                    make single-bin plots of rotary spectra and feather plots of,
+                                    with 0 being the bin closest to the ADCP. Or instead of a
+                                    list, the string "all", which makes a plot for each bin.
+                                    Defaults to plot bottom, middle, and top bins only if None provided.
+        - single_bin_depths (optional): Alternative to single_bin_inds, where the requested depth(s) are
+                                        provided in list format and the routine finds the closest bin(s)
+                                        to the input depths.
+                                        Defaults to plot bottom, middle, and top bins only if None provided.
         - colourmap_lim (optional): user-input tuple of the form (a, b), where a is the
                                     minimum colour map limit for the plot and b is the
                                     maximum colour map limit for the plot (both floats);
@@ -2205,10 +2325,10 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
     if "L0" in ncfile:
         level0 = True
-        direction = 'magnetic_east'
+        # direction = 'magnetic_east'
     else:
         level0 = False
-        direction = 'east'
+        # direction = 'east'
 
     # Check size of file
     ncsize = os.path.getsize(ncfile)  # bytes
@@ -2229,9 +2349,8 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     fname_diagnostic = plots_diagnostic(ncdata, dest_dir, level0, time_range, bin_range,
                                         resampled)
     # Limit data if limits are not input by user
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ncdata, ncdata.LCEWAP01.data,
-                                                          ncdata.LCNSAP01.data, time_range,
-                                                          bin_range)
+    time_lim, bin_depths_lim, ns_lim, ew_lim, time_range_idx, bin_range_idx = limit_data(
+        ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, time_range, bin_range)
 
     # Plot pressure PRESPR01 vs time
     fname_pres = plot_adcp_pressure(ncdata, dest_dir, resampled)
@@ -2244,7 +2363,50 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
                               'raw', along_angle, colourmap_lim, resampled)
 
-    # Redo whole process with tidal-filtered data
+    # Single-bin plots
+    single_bin_inds = get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata,
+                                          time_range_idx, bin_range_idx, bin_depths_lim)
+
+    # Feather/quiver plots
+
+    # Returns a list of names not a single name; apply to non-filtered data
+    fnames_quiver = quiver_plot(dest_dir, ncdata.station, ncdata.deployment_number,
+                                ncdata.instrument_depth, time_lim, bin_depths_lim,
+                                ns_lim, ew_lim, single_bin_inds, resampled)
+
+    # Rotary spectra
+
+    # Initialize a list to hold the names of all output files
+    fnames_rot_spec = []
+    # Iterate through the bins
+    for bin_idx in single_bin_inds:
+        # Only proceed if the bin index is in range
+        if bin_idx < len(bin_depths_lim):
+            fnames_rot_spec.append(
+                make_plot_rotary_spectra(
+                    dest_dir, ncdata.station, ncdata.deployment_number, ncdata.instrument_depth,
+                    bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+                    ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
+                    resampled=resampled, axis=-1
+                )
+            )
+        else:
+            print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
+                  f'length {len(bin_depths_lim)}')
+
+    # Profile plots of tidal ellipses
+    fname_tidal_ellipse = make_plot_tidal_ellipses(
+        dest_dir, ncdata.station, ncdata.deployment_number, ncdata.latitude.data,
+        time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
+    )
+
+    # pcolor (pseudocolour) depth profile plot of rotary spectra
+    fnames_depth_prof = make_depth_prof_rot_spec(
+        dest_dir, station=ncdata.station, deployment_number=ncdata.deployment_number,
+        bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
+    )
+
+    # Redo part of process with tidal-filtered data
 
     if filter_type == "Godin":
         ew_filt, ns_filt = filter_godin(ncdata)
@@ -2254,8 +2416,8 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         ValueError("filter_type value not understood !")
 
     # Limit data
-    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim = limit_data(ncdata, ew_filt, ns_filt,
-                                                                    time_range, bin_range)
+    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, time_range_idx, bin_range_idx = limit_data(
+        ncdata, ew_filt, ns_filt, time_range, bin_range)
 
     # Northward and eastward velocity colormesh plots
     fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
@@ -2270,43 +2432,6 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     # fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
     #                                      filter_type, direction, resampled)
 
-    # Returns a list of names not a single name; apply to non-filtered data
-    fnames_quiver = quiver_plot(dest_dir, ncdata.station, ncdata.deployment_number,
-                                ncdata.instrument_depth, time_lim, bin_depths_lim, ns_lim,
-                                ew_lim, resampled)
-
-    # Rotary spectra
-
-    if bins_rot_spec is None:
-        # By default, choose the bottom and top bins to plot
-        bins_rot_spec = [0, len(bin_depths_lim) - 1]
-    elif bins_rot_spec == 'all':
-        bins_rot_spec = np.arange(len(bin_depths_lim))
-
-    fnames_rot_spec = []
-    for bin_idx in bins_rot_spec:
-        if bin_idx < len(bin_depths_lim):
-            fnames_rot_spec.append(
-                make_plot_rotary_spectra(dest_dir, ncdata.station, ncdata.deployment_number,
-                                         bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
-                                         ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
-                                         resampled=resampled, axis=-1)
-            )
-        else:
-            print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
-                  f'length {len(bin_depths_lim)}')
-
-    # Profile plots of tidal ellipses
-    fname_tidal_ellipse = make_plot_tidal_ellipses(dest_dir, ncdata.station, ncdata.deployment_number,
-                                                   ncdata.latitude.data, time_lim, bin_depths_lim, ns_lim, ew_lim,
-                                                   resampled)
-
-    # pcolor depth profile plot of rotary spectra
-    fnames_depth_prof = make_depth_prof_rot_spec(
-        dest_dir, station=ncdata.station, deployment_number=ncdata.deployment_number,
-        bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
-    )
-
     # Close netCDF file
     ncdata.close()
 
@@ -2319,71 +2444,3 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     fout_name_list += fnames_depth_prof
 
     return fout_name_list
-
-
-def test():
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-    #      'ncdata\\newnc\\e01_20210602_20220715_0097m.adcp.L1.nc')
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-    #      'ncdata\\newnc\\scott3_20210603_20220718_0230m.adcp.L1.nc')
-    # f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2022-069_recoveries\\'
-    #      'ncdata\\newnc\\hak1_20210703_20220430_0042m.adcp.L1.nc')
-    f = ('C:\\Users\\HourstonH\\Documents\\adcp_processing\\moored\\2021-069_recoveries\\'
-         '_fix_a1_file_name\\a1_20200717_20210602_0501m.adcp.L1.nc')
-
-    ds = xr.open_dataset(f)
-
-    dest_dir = 'C:\\Users\\HourstonH\\Documents\\adcp_processing\\plan_for_update\\plots\\'
-
-    # if ds.orientation == 'up':
-    #     bin_depths = ds.instrument_depth - ds.distance.data
-    # else:
-    #     bin_depths = ds.instrument_depth + ds.distance.data
-
-    # # Apply flags associated with before deployment and after recovery
-    # u = ds.LCEWAP01.data[:, ds.LCEWAP01_QC.data[0] == 0]
-    # v = ds.LCNSAP01.data[:, ds.LCNSAP01_QC.data[0] == 0]
-    #
-    # u = u[bin_depths > 0, :]
-    # v = v[bin_depths > 0, :]
-    #
-    # # Remove any other nans by filling them with mean
-    # u[np.isnan(u)] = np.nanmean(u)
-    # v[np.isnan(v)] = np.nanmean(v)
-
-    time_lim, bin_depths_lim, ns_lim, ew_lim = limit_data(ds, ds.LCEWAP01.data, ds.LCNSAP01.data)
-
-    # make_pcolor_speed(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #                   instrument_depth=int(np.round(ds.instrument_depth)),
-    #                   time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
-    #                   ew_lim=ew_lim)
-    #
-    # quiver_plot(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #             instrument_depth=int(np.round(ds.instrument_depth)),
-    #             time_lim=time_lim, bin_depths_lim=bin_depths_lim, ns_lim=ns_lim,
-    #             ew_lim=ew_lim)
-    #
-    standard_depths = [50, 200]  # , 'bottom']
-    # for bin_idx in [0, len(bin_depths_lim) - 1]:
-    for d in standard_depths:
-        if d == 'bottom':
-            if ds.orientation == 'up':
-                bin_idx = 0
-            else:
-                bin_idx = -1
-        else:
-            bin_idx = get_closest_bin_idx(bin_depths=bin_depths_lim, requested_depth=d)
-        if bin_idx is not None:
-            # Plot top and bottom bins
-            make_plot_rotary_spectra(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-                                     bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
-                                     ns_lim=ns_lim, ew_lim=ew_lim, latitude=ds.latitude.data, axis=0,
-                                     do_tidal_annotation=True)
-
-    # make_plot_tidal_ellipses(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #                          latitude=ds.latitude.data, time_lim=time_lim, bin_depth_lim=bin_depths_lim,
-    #                          ns_lim=ns_lim, ew_lim=ew_lim)
-
-    # make_depth_prof_rot_spec(dest_dir, station=ds.station, deployment_number=ds.deployment_number,
-    #                          bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, time_lim=time_lim, ew_lim=ew_lim)
-    return
