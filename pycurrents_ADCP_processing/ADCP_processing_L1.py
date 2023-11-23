@@ -140,7 +140,7 @@ def assign_pres(vel_var, metadata_dict):
     # command: data.read(varlist=['vel'])
     # metadata_dict: dictionary object of metadata items
 
-    if metadata_dict['model'] == 'wh' or metadata_dict['model'] == 'os' or metadata_dict['model'] == 'sv':
+    if metadata_dict['model'] == 'wh' or metadata_dict['model'] == 'sv':
         # convert decapascal to decibars
         pres = np.array(vel_var.VL['Pressure'] / 1000, dtype='float32')
 
@@ -152,11 +152,11 @@ def assign_pres(vel_var, metadata_dict):
         index_of_zero = np.where(pressure_unique == 0)
         print('np.max(counts):', np.max(counts), sep=' ')
         print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
-        print('serial number:', metadata_dict['serialNumber'])
+        print('serial number:', metadata_dict['serial_number'])
 
     # Check if model is type missing pressure sensor or if zero is a mode of pressure
     # Amendment 2023-09-18: change to "if pressure is static for over half the dataset" as the former became a bug
-    if metadata_dict['model'] == 'bb' or metadata_dict['model'] == 'nb' or np.max(counts) > len(pres)/2:  # or np.max(counts) == counts[index_of_zero]:
+    if metadata_dict['model'] == 'bb' or np.max(counts) > len(pres)/2:  # or np.max(counts) == counts[index_of_zero]:
         p = np.round(gsw.conversions.p_from_z(-metadata_dict['instrument_depth'],
                                               metadata_dict['latitude']),
                      decimals=0)  # depth negative because positive is up for this function
@@ -256,7 +256,7 @@ def flag_pressure(pres, ens1, ens2, metadata_dict):
     metadata_dict['processing_history'] += " Negative pressure values flagged as " \
                                            "\"bad_data\" and set to nan\'s."
 
-    return PRESPR01_QC_var
+    return PRESPR01_QC_var # todo also return pres, otherwise it's unchanged
 
 
 def flag_velocity(ens1, ens2, number_of_cells, v1, v2, v3, v5=None):
@@ -335,7 +335,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['ancillary_variables'] = 'LCEWAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'u'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -361,7 +361,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['ancillary_variables'] = 'LCNSAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'v'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -387,7 +387,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['ancillary_variables'] = 'LRZAAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'w'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -412,7 +412,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'error_velocity_in_sea_water'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'e'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::ERRV'
     var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current ' \
@@ -479,7 +479,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_01'
     var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
@@ -497,7 +497,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_02'
     var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
@@ -515,7 +515,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_03'
     var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
@@ -533,7 +533,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'AGC'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_04'
     var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
@@ -556,7 +556,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['long_name'] = 'percent_good_beam_1'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_01'
         var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
@@ -574,7 +574,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['long_name'] = 'percent_good_beam_2'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_02'
         var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
@@ -592,7 +592,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['long_name'] = 'percent_good_beam_3'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_03'
         var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
@@ -610,7 +610,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['long_name'] = 'percent_good_beam_4'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'PGd'
         var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_04'
         var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
@@ -662,7 +662,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['generic_name'] = 'height'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::HGHT'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
     var.attrs['sdn_uom_name'] = 'Metres'
@@ -678,7 +678,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['generic_name'] = 'temp'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::te90'
     var.attrs['sdn_parameter_name'] = 'Temperature of the water body'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UPAA'
@@ -698,7 +698,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['generic_name'] = 'depth'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::DEPH'
     var.attrs['sdn_parameter_name'] = 'Depth below surface of the water body'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
@@ -739,7 +739,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'heading'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::HEAD'
     var.attrs['sdn_parameter_name'] = 'Orientation (horizontal relative to true north) of measurement device {heading}'
     var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
@@ -756,7 +756,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'pressure'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['ancillary_variables'] = 'PRESPR01_QC'
     var.attrs['comment'] = 'Quality flag indicates negative pressure values in the time series'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -792,7 +792,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'speed of sound'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::SVEL'
     var.attrs['sdn_parameter_name'] = 'Sound velocity in the water body by computation from temperature and ' \
                                       'salinity by unspecified algorithm'
@@ -821,7 +821,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_01'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
@@ -837,7 +837,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_02'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
@@ -853,7 +853,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_03'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
@@ -869,7 +869,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = metadata_dict['serialNumber']
+    var.attrs['serial_number'] = metadata_dict['serial_number']
     var.attrs['generic_name'] = 'CM'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_04'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
@@ -889,7 +889,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['ancillary_variables'] = 'LRZUVP01_QC'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'vv'
         var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
         var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -921,7 +921,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['long_name'] = 'ADCP_echo_intensity_beam_5'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'AGC'
         var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
                                           'profiler (ADCP) vertical beam'
@@ -938,7 +938,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
         var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_5'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = metadata_dict['serialNumber']
+        var.attrs['serial_number'] = metadata_dict['serial_number']
         var.attrs['generic_name'] = 'CM'
         var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                           'moored acoustic doppler current profiler (ADCP) vertical beam'
@@ -955,7 +955,7 @@ def add_attrs_2vars_L1(out_obj, metadata_dict, sensor_depth, cell_size, fillValu
             var.attrs['long_name'] = 'percent_good_beam_5'
             var.attrs['sensor_type'] = 'adcp'
             var.attrs['sensor_depth'] = sensor_depth
-            var.attrs['serial_number'] = metadata_dict['serialNumber']
+            var.attrs['serial_number'] = metadata_dict['serial_number']
             var.attrs['generic_name'] = 'PGd'
             var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
                                               'current profiler (ADCP) vertical beam'
@@ -1044,24 +1044,16 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     # Assign model, model_long name, and manufacturer
     if meta_dict["instrumentSubtype"].upper() == "WORKHORSE":
         meta_dict['model'] = "wh"
-        model_long = "RDI WH Long Ranger"
-        meta_dict['manufacturer'] = 'teledyne rdi'
+        model_long = "RDI WH"
+        meta_dict['manufacturer'] = 'Teledyne RDI'
     elif meta_dict["instrumentSubtype"].upper() == "BROADBAND":
         meta_dict['model'] = "bb"
         model_long = "RDI BB"
-        meta_dict['manufacturer'] = 'teledyne rdi'
-    elif meta_dict["instrumentSubtype"].upper() == "NARROWBAND":
-        meta_dict['model'] = "nb"
-        model_long = "RDI NB"
-        meta_dict['manufacturer'] = 'teledyne rdi'
+        meta_dict['manufacturer'] = 'Teledyne RDI'
     elif meta_dict["instrumentSubtype"].upper() == "SENTINEL V":
         meta_dict['model'] = "sv"
         model_long = "RDI SV"
-        meta_dict['manufacturer'] = 'teledyne rdi'
-    elif meta_dict["instrumentSubtype"].upper() == 'OCEAN SURVEYOR':
-        meta_dict['model'] = "os"
-        model_long = "RDI OS"
-        meta_dict['manufacturer'] = "teledyne rdi"
+        meta_dict['manufacturer'] = 'Teledyne RDI'
     else:
         pass
 
@@ -1076,10 +1068,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     # ------------------------Read in data and start processing--------------------
 
     # Read in raw ADCP file and model type
-    if meta_dict['model'] == 'nb':
-        data = rawfile(inFile, meta_dict['model'], trim=True, yearbase=start_year)
-    else:
-        data = rawfile(inFile, meta_dict['model'], trim=True)
+    data = rawfile(inFile, meta_dict['model'], trim=True)
     print('Read in raw data')
 
     # Extract multidimensional variables from data object: 
@@ -1134,13 +1123,13 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
         meta_dict[key] = float(meta_dict[key])
 
     # Add leading zero to serial numbers that have 3 digits
-    if len(str(meta_dict['serialNumber'])) == 3:
-        meta_dict['serialNumber'] = '0' + str(meta_dict['serialNumber'])
+    if len(str(meta_dict['serial_number'])) == 3:
+        meta_dict['serial_number'] = '0' + str(meta_dict['serial_number'])
     # Overwrite serial number to include the model: upper returns uppercase
-    meta_dict['serialNumber'] = meta_dict['model'].upper() + meta_dict['serialNumber']
+    meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
     # Add instrument model variable value
-    meta_dict['instrumentModel'] = '{} ADCP {}kHz ({})'.format(
-        model_long, data.sysconfig['kHz'], meta_dict['serialNumber'])
+    meta_dict['instrument_model'] = '{} ADCP {}kHz ({})'.format(
+        model_long, data.sysconfig['kHz'], meta_dict['serial_number'])
 
     # Correct flag_meanings values if they are comma-separated
     if ',' in meta_dict['flag_meaning']:
@@ -1324,7 +1313,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
                                 'SVELCV01': (['time'], sound_speed),
                                 'DTUT8601': (['time'], time_DTUT8601),
                                 'filename': ([], out_name[:-3]),
-                                'instrument_serial_number': ([], meta_dict['serialNumber']),
+                                'instrument_serial_number': ([], meta_dict['serial_number']),
                                 'instrument_model': ([], meta_dict['instrumentModel'])})
 
     if flag_pg == 0:
@@ -1355,8 +1344,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     for key, value in meta_dict.items():
         if key in pass_dict_keys:
             pass
-        elif key == 'serialNumber':
-            out.attrs['serial_number'] = value
+        # elif key == 'serialNumber':  # camelCase replaced with underscore
+        #     out.attrs['serial_number'] = value
         else:
             out.attrs[key] = value
 
@@ -1367,30 +1356,30 @@ def nc_create_L1(inFile, file_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['cdm_data_type'] = "station"
     out.attrs['number_of_beams'] = data.NBeams
     # out.attrs['nprofs'] = data.nprofs #number of ensembles
-    out.attrs['numberOfCells'] = data.NCells
+    out.attrs['number_of_cells'] = data.NCells
     out.attrs['pings_per_ensemble'] = data.NPings
-    out.attrs['bin1Distance'] = data.Bin1Dist
-    out.attrs['cellSize'] = data.CellSize
-    out.attrs['pingtype'] = data.pingtype
+    out.attrs['bin_1_distance'] = data.Bin1Dist
+    out.attrs['cell_size'] = data.CellSize
+    out.attrs['ping_type'] = data.pingtype
     out.attrs['transmit_pulse_length_cm'] = vel.FL['Pulse']
-    out.attrs['instrumentType'] = "adcp"
+    out.attrs['instrument_type'] = "adcp"
     out.attrs['manufacturer'] = meta_dict['manufacturer']
     out.attrs['source'] = "Python code: github: pycurrents_ADCP_processing"
     now = datetime.datetime.now()
     out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
     out.attrs['_FillValue'] = str(fill_value)
-    out.attrs['featureType'] = "profileTimeSeries"
+    out.attrs['feature_type'] = "profileTimeSeries"
     out.attrs['firmware_version'] = str(vel.FL.FWV) + '.' + str(vel.FL.FWR)  # firmwareVersion
     out.attrs['frequency'] = str(data.sysconfig['kHz'])
     out.attrs['beam_angle'] = str(fixed_leader.sysconfig['angle'])  # beamAngle
-    out.attrs['systemConfiguration'] = bin(fixed_leader.FL['SysCfg'])[-8:] + '-' + bin(fixed_leader.FL['SysCfg'])[
+    out.attrs['system_configuration'] = bin(fixed_leader.FL['SysCfg'])[-8:] + '-' + bin(fixed_leader.FL['SysCfg'])[
                                                                                    :9].replace('b', '')
     out.attrs['sensor_source'] = '{0:08b}'.format(vel.FL['EZ'])  # sensorSource
     out.attrs['sensors_avail'] = '{0:08b}'.format(vel.FL['SA'])  # sensors_avail
     out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper()  # netCDF4 file format doesn't support bool
     out.attrs['valid_correlation_range'] = vel.FL['LowCorrThresh']  # lowCorrThresh
     out.attrs['min_percent_good'] = fixed_leader.FL['PGMin']
-    out.attrs['blank'] = '{} m'.format(fixed_leader.FL['Blank'] / 100) #convert cm to m
+    out.attrs['blank'] = '{} m'.format(fixed_leader.FL['Blank'] / 100)  # convert cm to m
     out.attrs['error_velocity_threshold'] = "{} mm s-1".format(fixed_leader.FL['EVMax'])
     tpp_min = '{0:0>2}'.format(fixed_leader.FL['TPP_min'])
     tpp_sec = '{0:0>2}'.format(fixed_leader.FL['TPP_sec'])

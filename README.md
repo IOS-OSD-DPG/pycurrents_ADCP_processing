@@ -2,7 +2,9 @@
 
 Authors: Hana Hourston (@hhourston) , Di Wan (@onedwd), Lu Guan (@guanlu129), Maxim Krassovski
 
-For performing "level 0" (L0), "level 1" (L1), and "level 2" (L2) processing on raw moored ADCP data in Python using the UHDAS `pycurrents` package.
+For performing "level 0" (L0), "level 1" (L1), and "level 2" (L2) processing on raw 
+moored ADCP data in Python using the UHDAS `pycurrents` package. Teledyne RDI Workhorse, 
+Sentinel V, and Broadband instruments are supported.
 
 L0 processing does not include any processing. Raw ADCP data is combined with metadata from a csv file and exported in netCDF format. 
 
