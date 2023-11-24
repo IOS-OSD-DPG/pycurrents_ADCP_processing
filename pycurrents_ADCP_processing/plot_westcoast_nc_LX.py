@@ -1241,7 +1241,7 @@ def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_
                 ax.quiver(time_lim, zeros, ew_lim[idx, :], ns_lim[idx, :], color='blue',
                           width=0.004, units='y', scale_units='y', scale=1)
                 # Scale because the arrows aren't usually perpendicular
-                ax.set_ylim(-max_abs_speed/1.25, max_abs_speed/1.25)
+                ax.set_ylim(-max_abs_speed/1.75, max_abs_speed/1.75)
                 ax.set_title('Bin depth: ' + str(np.around(bin_depths_lim[idx], 1)) + 'm', fontsize=8,
                              fontweight='semibold')
                 ax.set_ylabel('Speed (m/s)', size=8)
