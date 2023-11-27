@@ -1093,15 +1093,17 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     pg = data.read(varlist=['PercentGood'])
 
     # Create flags if pg (percent good) data or
-    # vb_pg (vertical beam percent good) data are missing
-    flag_pg = 0
+    # vb_pg (vertical beam percent good) data are *missing*
+    # flag_pg = 0
+    # flag_vb = 0
+    # flag_vb_pg = 0
+    # try:
+    #     # Create throwaway test variable to test for variable availability
+    #     test_var = pg.pg1.data[:5]
+    # except AttributeError:
+    #     flag_pg += 1
+    flag_pg = 0 if 'pg1' in pg.keys() else 1
     flag_vb = 0
-    flag_vb_pg = 0
-    try:
-        # Create throwaway test variable to test for variable availability
-        test_var = pg.pg1.data[:5]
-    except AttributeError:
-        flag_pg += 1
 
     # If model == Sentinel V, read in vertical beam data
     if meta_dict['model'] == 'sv':
@@ -1113,19 +1115,19 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
 
         # Test for missing Sentinel V vertical beam data; if true treat file as
         # regular 4-beam file
-        try:
-            # Vertical beam velocity data also available from vb_vel.raw.VBVelocity
-            # but it's multiplied by 1e3 (to make int type)
-            test_var = vb_vel.vbvel.data[:5]
-        except AttributeError:
-            flag_vb += 1
+        flag_vb = 0 if 'vbvel' in vb_vel.keys() else 1
+        # try:
+        #     # Vertical beam velocity data also available from vb_vel.raw.VBVelocity
+        #     # but it's multiplied by 1e3 (to make int type)
+        #     test_var = vb_vel.vbvel.data[:5]
+        # except AttributeError:
+        #     flag_vb += 1
         # Test for missing vertical beam percent good data
         try:
             test_var = vb_pg.raw.VBPercentGood[:5]
+            flag_vb_pg = 0
         except AttributeError:
-            flag_vb_pg += 1
-
-    # --------------------------Metadata value corrections-------------------------
+            flag_vb_pg = 1
 
     # Convert numeric values to numerics
     meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
