@@ -31,6 +31,7 @@ import pycurrents.adcp.transform as transform
 import gsw
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
 
+_FillValue = np.nan
 
 
 def mean_orientation(o: list):
@@ -314,10 +315,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     metadata_dict: dictionary object of metadata items
     sensor_depth: sensor depth recorded by instrument
     """
-    # todo change fillvalue to np.nan
     uvw_vel_min = -1000
     uvw_vel_max = 1000
-    _FillValue = np.nan
 
     # Time
     var = out_obj.time
@@ -719,7 +718,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     # ALONZZ01, longitude
     for var in [out_obj.ALONZZ01, out_obj.longitude]:
-        var.encoding['_FillValue'] = None
+        var.encoding['_FillValue'] = _FillValue  # None
         var.encoding['dtype'] = 'd'
         var.attrs['units'] = 'degrees_east'
         var.attrs['long_name'] = 'longitude'
@@ -731,7 +730,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     # ALATZZ01, latitude
     for var in [out_obj.ALATZZ01, out_obj.latitude]:
-        var.encoding['_FillValue'] = None
+        var.encoding['_FillValue'] = _FillValue  # None
         var.encoding['dtype'] = 'd'
         var.attrs['units'] = 'degrees_north'
         var.attrs['long_name'] = 'latitude'
@@ -1226,10 +1225,10 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic
     # fill_value for pycurrents
-    vel.vel.data[vel.vel.data == -32768.0] = np.nan
+    vel.vel.data[vel.vel.data == vel.vel.fill_value] = _FillValue
 
     if meta_dict['model'] == 'sv' and flag_vb == 0:
-        vb_vel.vbvel.data[vb_vel.vbvel.data == -32768.0] = np.nan
+        vb_vel.vbvel.data[vb_vel.vbvel.data == vb_vel.vbvel.fill_value] = _FillValue
 
     # Rotate into earth if not in enu already; this makes the netCDF bigger
     # For Sentinel V instruments, transformations are done independently of vertical
@@ -1380,7 +1379,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     out.attrs['source'] = "Python code: github: pycurrents_ADCP_processing"
     now = datetime.datetime.now()
     out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
-    out.attrs['_FillValue'] = str(fill_value)
+    out.attrs['_FillValue'] = _FillValue  # str(fill_value)
     out.attrs['feature_type'] = "profileTimeSeries"
     out.attrs['firmware_version'] = str(vel.FL.FWV) + '.' + str(vel.FL.FWR)  # firmwareVersion
     out.attrs['frequency'] = str(data.sysconfig['kHz'])
