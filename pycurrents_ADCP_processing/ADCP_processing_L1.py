@@ -26,8 +26,7 @@ import pandas as pd
 import datetime
 import warnings
 from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime
-from pycurrents.adcp.rdiraw import rawfile
-from pycurrents.adcp.rdiraw import SysCfg
+from pycurrents.adcp import rdiraw
 import pycurrents.adcp.transform as transform
 import gsw
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
@@ -1082,7 +1081,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # ------------------------Read in data and start processing--------------------
 
     # Read in raw ADCP file and model type
-    data = rawfile(inFile, meta_dict['model'], trim=True)
+    data = rdiraw.rawfile(inFile, meta_dict['model'], trim=True)
     print('Read in raw data')
 
     # Extract multidimensional variables from data object: 
