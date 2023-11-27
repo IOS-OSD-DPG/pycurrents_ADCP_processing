@@ -33,18 +33,12 @@ import gsw
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
 
 
-def mean_orientation(o: np.ndarray):
-    # orientation, o, is an array
-    up = 0
-    down = 0
-    for i in range(len(o)):
-        if o[i]:
-            up += 1
-        else:
-            down += 1
-    if up > down:
+
+def mean_orientation(o: list):
+    # orientation, o, is a list of bools with True=up and False=down
+    if sum(o) > len(o)/2:
         return 'up'
-    elif down > up:
+    elif sum(o) < len(o)/2:
         return 'down'
     else:
         ValueError('Number of \"up\" orientations equals number of \"down\" '
