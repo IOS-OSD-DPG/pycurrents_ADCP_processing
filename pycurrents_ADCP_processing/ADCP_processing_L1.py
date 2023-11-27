@@ -981,7 +981,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     return
 
 
-def create_meta_dict_L1(adcp_meta: str):
+def create_meta_dict_L1(adcp_meta: str) -> dict:
     """
     Read in a csv metadata file and output in dictionary format
     Inputs:
@@ -1018,6 +1018,81 @@ def create_meta_dict_L1(adcp_meta: str):
     meta_dict['variable_code_reference'] = 'BODC P01'
     meta_dict['Conventions'] = "CF-1.8"
 
+    # # Correct flag_meanings values if they are comma-separated -- no longer needed
+    # if ',' in meta_dict['flag_meaning']:
+    #     flag_meaning_list = [x.strip() for x in meta_dict['flag_meaning'].split(',')]
+    #     meta_dict['flag_meaning'] = np.array(flag_meaning_list, dtype='U{}'.format(
+    #         len(max(flag_meaning_list, key=len))))
+    #
+    # # Convert flag_values from single string to numpy array
+    # flag_values_list = [x.strip() for x in meta_dict['flag_values'].split(',')]
+    # meta_dict['flag_values'] = np.array(flag_values_list, dtype='int32')
+
+    # Convert numeric values to numerics
+
+    meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
+
+    for key in ['instrument_depth', 'latitude', 'longitude', 'water_depth',
+                'magnetic_variation']:
+        meta_dict[key] = float(meta_dict[key])
+
+    # Add leading zero to serial numbers that have 3 digits
+    if len(str(meta_dict['serial_number'])) == 3:
+        meta_dict['serial_number'] = '0' + str(meta_dict['serial_number'])
+
+    # Overwrite serial number to include the model: upper returns uppercase
+    meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
+
+    # Assign model, model_long name, and manufacturer
+    if meta_dict['instrument_subtype'].upper() == "WORKHORSE":
+        meta_dict['model'] = "wh"
+        meta_dict['manufacturer'] = 'Teledyne RDI'
+    elif meta_dict["instrument_subtype"].upper() == "BROADBAND":
+        meta_dict['model'] = "bb"
+        meta_dict['manufacturer'] = 'Teledyne RDI'
+    elif meta_dict["instrument_subtype"].upper() == "SENTINEL V":
+        meta_dict['model'] = "sv"
+        meta_dict['manufacturer'] = 'Teledyne RDI'
+    else:
+        ValueError('meta_dict["instrumentSubtype"] not understood:',
+                   meta_dict["instrumentSubtype"])
+
+    return meta_dict
+
+
+def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
+                        fixed_leader: rdiraw.Bunch) -> dict:
+    """
+    Update metadata dictionary with information from the raw data file
+    """
+    # Add instrument model variable value
+    meta_dict['instrument_model'] = 'RDI {} ADCP {}kHz ({})'.format(
+        meta_dict['model'].upper(), data.sysconfig['kHz'], meta_dict['serial_number'])
+
+    # Extract metadata from data object
+
+    # Orientation code from Eric Firing
+    # Orientation values such as 65535 and 231 cause SysCfg().up to generate an
+    # IndexError: list index out of range
+    try:
+        # list of bools; True if upward facing, False if down
+        orientations = [rdiraw.SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
+        meta_dict['orientation'] = mean_orientation(orientations)
+    except IndexError:
+        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid '
+                      'IndexError: list index out of range', UserWarning)
+        meta_dict['orientation'] = 'up' if data.sysconfig['up'] else 'down'
+
+    # Retrieve beam pattern, which is needed for coordsystem_2enu() transform
+    if data.sysconfig['convex']:
+        meta_dict['beam_pattern'] = 'convex'
+    else:
+        meta_dict['beam_pattern'] = 'concave'
+
+    # Begin writing processing history, which will be added as a global attribute to the output netCDF file
+    meta_dict['processing_history'] = "Metadata read in from log sheet and combined " \
+                                      "with raw data to export as netCDF file."
+
     return meta_dict
 
 
@@ -1052,27 +1127,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
 
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = create_meta_dict_L1(file_meta)
-
-    # Assign model, model_long name, and manufacturer
-    if meta_dict["instrumentSubtype"].upper() == "WORKHORSE":
-        meta_dict['model'] = "wh"
-        model_long = "RDI WH"
-        meta_dict['manufacturer'] = 'Teledyne RDI'
-    elif meta_dict["instrumentSubtype"].upper() == "BROADBAND":
-        meta_dict['model'] = "bb"
-        model_long = "RDI BB"
-        meta_dict['manufacturer'] = 'Teledyne RDI'
-    elif meta_dict["instrumentSubtype"].upper() == "SENTINEL V":
-        meta_dict['model'] = "sv"
-        model_long = "RDI SV"
-        meta_dict['manufacturer'] = 'Teledyne RDI'
-    else:
-        pass
-
-    # Check if model was read into dictionary correctly
-    if 'model' not in meta_dict:
-        ValueError("instrumentSubtype value of \"{}\" not valid".format(
-            meta_dict['instrumentSubtype']))
 
     # print(meta_dict['model'])
     print('Read in csv metadata file')
@@ -1129,56 +1183,10 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
         except AttributeError:
             flag_vb_pg = 1
 
-    # Convert numeric values to numerics
-    meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
+    # Metadata value corrections using info from the raw data file
+    meta_dict = update_meta_dict_L1(meta_dict, data, fixed_leader)
 
-    for key in ['instrument_depth', 'latitude', 'longitude', 'water_depth',
-                'magnetic_variation']:
-        meta_dict[key] = float(meta_dict[key])
-
-    # Add leading zero to serial numbers that have 3 digits
-    if len(str(meta_dict['serial_number'])) == 3:
-        meta_dict['serial_number'] = '0' + str(meta_dict['serial_number'])
-    # Overwrite serial number to include the model: upper returns uppercase
-    meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
-    # Add instrument model variable value
-    meta_dict['instrument_model'] = '{} ADCP {}kHz ({})'.format(
-        model_long, data.sysconfig['kHz'], meta_dict['serial_number'])
-
-    # Correct flag_meanings values if they are comma-separated
-    if ',' in meta_dict['flag_meaning']:
-        flag_meaning_list = [x.strip() for x in meta_dict['flag_meaning'].split(',')]
-        meta_dict['flag_meaning'] = np.array(flag_meaning_list, dtype='U{}'.format(
-            len(max(flag_meaning_list, key=len))))
-
-    # Convert flag_values from single string to numpy array
-    flag_values_list = [x.strip() for x in meta_dict['flag_values'].split(',')]
-    meta_dict['flag_values'] = np.array(flag_values_list, dtype='int32')
-
-    # Begin writing processing history, which will be added as a global attribute to the output netCDF file
-    meta_dict['processing_history'] = "Metadata read in from log sheet and combined " \
-                                      "with raw data to export as netCDF file."
-
-    # Extract metadata from data object
-
-    # Orientation code from Eric Firing
-    # Orientation values such as 65535 and 231 cause SysCfg().up to generate an
-    # IndexError: list index out of range
-    try:
-        orientations = [SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
-        meta_dict['orientation'] = mean_orientation(orientations)
-    except IndexError:
-        warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid '
-                      'IndexError: list index out of range', UserWarning)
-        meta_dict['orientation'] = 'up' if data.sysconfig['up'] else 'down'
-
-    # Retrieve beam pattern
-    if data.sysconfig['convex']:
-        meta_dict['beam_pattern'] = 'convex'
-    else:
-        meta_dict['beam_pattern'] = 'concave'
-
-    # Set up dimensions and variables
+    # --------------------Set up dimensions and variables-----------------
 
     time_s, time_DTUT8601 = convert_time_var(
         time_var=vel.dday, number_of_profiles=data.nprofs, metadata_dict=meta_dict,
@@ -1235,7 +1243,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # Rotate into earth if not in enu already; this makes the netCDF bigger
     # For Sentinel V instruments, transformations are done independently of vertical
     # beam velocity data
-    if vel.trans.coordsystem != 'earth' and vel.trans.coordsystem != 'enu':
+    if vel.trans.coordsystem not in ['earth', 'enu']:
         vel1, vel2, vel3, vel4 = coordsystem_2enu(
             vel_var=vel, fixed_leader_var=fixed_leader, metadata_dict=meta_dict)
     else:
