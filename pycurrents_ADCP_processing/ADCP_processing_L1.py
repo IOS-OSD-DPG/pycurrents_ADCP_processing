@@ -321,21 +321,22 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     metadata_dict: dictionary object of metadata items
     sensor_depth: sensor depth recorded by instrument
     """
-
+    # todo change fillvalue to np.nan
     uvw_vel_min = -1000
     uvw_vel_max = 1000
+    _FillValue = np.nan
 
     # Time
     var = out_obj.time
     var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
-    var.encoding['_FillValue'] = None
+    var.encoding['_FillValue'] = _FillValue  # None
     var.attrs['long_name'] = "time"
     var.attrs['cf_role'] = "profile_id"
     var.encoding['calendar'] = "gregorian"
 
     # Bin distances
     var = out_obj.distance
-    var.encoding['_FillValue'] = None
+    var.encoding['_FillValue'] = _FillValue  # None
     var.attrs['units'] = "m"
     var.attrs['positive'] = 'up' if metadata_dict['orientation'] == 'up' else 'down'
     # var.attrs['long_name'] = "distance"
@@ -346,7 +347,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.LCEWAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'eastward_sea_water_velocity'
     var.attrs['ancillary_variables'] = 'LCEWAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
@@ -372,7 +373,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.LCNSAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'northward_sea_water_velocity'
     var.attrs['ancillary_variables'] = 'LCNSAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
@@ -398,7 +399,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.LRZAAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'upward_sea_water_velocity'
     var.attrs['ancillary_variables'] = 'LRZAAP01_QC'
     var.attrs['sensor_type'] = 'adcp'
@@ -424,7 +425,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.LERRAP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'error_velocity_in_sea_water'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -444,7 +445,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     # Velocity variable quality flags
     var = out_obj.LCEWAP01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'quality flag for LCEWAP01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -455,7 +456,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     var = out_obj.LCNSAP01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'quality flag for LCNSAP01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -466,7 +467,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     var = out_obj.LRZAAP01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'quality flag for LRZAAP01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
     var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -479,7 +480,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.ELTMEP01
     var.encoding['dtype'] = 'd'
     var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'time_02'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::N/A'
     var.attrs['sdn_parameter_name'] = 'Elapsed time (since 1970-01-01T00:00:00Z)'
@@ -491,7 +492,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.TNIHCE01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -509,7 +510,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.TNIHCE02
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -527,7 +528,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.TNIHCE03
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -545,7 +546,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.TNIHCE04
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -568,7 +569,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.PCGDAP00
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'percent_good_beam_1'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
@@ -586,7 +587,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.PCGDAP02
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'percent_good_beam_2'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
@@ -604,7 +605,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.PCGDAP03
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'percent_good_beam_3'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
@@ -622,7 +623,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.PCGDAP04
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'percent'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'percent_good_beam_4'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
@@ -641,7 +642,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.PTCHGP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degree'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'pitch'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::PTCH'
@@ -656,7 +657,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.ROLLGP01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degree'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'roll'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::ROLL'
@@ -672,7 +673,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.DISTTRAN
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['positive'] = 'up'
     var.attrs['long_name'] = 'height of sea surface'
     var.attrs['generic_name'] = 'height'
@@ -689,7 +690,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.TEMPPR01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degree_C'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP Transducer Temp.'
     var.attrs['generic_name'] = 'temp'
     var.attrs['sensor_type'] = 'adcp'
@@ -706,7 +707,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.PPSAADCP
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['positive'] = 'down'
     var.attrs['long_name'] = 'instrument depth'
     var.attrs['xducer_offset_from_bottom'] = ''
@@ -751,7 +752,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.HEADCM01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'degree'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'heading'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -768,7 +769,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.PRESPR01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'dbar'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'pressure'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -790,7 +791,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     # PRESPR01_QC: pressure quality flag
     var = out_obj.PRESPR01_QC
     var.encoding['dtype'] = 'int'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'quality flag for PRESPR01'
     var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
                            'identification of negative pressure values'
@@ -804,7 +805,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.SVELCV01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'm s-1'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'speed of sound'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -833,7 +834,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.CMAGZZ01
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -850,7 +851,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.CMAGZZ02
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -867,7 +868,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.CMAGZZ03
     var.attrs['units'] = 'counts'
     var.encoding['dtype'] = 'float32'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -884,7 +885,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     var = out_obj.CMAGZZ04
     var.encoding['dtype'] = 'float32'
     var.attrs['units'] = 'counts'
-    var.attrs['_FillValue'] = fillValue
+    var.attrs['_FillValue'] = _FillValue
     var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
     var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
@@ -904,7 +905,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.LRZUVP01
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'm s-1'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'upward_sea_water_velocity_by_vertical_beam'
         var.attrs['ancillary_variables'] = 'LRZUVP01_QC'
         var.attrs['sensor_type'] = 'adcp'
@@ -925,7 +926,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
         var = out_obj.LRZUVP01_QC
         var.encoding['dtype'] = 'int'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'quality flag for LRZUVP01'
         var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
         var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
@@ -937,7 +938,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.TNIHCE05
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'counts'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'ADCP_echo_intensity_beam_5'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
@@ -954,7 +955,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         var = out_obj.CMAGZZ05
         var.encoding['dtype'] = 'float32'
         var.attrs['units'] = 'counts'
-        var.attrs['_FillValue'] = fillValue
+        var.attrs['_FillValue'] = _FillValue
         var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_5'
         var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
@@ -971,7 +972,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
             var = out_obj.PCGDAP05
             var.encoding['dtype'] = 'float32'
             var.attrs['units'] = 'percent'
-            var.attrs['_FillValue'] = fillValue
+            var.attrs['_FillValue'] = _FillValue
             var.attrs['long_name'] = 'percent_good_beam_5'
             var.attrs['sensor_type'] = 'adcp'
             var.attrs['sensor_depth'] = sensor_depth
@@ -1351,9 +1352,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
             out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))
 
     # Add attributes to each variable
-    fill_value = 1e+15
+    # fill_value = 1e+15
     add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep,
-                       cell_size=data.CellSize, fillValue=fill_value, pg_flag=flag_pg,
+                       cell_size=data.CellSize, pg_flag=flag_pg,
                        vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
 
     # Global attributes
