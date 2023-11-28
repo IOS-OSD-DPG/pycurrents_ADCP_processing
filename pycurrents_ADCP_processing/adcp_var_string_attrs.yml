@@ -287,12 +287,12 @@
   sdn_uom_urn: SDN:P06::UPAA
   sdn_uom_name: Celsius degree
 
+# remove xducer_offset_from_bottom:  # blank
 - id: PPSAADCP
   dtype: float32
   units: m
   positive: down
   long_name: instrument depth
-  xducer_offset_from_bottom:  # blank
   generic_name: depth
   sensor_type: adcp
   legacy_GF3_code: SDN:GF3::DEPH
