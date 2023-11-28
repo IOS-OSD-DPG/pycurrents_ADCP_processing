@@ -30,6 +30,7 @@ from pycurrents.adcp import rdiraw
 import pycurrents.adcp.transform as transform
 import gsw
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
+import yaml
 
 _FillValue = np.nan
 
@@ -308,7 +309,34 @@ def flag_velocity(ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=Non
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, LRZUVP01_QC_var
 
 
-def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, cell_size, fillValue,
+def read_yml_to_dict(yml_file):
+    # Read yml file into a list of dictionaries
+    with open(yml_file, 'r') as stream:
+        d = yaml.safe_load(stream)
+
+    var_names = [elem['id'] for elem in d]
+
+    var_dict = {key: value for key, value in zip(var_names, d)}
+
+    # Longer text that runs multiple lines is read in as a list
+    # with one string element, and the string element ends with a '\n'
+    for k1 in var_dict.keys():
+        for k2 in var_dict[k1].keys():
+            if type(var_dict[k1][k2]) == list:
+                if len(var_dict[k1][k2]) == 1:
+                    var_dict[k1][k2] = var_dict[k1][k2][0].replace('\n', '')
+                else:
+                    warnings.warn(
+                        'Check YAML file content parsing to list\n' + str(var_dict[k1][k2])
+                    )
+            elif k2 == 'id':
+                # Remove 'id' key from each var's dict of attrs in-place
+                var_dict[k1].pop(k2)
+
+    return var_dict
+
+
+def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
                        pg_flag=0, vb_flag=0, vb_pg_flag=0):
     """
     out_obj: dataset object produced using the xarray package that will be exported as a netCDF file
@@ -318,44 +346,52 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     uvw_vel_min = -1000
     uvw_vel_max = 1000
 
+    var_dict = read_yml_to_dict('adcp_var_string_attrs.yml')
+    for VAR in var_dict.keys():
+        if hasattr(out_obj, VAR):  # Accounts for pg and vb flags
+            for att in var_dict[VAR].keys():
+                if att in ['dtype', 'calendar']:
+                    out_obj[VAR].encoding[att] = var_dict[VAR][att]
+                else:
+                    out_obj[VAR].attrs[att] = var_dict[VAR][att]
     # Time
     var = out_obj.time
-    var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
+    # var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
     var.encoding['_FillValue'] = _FillValue  # None
-    var.attrs['long_name'] = "time"
-    var.attrs['cf_role'] = "profile_id"
-    var.encoding['calendar'] = "gregorian"
+    # var.attrs['long_name'] = "time"
+    # var.attrs['cf_role'] = "profile_id"
+    # var.encoding['calendar'] = "gregorian"
 
     # Bin distances
     var = out_obj.distance
     var.encoding['_FillValue'] = _FillValue  # None
-    var.attrs['units'] = "m"
+    # var.attrs['units'] = "m"
     var.attrs['positive'] = 'up' if metadata_dict['orientation'] == 'up' else 'down'
-    # var.attrs['long_name'] = "distance"
-    var.attrs['long_name'] = "bin_distances_from_ADCP_transducer_along_measurement_axis"
+    # # var.attrs['long_name'] = "distance"
+    # var.attrs['long_name'] = "bin_distances_from_ADCP_transducer_along_measurement_axis"
 
     # LCEWAP01: eastward velocity (vel1)
     # all velocities have many of the same attribute values, but not all, so each velocity is done separately
     var = out_obj.LCEWAP01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm s-1'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'eastward_sea_water_velocity'
-    var.attrs['ancillary_variables'] = 'LCEWAP01_QC'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'eastward_sea_water_velocity'
+    # var.attrs['ancillary_variables'] = 'LCEWAP01_QC'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'u'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::EWCT'
-    var.attrs['sdn_parameter_name'] = 'Eastward current velocity (Eulerian measurement) in the water body by moored ' \
-                                      'acoustic doppler current profiler (ADCP)'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-    var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'eastward_sea_water_velocity'
+    # var.attrs['generic_name'] = 'u'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::EWCT'
+    # var.attrs['sdn_parameter_name'] = 'Eastward current velocity (Eulerian measurement) in the water body by moored ' \
+    #                                   'acoustic doppler current profiler (ADCP)'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+    # var.attrs['sdn_uom_name'] = 'Metres per second'
+    # var.attrs['standard_name'] = 'eastward_sea_water_velocity'
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
@@ -363,25 +399,25 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     # LCNSAP01: northward velocity (vel2)
     var = out_obj.LCNSAP01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm s-1'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'northward_sea_water_velocity'
-    var.attrs['ancillary_variables'] = 'LCNSAP01_QC'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'northward_sea_water_velocity'
+    # var.attrs['ancillary_variables'] = 'LCNSAP01_QC'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'v'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::NSCT'
-    var.attrs['sdn_parameter_name'] = 'Northward current velocity (Eulerian measurement) in the water body by moored ' \
-                                      'acoustic doppler current profiler (ADCP)'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-    var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'northward_sea_water_velocity'
+    # var.attrs['generic_name'] = 'v'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::NSCT'
+    # var.attrs['sdn_parameter_name'] = 'Northward current velocity (Eulerian measurement) in the water body by moored ' \
+    #                                   'acoustic doppler current profiler (ADCP)'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+    # var.attrs['sdn_uom_name'] = 'Metres per second'
+    # var.attrs['standard_name'] = 'northward_sea_water_velocity'
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
@@ -389,25 +425,25 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     # LRZAAP01: vertical velocity (vel3)
     var = out_obj.LRZAAP01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm s-1'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'upward_sea_water_velocity'
-    var.attrs['ancillary_variables'] = 'LRZAAP01_QC'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'upward_sea_water_velocity'
+    # var.attrs['ancillary_variables'] = 'LRZAAP01_QC'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'w'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::VCSP'
-    var.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) in the water body by moored ' \
-                                      'acoustic doppler current profiler (ADCP)'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-    var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'upward_sea_water_velocity'
+    # var.attrs['generic_name'] = 'w'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::VCSP'
+    # var.attrs['sdn_parameter_name'] = 'Upward current velocity (Eulerian measurement) in the water body by moored ' \
+    #                                   'acoustic doppler current profiler (ADCP)'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+    # var.attrs['sdn_uom_name'] = 'Metres per second'
+    # var.attrs['standard_name'] = 'upward_sea_water_velocity'
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
@@ -415,20 +451,20 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     # LERRAP01: error velocity (vel4)
     var = out_obj.LERRAP01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm s-1'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'error_velocity_in_sea_water'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'error_velocity_in_sea_water'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'e'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::ERRV'
-    var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current ' \
-                                      'profiler (ADCP)'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-    var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'indicative_error_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    # var.attrs['generic_name'] = 'e'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::ERRV'
+    # var.attrs['sdn_parameter_name'] = 'Current velocity error in the water body by moored acoustic doppler current ' \
+    #                                   'profiler (ADCP)'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+    # var.attrs['sdn_uom_name'] = 'Metres per second'
+    # var.attrs['standard_name'] = 'indicative_error_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = 2 * uvw_vel_max
@@ -436,120 +472,120 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
 
     # Velocity variable quality flags
     var = out_obj.LCEWAP01_QC
-    var.encoding['dtype'] = 'int'
+    # var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'quality flag for LCEWAP01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['long_name'] = 'quality flag for LCEWAP01'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
     var.attrs['data_max'] = np.max(var.data)
     var.attrs['data_min'] = np.min(var.data)
 
     var = out_obj.LCNSAP01_QC
-    var.encoding['dtype'] = 'int'
+    # var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'quality flag for LCNSAP01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['long_name'] = 'quality flag for LCNSAP01'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
     var.attrs['data_max'] = np.max(var.data)
     var.attrs['data_min'] = np.min(var.data)
 
     var = out_obj.LRZAAP01_QC
-    var.encoding['dtype'] = 'int'
+    # var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'quality flag for LRZAAP01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['long_name'] = 'quality flag for LRZAAP01'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
     var.attrs['data_max'] = np.max(var.data)
     var.attrs['data_min'] = np.min(var.data)
 
     # ELTMEP01: seconds since 1970
     var = out_obj.ELTMEP01
-    var.encoding['dtype'] = 'd'
-    var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
+    # var.encoding['dtype'] = 'd'
+    # var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'time_02'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::N/A'
-    var.attrs['sdn_parameter_name'] = 'Elapsed time (since 1970-01-01T00:00:00Z)'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UTBB'
-    var.attrs['sdn_uom_name'] = 'Seconds'
-    var.attrs['standard_name'] = 'time'
+    # var.attrs['long_name'] = 'time_02'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::N/A'
+    # var.attrs['sdn_parameter_name'] = 'Elapsed time (since 1970-01-01T00:00:00Z)'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UTBB'
+    # var.attrs['sdn_uom_name'] = 'Seconds'
+    # var.attrs['standard_name'] = 'time'
 
     # TNIHCE01-4: echo intensity beam 1-4
     var = out_obj.TNIHCE01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_echo_intensity_beam_1'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'AGC'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_01'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
-                                      'profiler (ADCP) beam 1'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-    var.attrs['sdn_uom_name'] = 'Counts'
-    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
+    # var.attrs['generic_name'] = 'AGC'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_01'
+    # var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    #                                   'profiler (ADCP) beam 1'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+    # var.attrs['sdn_uom_name'] = 'Counts'
+    # var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.TNIHCE02
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_echo_intensity_beam_2'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'AGC'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_02'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
-                                      'profiler (ADCP) beam 2'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-    var.attrs['sdn_uom_name'] = 'Counts'
-    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
+    # var.attrs['generic_name'] = 'AGC'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_02'
+    # var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    #                                   'profiler (ADCP) beam 2'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+    # var.attrs['sdn_uom_name'] = 'Counts'
+    # var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.TNIHCE03
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_echo_intensity_beam_3'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'AGC'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_03'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
-                                      'profiler (ADCP) beam 3'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-    var.attrs['sdn_uom_name'] = 'Counts'
-    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
+    # var.attrs['generic_name'] = 'AGC'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_03'
+    # var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    #                                   'profiler (ADCP) beam 3'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+    # var.attrs['sdn_uom_name'] = 'Counts'
+    # var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.TNIHCE04
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_echo_intensity_beam_4'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'AGC'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_04'
-    var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
-                                      'profiler (ADCP) beam 4'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-    var.attrs['sdn_uom_name'] = 'Counts'
-    var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
+    # var.attrs['generic_name'] = 'AGC'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::BEAM_04'
+    # var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+    #                                   'profiler (ADCP) beam 4'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+    # var.attrs['sdn_uom_name'] = 'Counts'
+    # var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -559,335 +595,335 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
         pass
     else:
         var = out_obj.PCGDAP00
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'percent'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'percent_good_beam_1'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'percent_good_beam_1'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'PGd'
-        var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_01'
-        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                          'current profiler (ADCP) beam 1'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-        var.attrs['sdn_uom_name'] = 'Percent'
-        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
+        # var.attrs['generic_name'] = 'PGd'
+        # var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_01'
+        # var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+        #                                   'current profiler (ADCP) beam 1'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        # var.attrs['sdn_uom_name'] = 'Percent'
+        # var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.PCGDAP02
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'percent'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'percent_good_beam_2'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'percent_good_beam_2'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'PGd'
-        var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_02'
-        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                          'current profiler (ADCP) beam 2'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-        var.attrs['sdn_uom_name'] = 'Percent'
-        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
+        # var.attrs['generic_name'] = 'PGd'
+        # var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_02'
+        # var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+        #                                   'current profiler (ADCP) beam 2'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        # var.attrs['sdn_uom_name'] = 'Percent'
+        # var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.PCGDAP03
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'percent'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'percent_good_beam_3'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'percent_good_beam_3'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'PGd'
-        var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_03'
-        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                          'current profiler (ADCP) beam 3'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-        var.attrs['sdn_uom_name'] = 'Percent'
-        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
+        # var.attrs['generic_name'] = 'PGd'
+        # var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_03'
+        # var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+        #                                   'current profiler (ADCP) beam 3'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        # var.attrs['sdn_uom_name'] = 'Percent'
+        # var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.PCGDAP04
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'percent'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'percent_good_beam_4'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'percent_good_beam_4'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'PGd'
-        var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_04'
-        var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                          'current profiler (ADCP) beam 4'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-        var.attrs['sdn_uom_name'] = 'Percent'
-        var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
+        # var.attrs['generic_name'] = 'PGd'
+        # var.attrs['legacy_GF3_code'] = 'SDN:GF3::PGDP_04'
+        # var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+        #                                   'current profiler (ADCP) beam 4'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+        # var.attrs['sdn_uom_name'] = 'Percent'
+        # var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
     # PTCHGP01: pitch
     var = out_obj.PTCHGP01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'degree'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'degree'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'pitch'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::PTCH'
-    var.attrs['sdn_parameter_name'] = 'Orientation (pitch) of measurement platform by inclinometer'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
-    var.attrs['sdn_uom_name'] = 'Degrees'
-    var.attrs['standard_name'] = 'platform_pitch'
+    # var.attrs['long_name'] = 'pitch'
+    # var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::PTCH'
+    # var.attrs['sdn_parameter_name'] = 'Orientation (pitch) of measurement platform by inclinometer'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
+    # var.attrs['sdn_uom_name'] = 'Degrees'
+    # var.attrs['standard_name'] = 'platform_pitch'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # ROLLGP01: roll
     var = out_obj.ROLLGP01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'degree'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'degree'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'roll'
-    var.attrs['sensor_type'] = 'adcp'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::ROLL'
-    var.attrs['sdn_parameter_name'] = 'Orientation (roll angle) of measurement platform by inclinometer ' \
-                                      '(second sensor)'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
-    var.attrs['sdn_uom_name'] = 'Degrees'
-    var.attrs['standard_name'] = 'platform_roll'
+    # var.attrs['long_name'] = 'roll'
+    # var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::ROLL'
+    # var.attrs['sdn_parameter_name'] = 'Orientation (roll angle) of measurement platform by inclinometer ' \
+    #                                   '(second sensor)'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
+    # var.attrs['sdn_uom_name'] = 'Degrees'
+    # var.attrs['standard_name'] = 'platform_roll'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # DISTTRAN: height of sea surface (hght)
     var = out_obj.DISTTRAN
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['positive'] = 'up'
-    var.attrs['long_name'] = 'height of sea surface'
-    var.attrs['generic_name'] = 'height'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['positive'] = 'up'
+    # var.attrs['long_name'] = 'height of sea surface'
+    # var.attrs['generic_name'] = 'height'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::HGHT'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
-    var.attrs['sdn_uom_name'] = 'Metres'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::HGHT'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
+    # var.attrs['sdn_uom_name'] = 'Metres'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # TEMPPR01: transducer temp
     var = out_obj.TEMPPR01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'degree_C'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'degree_C'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP Transducer Temp.'
-    var.attrs['generic_name'] = 'temp'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP Transducer Temp.'
+    # var.attrs['generic_name'] = 'temp'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::te90'
-    var.attrs['sdn_parameter_name'] = 'Temperature of the water body'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPAA'
-    var.attrs['sdn_uom_name'] = 'Celsius degree'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::te90'
+    # var.attrs['sdn_parameter_name'] = 'Temperature of the water body'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPAA'
+    # var.attrs['sdn_uom_name'] = 'Celsius degree'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PPSAADCP: instrument depth (formerly DEPFP01)
     var = out_obj.PPSAADCP
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['positive'] = 'down'
-    var.attrs['long_name'] = 'instrument depth'
-    var.attrs['xducer_offset_from_bottom'] = ''
-    var.attrs['bin_size'] = cell_size  # bin size
-    var.attrs['generic_name'] = 'depth'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['positive'] = 'down'
+    # var.attrs['long_name'] = 'instrument depth'
+    # var.attrs['xducer_offset_from_bottom'] = ''
+    var.attrs['bin_size'] = metadata_dict['cell_size']  # bin size
+    # var.attrs['generic_name'] = 'depth'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::DEPH'
-    var.attrs['sdn_parameter_name'] = 'Depth below surface of the water body'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
-    var.attrs['sdn_uom_name'] = 'Metres'
-    var.attrs['standard_name'] = 'depth'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::DEPH'
+    # var.attrs['sdn_parameter_name'] = 'Depth below surface of the water body'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::ULAA'
+    # var.attrs['sdn_uom_name'] = 'Metres'
+    # var.attrs['standard_name'] = 'depth'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # ALONZZ01, longitude
     for var in [out_obj.ALONZZ01, out_obj.longitude]:
         var.encoding['_FillValue'] = _FillValue  # None
-        var.encoding['dtype'] = 'd'
-        var.attrs['units'] = 'degrees_east'
-        var.attrs['long_name'] = 'longitude'
-        var.attrs['legacy_GF3_code'] = 'SDN:GF3::lon'
-        var.attrs['sdn_parameter_name'] = 'Longitude east'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::DEGE'
-        var.attrs['sdn_uom_name'] = 'Degrees east'
-        var.attrs['standard_name'] = 'longitude'
+        # var.encoding['dtype'] = 'd'
+        # var.attrs['units'] = 'degrees_east'
+        # var.attrs['long_name'] = 'longitude'
+        # var.attrs['legacy_GF3_code'] = 'SDN:GF3::lon'
+        # var.attrs['sdn_parameter_name'] = 'Longitude east'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::DEGE'
+        # var.attrs['sdn_uom_name'] = 'Degrees east'
+        # var.attrs['standard_name'] = 'longitude'
 
     # ALATZZ01, latitude
     for var in [out_obj.ALATZZ01, out_obj.latitude]:
         var.encoding['_FillValue'] = _FillValue  # None
-        var.encoding['dtype'] = 'd'
-        var.attrs['units'] = 'degrees_north'
-        var.attrs['long_name'] = 'latitude'
-        var.attrs['legacy_GF3_code'] = 'SDN:GF3::lat'
-        var.attrs['sdn_parameter_name'] = 'Latitude north'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::DEGN'
-        var.attrs['sdn_uom_name'] = 'Degrees north'
-        var.attrs['standard_name'] = 'latitude'
+        # var.encoding['dtype'] = 'd'
+        # var.attrs['units'] = 'degrees_north'
+        # var.attrs['long_name'] = 'latitude'
+        # var.attrs['legacy_GF3_code'] = 'SDN:GF3::lat'
+        # var.attrs['sdn_parameter_name'] = 'Latitude north'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::DEGN'
+        # var.attrs['sdn_uom_name'] = 'Degrees north'
+        # var.attrs['standard_name'] = 'latitude'
 
     # HEADCM01: heading
     var = out_obj.HEADCM01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'degree'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'degree'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'heading'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'heading'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::HEAD'
-    var.attrs['sdn_parameter_name'] = 'Orientation (horizontal relative to true north) of measurement device {heading}'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
-    var.attrs['sdn_uom_name'] = 'Degrees'
-    var.attrs['standard_name'] = 'platform_orientation'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::HEAD'
+    # var.attrs['sdn_parameter_name'] = 'Orientation (horizontal relative to true north) of measurement device {heading}'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UAAA'
+    # var.attrs['sdn_uom_name'] = 'Degrees'
+    # var.attrs['standard_name'] = 'platform_orientation'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PRESPR01: pressure
     var = out_obj.PRESPR01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'dbar'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'dbar'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'pressure'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'pressure'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['ancillary_variables'] = 'PRESPR01_QC'
-    var.attrs['comment'] = 'Quality flag indicates negative pressure values in the time series'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::PRES'
-    var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
-                                      'pressure sensor and corrected to read zero at sea level'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UPDB'
-    var.attrs['sdn_uom_name'] = 'Decibars'
-    var.attrs['standard_name'] = 'sea_water_pressure'
+    # var.attrs['ancillary_variables'] = 'PRESPR01_QC'
+    # var.attrs['comment'] = 'Quality flag indicates negative pressure values in the time series'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::PRES'
+    # var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
+    #                                   'pressure sensor and corrected to read zero at sea level'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPDB'
+    # var.attrs['sdn_uom_name'] = 'Decibars'
+    # var.attrs['standard_name'] = 'sea_water_pressure'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PRESPR01_QC: pressure quality flag
     var = out_obj.PRESPR01_QC
-    var.encoding['dtype'] = 'int'
+    # var.encoding['dtype'] = 'int'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'quality flag for PRESPR01'
-    var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
-                           'identification of negative pressure values'
-    var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-    var.attrs['flag_values'] = metadata_dict['flag_values']
-    var.attrs['References'] = metadata_dict['flag_references']
+    # var.attrs['long_name'] = 'quality flag for PRESPR01'
+    # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset and ' \
+    #                        'identification of negative pressure values'
+    # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+    # var.attrs['flag_values'] = metadata_dict['flag_values']
+    # var.attrs['References'] = metadata_dict['flag_references']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
 
     # SVELCV01: sound velocity
     var = out_obj.SVELCV01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'm s-1'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'speed of sound'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'speed of sound'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::SVEL'
-    var.attrs['sdn_parameter_name'] = 'Sound velocity in the water body by computation from temperature and ' \
-                                      'salinity by unspecified algorithm'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-    var.attrs['sdn_uom_name'] = 'Metres per second'
-    var.attrs['standard_name'] = 'speed_of_sound_in_sea_water'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::SVEL'
+    # var.attrs['sdn_parameter_name'] = 'Sound velocity in the water body by computation from temperature and ' \
+    #                                   'salinity by unspecified algorithm'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+    # var.attrs['sdn_uom_name'] = 'Metres per second'
+    # var.attrs['standard_name'] = 'speed_of_sound_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss
     var = out_obj.DTUT8601
-    var.encoding['dtype'] = 'U24'  # 24-character string
-    var.attrs['note'] = 'time values as ISO8601 string, YY-MM-DD hh:mm:ss'
-    var.attrs['time_zone'] = 'UTC'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::time_string'
-    var.attrs['sdn_parameter_name'] = 'String corresponding to format \'YYYY-MM-DDThh:mm:ss.sssZ\' or other ' \
-                                      'valid ISO8601 string'
-    var.attrs['sdn_uom_urn'] = 'SDN:P06::TISO'
-    var.attrs['sdn_uom_name'] = 'ISO8601'
+    # var.encoding['dtype'] = 'U24'  # 24-character string
+    # var.attrs['note'] = 'time values as ISO8601 string, YY-MM-DD hh:mm:ss'
+    # var.attrs['time_zone'] = 'UTC'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::time_string'
+    # var.attrs['sdn_parameter_name'] = 'String corresponding to format \'YYYY-MM-DDThh:mm:ss.sssZ\' or other ' \
+    #                                   'valid ISO8601 string'
+    # var.attrs['sdn_uom_urn'] = 'SDN:P06::TISO'
+    # var.attrs['sdn_uom_name'] = 'ISO8601'
 
     # CMAGZZ01-4: correlation magnitude
     var = out_obj.CMAGZZ01
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_1'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'CM'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_01'
-    var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
-                                      'moored acoustic doppler current profiler (ADCP) beam 1'
-    var.attrs[
-        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    # var.attrs['generic_name'] = 'CM'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_01'
+    # var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
+    #                                   'moored acoustic doppler current profiler (ADCP) beam 1'
+    # var.attrs[
+    #     'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.CMAGZZ02
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_2'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'CM'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_02'
-    var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
-                                      'moored acoustic doppler current profiler (ADCP) beam 2'
-    var.attrs[
-        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    # var.attrs['generic_name'] = 'CM'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_02'
+    # var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
+    #                                   'moored acoustic doppler current profiler (ADCP) beam 2'
+    # var.attrs[
+    #     'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.CMAGZZ03
-    var.attrs['units'] = 'counts'
-    var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_3'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'CM'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_03'
-    var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
-                                      'moored acoustic doppler current profiler (ADCP) beam 3'
-    var.attrs[
-        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    # var.attrs['generic_name'] = 'CM'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_03'
+    # var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
+    #                                   'moored acoustic doppler current profiler (ADCP) beam 3'
+    # var.attrs[
+    #     'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.CMAGZZ04
-    var.encoding['dtype'] = 'float32'
-    var.attrs['units'] = 'counts'
+    # var.encoding['dtype'] = 'float32'
+    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
-    var.attrs['sensor_type'] = 'adcp'
+    # var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_4'
+    # var.attrs['sensor_type'] = 'adcp'
     var.attrs['sensor_depth'] = sensor_depth
     var.attrs['serial_number'] = metadata_dict['serial_number']
-    var.attrs['generic_name'] = 'CM'
-    var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_04'
-    var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
-                                      'moored acoustic doppler current profiler (ADCP) beam 4'
-    var.attrs[
-        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    # var.attrs['generic_name'] = 'CM'
+    # var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_04'
+    # var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
+    #                                   'moored acoustic doppler current profiler (ADCP) beam 4'
+    # var.attrs[
+    #     'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
     # done variables
@@ -895,88 +931,90 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth, c
     # Add Vertical Beam variable attrs for Sentinel V instruments
     if metadata_dict['model'] == 'sv' and vb_flag == 0:
         var = out_obj.LRZUVP01
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'm s-1'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'm s-1'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'upward_sea_water_velocity_by_vertical_beam'
-        var.attrs['ancillary_variables'] = 'LRZUVP01_QC'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'upward_sea_water_velocity_by_vertical_beam'
+        # var.attrs['ancillary_variables'] = 'LRZUVP01_QC'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'vv'
-        var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-        var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-        var.attrs['flag_values'] = metadata_dict['flag_values']
-        var.attrs['References'] = metadata_dict['flag_references']
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
-        var.attrs['sdn_uom_name'] = 'Metres per second'
-        var.attrs['standard_name'] = 'upward_sea_water_velocity'
+        # var.attrs['generic_name'] = 'vv'
+        # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+        # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+        # var.attrs['flag_values'] = metadata_dict['flag_values']
+        # var.attrs['References'] = metadata_dict['flag_references']
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::UVAA'
+        # var.attrs['sdn_uom_name'] = 'Metres per second'
+        # var.attrs['standard_name'] = 'upward_sea_water_velocity'
         var.attrs['data_max'] = np.nanmax(var.data)
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['valid_max'] = uvw_vel_max
         var.attrs['valid_min'] = uvw_vel_min
 
         var = out_obj.LRZUVP01_QC
-        var.encoding['dtype'] = 'int'
+        # var.encoding['dtype'] = 'int'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'quality flag for LRZUVP01'
-        var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
-        var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
-        var.attrs['flag_values'] = metadata_dict['flag_values']
-        var.attrs['References'] = metadata_dict['flag_references']
+        # var.attrs['long_name'] = 'quality flag for LRZUVP01'
+        # var.attrs['comment'] = 'Quality flag resulting from cleaning of the beginning and end of the dataset'
+        # var.attrs['flag_meanings'] = metadata_dict['flag_meaning']
+        # var.attrs['flag_values'] = metadata_dict['flag_values']
+        # var.attrs['References'] = metadata_dict['flag_references']
         var.attrs['data_max'] = np.max(var.data)
         var.attrs['data_min'] = np.min(var.data)
 
         var = out_obj.TNIHCE05
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'counts'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'counts'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'ADCP_echo_intensity_beam_5'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'ADCP_echo_intensity_beam_5'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'AGC'
-        var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
-                                          'profiler (ADCP) vertical beam'
-        var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
-        var.attrs['sdn_uom_name'] = 'Counts'
-        var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
+        # var.attrs['generic_name'] = 'AGC'
+        # var.attrs['sdn_parameter_name'] = 'Echo intensity from the water body by moored acoustic doppler current ' \
+        #                                   'profiler (ADCP) vertical beam'
+        # var.attrs['sdn_uom_urn'] = 'SDN:P06::UCNT'
+        # var.attrs['sdn_uom_name'] = 'Counts'
+        # var.attrs['standard_name'] = 'signal_intensity_from_multibeam_acoustic_doppler_velocity_sensor_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.CMAGZZ05
-        var.encoding['dtype'] = 'float32'
-        var.attrs['units'] = 'counts'
+        # var.encoding['dtype'] = 'float32'
+        # var.attrs['units'] = 'counts'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_5'
-        var.attrs['sensor_type'] = 'adcp'
+        # var.attrs['long_name'] = 'ADCP_correlation_magnitude_beam_5'
+        # var.attrs['sensor_type'] = 'adcp'
         var.attrs['sensor_depth'] = sensor_depth
         var.attrs['serial_number'] = metadata_dict['serial_number']
-        var.attrs['generic_name'] = 'CM'
-        var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
-                                          'moored acoustic doppler current profiler (ADCP) vertical beam'
-        var.attrs[
-            'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+        # var.attrs['generic_name'] = 'CM'
+        # var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
+        #                                   'moored acoustic doppler current profiler (ADCP) vertical beam'
+        # var.attrs[
+        #     'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         if vb_pg_flag == 0:
             var = out_obj.PCGDAP05
-            var.encoding['dtype'] = 'float32'
-            var.attrs['units'] = 'percent'
+            # var.encoding['dtype'] = 'float32'
+            # var.attrs['units'] = 'percent'
             var.attrs['_FillValue'] = _FillValue
-            var.attrs['long_name'] = 'percent_good_beam_5'
-            var.attrs['sensor_type'] = 'adcp'
+            # var.attrs['long_name'] = 'percent_good_beam_5'
+            # var.attrs['sensor_type'] = 'adcp'
             var.attrs['sensor_depth'] = sensor_depth
             var.attrs['serial_number'] = metadata_dict['serial_number']
-            var.attrs['generic_name'] = 'PGd'
-            var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
-                                              'current profiler (ADCP) vertical beam'
-            var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
-            var.attrs['sdn_uom_name'] = 'Percent'
-            var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
+            # var.attrs['generic_name'] = 'PGd'
+            # var.attrs['sdn_parameter_name'] = 'Acceptable proportion of signal returns by moored acoustic doppler ' \
+            #                                   'current profiler (ADCP) vertical beam'
+            # var.attrs['sdn_uom_urn'] = 'SDN:P06::UPCT'
+            # var.attrs['sdn_uom_name'] = 'Percent'
+            # var.attrs['standard_name'] = 'proportion_of_acceptable_signal_returns_from_acoustic_instrument_in_sea_water'
             var.attrs['data_min'] = np.nanmin(var.data)
             var.attrs['data_max'] = np.nanmax(var.data)
+
+    # sort the attrs for each var? todo
 
     return
 
@@ -1275,7 +1313,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
         LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC, LRZUVP01_QC = flag_velocity(
             e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3, vb_vel.vbvel.data)
 
-    # Limit variables (depth, temperature, pitch, roll, heading, sound_speed)
+    # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) todo undo this
     # from before dep. and after rec. of ADCP
     for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
         variable[:e1] = np.nan
