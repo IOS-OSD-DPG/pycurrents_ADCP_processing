@@ -1089,6 +1089,8 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     else:
         meta_dict['beam_pattern'] = 'concave'
 
+    meta_dict['cell_size'] = data.CellSize  # Written to global attributes later
+
     # Begin writing processing history, which will be added as a global attribute to the output netCDF file
     meta_dict['processing_history'] = "Metadata read in from log sheet and combined " \
                                       "with raw data to export as netCDF file."
@@ -1356,8 +1358,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # Add attributes to each variable
     # fill_value = 1e+15
     add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep,
-                       cell_size=data.CellSize, pg_flag=flag_pg,
-                       vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
+                       pg_flag=flag_pg, vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
 
     # Global attributes
 
