@@ -67,7 +67,7 @@ def write_file(nc):
     time_increment_string = convert_timedelta(time_increment)  # call convert_timedelta function
     time_units_string = unit(time_increment)  # call unit function
     number_of_records = str(nc.coords["time"].size)  # number of ensumbles
-    data_description = nc.attrs["instrumentType"]
+    data_description = nc.attrs["instrument_type"]
     # if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
     #     if flag_pg == 1:
     #         number_of_channels = "30"
@@ -295,7 +295,7 @@ def write_deployment_recovery(nc):
 def write_instrument(nc):
     # define function to write instrument info
     data_type = nc.attrs["data_type"].upper()
-    model = nc.attrs["instrumentSubtype"] + "-" + nc.attrs["instrumentType"]
+    model = nc.attrs["instrument_subtype"] + "-" + nc.attrs["instrument_type"]
     if hasattr(nc, 'serial_number'):
         serial_number = nc.attrs["serial_number"]
     elif hasattr(nc, 'instrument_serial_number'):
@@ -344,7 +344,7 @@ def write_raw(nc):
     time_increment_string = convert_timedelta(time_increment)  # call convert_timedelta function
     number_records = str(nc.time.shape[0])
 
-    name = nc.attrs["instrumentSubtype"] + "-" + nc.attrs["instrumentType"]
+    name = nc.attrs["instrument_subtype"] + "-" + nc.attrs["instrument_type"]
     sourceprog = "instrument"
     prog_ver = nc.attrs["firmware_version"]
     config = "NA"  # nc.attrs["systemConfiguration"]
@@ -355,9 +355,9 @@ def write_raw(nc):
     orientation = nc.attrs["orientation"]
     # simflag =  "??" # ?????????????????????????
     n_beams = str(nc.attrs["number_of_beams"])  # n_beams = str(nc.attrs["janus"])
-    n_cells = str(nc.attrs["numberOfCells"])
+    n_cells = str(nc.attrs["number_of_cells"])
     pings_per_ensemble = str(nc.attrs["pings_per_ensemble"])
-    cell_size = str(nc.attrs["cellSize"])
+    cell_size = str(nc.attrs["cell_size"])
     blank = str(nc.attrs['blank'])
     # prof_mode = "??" # ??????????????????????
     corr_threshold = str(nc.attrs["valid_correlation_range"])
@@ -378,7 +378,7 @@ def write_raw(nc):
 
     sensors_src = str(nc.attrs["sensor_source"])
     sensors_avail = str(nc.attrs["sensors_avail"])
-    bin1_dist = "%.2f" % round(nc.attrs["bin1Distance"], 2)
+    bin1_dist = "%.2f" % round(nc.attrs["bin_1_distance"], 2)
     # xmit_pulse = "%.2f" % round(nc.attrs["transmit_pulse_length_cm"] / 100, 2)
     xmit_length = str(nc.attrs['xmit_length'])
     fls_target_threshold = nc.attrs["false_target_reject_values"]
