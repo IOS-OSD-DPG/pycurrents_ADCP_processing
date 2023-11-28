@@ -53,7 +53,7 @@ def write_file(nc):
         flag_pg = 1
     # For Sentinel V files, test if the vertical beam variables exist
     flag_vb = 0
-    if nc.instrumentSubtype == 'Sentinel V':
+    if nc.instrument_subtype == 'Sentinel V':
         try:
             x = nc.LRZUVP01.data_max
         except AttributeError:
@@ -68,7 +68,7 @@ def write_file(nc):
     time_units_string = unit(time_increment)  # call unit function
     number_of_records = str(nc.coords["time"].size)  # number of ensumbles
     data_description = nc.attrs["instrument_type"]
-    # if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    # if nc.instrument_subtype == 'Sentinel V' and flag_vb == 0:
     #     if flag_pg == 1:
     #         number_of_channels = "30"
     #     else:
