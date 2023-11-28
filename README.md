@@ -39,8 +39,7 @@ Reference: [New tools for ADCP processing.](https://waves-vagues.dfo-mpo.gc.ca/l
         `conda config --set channel_priority strict`
 4. Install required packages:  
         `conda install numpy scipy pip pandas netCDF4 xarray gsw matplotlib=3.5 shapely`  
-        `conda install -c anaconda pyyaml`  
-        `pip install datetime`  
+        `pip install datetime ruamel.yaml`  
 5. Clone pycurrents with Mercurial:  
         `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`  
 6. Install pycurrents:  

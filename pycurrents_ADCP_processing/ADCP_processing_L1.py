@@ -30,7 +30,7 @@ from pycurrents.adcp import rdiraw
 import pycurrents.adcp.transform as transform
 import gsw
 import pycurrents_ADCP_processing.add_var2nc as add_var2nc
-import yaml
+from ruamel.yaml import YAML
 
 _FillValue = np.nan
 
@@ -312,7 +312,8 @@ def flag_velocity(ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=Non
 def read_yml_to_dict(yml_file):
     # Read yml file into a list of dictionaries
     with open(yml_file, 'r') as stream:
-        d = yaml.safe_load(stream)
+        yaml = YAML(typ='safe')
+        d = yaml.load(stream)
 
     var_names = [elem['id'] for elem in d]
 
@@ -329,9 +330,9 @@ def read_yml_to_dict(yml_file):
                     warnings.warn(
                         'Check YAML file content parsing to list\n' + str(var_dict[k1][k2])
                     )
-            elif k2 == 'id':
-                # Remove 'id' key from each var's dict of attrs in-place
-                var_dict[k1].pop(k2)
+
+    for k1 in var_dict.keys():
+        var_dict[k1].pop('id')
 
     return var_dict
 
@@ -1376,7 +1377,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
                                 'DTUT8601': (['time'], time_DTUT8601),
                                 'filename': ([], out_name[:-3]),
                                 'instrument_serial_number': ([], meta_dict['serial_number']),
-                                'instrument_model': ([], meta_dict['instrumentModel'])})
+                                'instrument_model': ([], meta_dict['instrument_model'])})
 
     if flag_pg == 0:
         out = out.assign(PCGDAP00=(('distance', 'time'), pg.pg1.transpose()))
