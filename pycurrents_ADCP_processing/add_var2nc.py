@@ -19,7 +19,7 @@ def add_geo(ncfile, dest_dir):
     lon = data_xr.ALONZZ01
     lat = data_xr.ALATZZ01
 
-    data_xr.attrs['_FillValue'] = 1e35
+    # data_xr.attrs['_FillValue'] = 1e35
     # Geojson definitions for IOS
     json_file = 'ios_polygons.geojson'
     json_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), json_file)
