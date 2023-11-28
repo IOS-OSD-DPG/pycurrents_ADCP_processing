@@ -95,7 +95,7 @@
 
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCEWAP01_QC
-  dtype: int
+  dtype: float32
   long_name: quality flag for LCEWAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
@@ -106,7 +106,7 @@
 
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCNSAP01_QC
-  dtype: int
+  dtype: float32
   long_name: quality flag for LCNSAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
@@ -117,7 +117,7 @@
 
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LRZAAP01_QC
-  dtype: int
+  dtype: float32
   long_name: quality flag for LRZAAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
@@ -303,8 +303,10 @@
   sdn_uom_name: Metres
   standard_name: depth
 
+# Change dtype from d to float32 for all lon and lat vars
+# Don't know why d was the assigned value in the first place
 - id: ALONZZ01
-  dtype: d
+  dtype: float32
   units: degrees_east
   long_name: longitude
   legacy_GF3_code: SDN:GF3::lon
@@ -314,7 +316,7 @@
   standard_name: longitude
 
 - id: longitude
-  dtype: d
+  dtype: float32
   units: degrees_east
   long_name: longitude
   legacy_GF3_code: SDN:GF3::lon
@@ -324,7 +326,7 @@
   standard_name: longitude
 
 - id: ALATZZ01
-  dtype: d
+  dtype: float32
   units: degrees_north
   long_name: latitude
   legacy_GF3_code: SDN:GF3::lat
@@ -334,7 +336,7 @@
   standard_name: latitude
 
 - id: latitude
-  dtype: d
+  dtype: float32
   units: degrees_north
   long_name: latitude
   legacy_GF3_code: SDN:GF3::lat
@@ -377,7 +379,7 @@
   standard_name: sea_water_pressure
 
 - id: PRESPR01_QC
-  dtype: int
+  dtype: float32
   long_name: quality flag for PRESPR01
   comment: >
     Quality flag resulting from cleaning of the beginning and end of the dataset and
@@ -480,7 +482,7 @@
   standard_name: upward_sea_water_velocity
 
 - id: LRZUVP01_QC
-  dtype: int
+  dtype: float32
   long_name: quality flag for LRZUVP01
   comment: Quality flag resulting from cleaning of the beginning and end of the dataset
   flag_meanings: >
