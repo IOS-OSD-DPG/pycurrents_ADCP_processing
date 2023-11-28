@@ -1075,13 +1075,6 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
                 'magnetic_variation']:
         meta_dict[key] = float(meta_dict[key])
 
-    # Add leading zero to serial numbers that have 3 digits
-    if len(str(meta_dict['serial_number'])) == 3:
-        meta_dict['serial_number'] = '0' + str(meta_dict['serial_number'])
-
-    # Overwrite serial number to include the model: upper returns uppercase
-    meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
-
     # Assign model, model_long name, and manufacturer
     if meta_dict['instrument_subtype'].upper() == "WORKHORSE":
         meta_dict['model'] = "wh"
@@ -1095,6 +1088,13 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
     else:
         ValueError('meta_dict["instrumentSubtype"] not understood:',
                    meta_dict["instrumentSubtype"])
+
+    # Add leading zero to serial numbers that have 3 digits
+    if len(str(meta_dict['serial_number'])) == 3:
+        meta_dict['serial_number'] = '0' + str(meta_dict['serial_number'])
+
+    # Overwrite serial number to include the model: upper returns uppercase
+    meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
 
     return meta_dict
 
