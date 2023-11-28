@@ -182,7 +182,7 @@ def vb_flag(dataset: xr.Dataset):
         x = dataset.TNIHCE05.data
         return 0
     except AttributeError:
-        if dataset.instrumentSubtype == 'Sentinel V':
+        if dataset.instrument_subtype == 'Sentinel V':
             return 1
         else:
             return 0
@@ -297,7 +297,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     amp_mean_b4 = np.nanmean(nc.TNIHCE04.data[bin_range[0]:bin_range[1],
                              time_range[0]:time_range[1]], axis=1)
 
-    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if nc.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         amp_mean_b5 = np.nanmean(nc.TNIHCE05.data[bin_range[0]:bin_range[1],
                                  time_range[0]:time_range[1]], axis=1)
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
@@ -348,7 +348,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
         w_mean = np.nanmean(nc.LRZAAP01.data[bin_range[0]:bin_range[1],
                             time_range[0]:time_range[1]], axis=1)
 
-    if nc.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if nc.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         w5_mean = np.nanmean(nc.LRZUVP01.data[bin_range[0]:bin_range[1],
                              time_range[0]:time_range[1]], axis=1)
 
@@ -972,9 +972,9 @@ def binplot_compare_filt(nc: xr.Dataset, dest_dir, time, dat_raw, dat_filt, filt
 
     bin_index = 0  # which bin to plot
     if nc.orientation == 'up':
-        bin_depth = nc.instrument_depth - (bin_index + 1) * nc.cellSize
+        bin_depth = nc.instrument_depth - (bin_index + 1) * nc.cell_size
     else:
-        bin_depth = nc.instrument_depth + (bin_index + 1) * nc.cellSize
+        bin_depth = nc.instrument_depth + (bin_index + 1) * nc.cell_size
 
     fig = plt.figure(figsize=(13.75, 10))
 
