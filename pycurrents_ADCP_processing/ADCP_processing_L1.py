@@ -309,7 +309,7 @@ def flag_velocity(ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=Non
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, LRZUVP01_QC_var
 
 
-def read_yml_to_dict(yml_file):
+def read_yml_to_dict(yml_file: str):
     # Read yml file into a list of dictionaries
     with open(yml_file, 'r') as stream:
         yaml = YAML(typ='safe')
@@ -347,7 +347,13 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
     uvw_vel_min = -1000
     uvw_vel_max = 1000
 
-    var_dict = read_yml_to_dict('adcp_var_string_attrs.yml')
+    yml_file = '.\\adcp_var_string_attrs.yml'
+    if not os.path.exists(yml_file):
+        yml_file = '.\\pycurrents_ADCP_processing\\adcp_var_string_attrs.yml'
+
+    print('Using yml file', yml_file)
+
+    var_dict = read_yml_to_dict(yml_file)
     for VAR in var_dict.keys():
         if hasattr(out_obj, VAR):  # Accounts for pg and vb flags
             for att in var_dict[VAR].keys():
@@ -355,10 +361,13 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
                     out_obj[VAR].encoding[att] = var_dict[VAR][att]
                 else:
                     out_obj[VAR].attrs[att] = var_dict[VAR][att]
+
+    # Add the rest of the attrs to each variable
+
     # Time
     var = out_obj.time
     # var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
-    var.encoding['_FillValue'] = _FillValue  # None
+    var.encoding['_FillValue'] = None  # _FillValue
     # var.attrs['long_name'] = "time"
     # var.attrs['cf_role'] = "profile_id"
     # var.encoding['calendar'] = "gregorian"
