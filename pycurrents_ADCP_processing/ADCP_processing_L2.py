@@ -33,7 +33,7 @@ def add_attrs_prexmcat(dataset, name_ctd):
     var.attrs['units'] = dataset.PRESPR01.units
     var.attrs['_FillValue'] = dataset.PRESPR01.encoding['_FillValue']
     var.attrs['long_name'] = 'pressure'
-    var.attrs['sensor_type'] = 'adcp'
+    var.attrs['sensor_type'] = 'ctd'
     var.attrs['sensor_depth'] = dataset.PRESPR01.sensor_depth
     var.attrs['serial_number'] = dataset.serial_number
     # var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
