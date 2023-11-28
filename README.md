@@ -40,6 +40,10 @@ Reference: [New tools for ADCP processing.](https://waves-vagues.dfo-mpo.gc.ca/l
 4. Install required packages:  
         `conda install numpy scipy pip pandas netCDF4 xarray gsw matplotlib=3.5 shapely`  
         `pip install datetime ruamel.yaml`  
+5. Install ttide_py from github  
+        `git clone https://github.com/moflaher/ttide_py`  
+        Navigate to the newly created ttide_py folder, then  
+        `python setup.py install`  
 5. Clone pycurrents with Mercurial:  
         `hg clone --verbose http://currents.soest.hawaii.edu/hg/pycurrents`  
 6. Install pycurrents:  
