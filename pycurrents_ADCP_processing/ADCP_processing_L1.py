@@ -347,11 +347,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
     uvw_vel_min = -1000
     uvw_vel_max = 1000
 
-    yml_file = '.\\adcp_var_string_attrs.yml'
-    if not os.path.exists(yml_file):
-        yml_file = '.\\pycurrents_ADCP_processing\\adcp_var_string_attrs.yml'
-
-    print('Using yml file', yml_file)
+    yml_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'adcp_var_string_attrs.yml')
 
     var_dict = read_yml_to_dict(yml_file)
     for VAR in var_dict.keys():
@@ -1162,8 +1158,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
                 required if inFile has garbled out-of-range time data
     """
 
-    # If your raw file came from a NarrowBand instrument, you must also use the
-    # create_nc_L1() start_year optional kwarg (int type)
     # If your raw file has time values out of range, you must also use the
     # create_nc_L1() time_file optional kwarg
     # Use the time_file kwarg to read in a csv file containing time entries
