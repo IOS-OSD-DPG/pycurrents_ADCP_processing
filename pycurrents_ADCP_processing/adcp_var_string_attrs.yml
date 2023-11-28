@@ -126,9 +126,9 @@
   flag_references: BODC SeaDataNet
 
 # change dtype from d to float64
+# units: seconds since 1970-01-01T00:00:00Z
 - id: ELTMEP01
   dtype: float64
-  units: seconds since 1970-01-01T00:00:00Z
   long_name: time_02
   legacy_GF3_code: SDN:GF3::N/A  # Review
   sdn_parameter_name: Elapsed time (since 1970-01-01T00:00:00Z)

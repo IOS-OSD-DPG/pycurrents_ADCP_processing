@@ -514,7 +514,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
     # ELTMEP01: seconds since 1970
     var = out_obj.ELTMEP01
     # var.encoding['dtype'] = 'd'
-    # var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
+    var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
     var.attrs['_FillValue'] = _FillValue
     # var.attrs['long_name'] = 'time_02'
     # var.attrs['legacy_GF3_code'] = 'SDN:GF3::N/A'
