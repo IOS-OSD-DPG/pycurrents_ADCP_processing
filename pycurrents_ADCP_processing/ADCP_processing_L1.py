@@ -347,7 +347,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
     uvw_vel_min = -1000
     uvw_vel_max = 1000
 
-    yml_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'adcp_var_string_attrs.yml')
+    yml_file = os.path.join(os.path.abspath(os.path.dirname(__file__)),
+                            'adcp_var_string_attrs.yml')
 
     var_dict = read_yml_to_dict(yml_file)
     for VAR in var_dict.keys():
@@ -363,7 +364,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
     # Time
     var = out_obj.time
     # var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
-    var.encoding['_FillValue'] = None  # _FillValue
+    var.encoding['_FillValue'] = _FillValue
     # var.attrs['long_name'] = "time"
     # var.attrs['cf_role'] = "profile_id"
     # var.encoding['calendar'] = "gregorian"
