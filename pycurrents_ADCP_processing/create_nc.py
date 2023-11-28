@@ -13,8 +13,8 @@ Outputs:
     - IOS .adcp header file (produced from L1 netCDF ADCP file with geographic_area variable)
 """
 
-from pycurrents_ADCP_processing import ADCP_processing_L0, ADCP_processing_L1, add_var2nc, ADCP_IOS_Header_file
-
+from pycurrents_ADCP_processing import ADCP_processing_L0, ADCP_processing_L1, ADCP_IOS_Header_file
+from deprecated import add_var2nc
 
 # Define raw ADCP file and associated metadata file
 f = './sample_data/a1_20050503_20050504_0221m.000'
@@ -27,11 +27,6 @@ ncname_L0 = ADCP_processing_L0.nc_create_L0(f_adcp=f, f_meta=meta, dest_dir=dest
 # Perform L1 processing on the raw data and export as a netCDF file
 ncname_L1 = ADCP_processing_L1.nc_create_L1(inFile=f, file_meta=meta, dest_dir=dest_dir)
 
-# Read in the netCDF file produced above and add a geographic_area variable
-# Export as a new netCDF file
-geoname_L0 = add_var2nc.add_geo(ncname_L0, dest_dir)
-geoname_L1 = add_var2nc.add_geo(ncname_L1, dest_dir)
-
 # Generate a header (.adcp) file from the L1 netCDF file that has the geographic area variable
-header_name = ADCP_IOS_Header_file.main_header(geoname_L1, dest_dir)
+header_name = ADCP_IOS_Header_file.main_header(ncname_L1, dest_dir)
 

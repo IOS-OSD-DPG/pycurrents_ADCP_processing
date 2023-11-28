@@ -21,7 +21,7 @@ def add_geo(ncfile, dest_dir):
 
     # data_xr.attrs['_FillValue'] = 1e35
     # Geojson definitions for IOS
-    json_file = 'ios_polygons.geojson'
+    json_file = '../pycurrents_ADCP_processing/ios_polygons.geojson'
     json_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), json_file)
     # json_file = os.path.realpath(json_file)
     polygons_dict = utils.read_geojson(json_file)

@@ -29,8 +29,9 @@ from pandas._libs.tslibs.np_datetime import OutOfBoundsDatetime
 from pycurrents.adcp import rdiraw
 import pycurrents.adcp.transform as transform
 import gsw
-import pycurrents_ADCP_processing.add_var2nc as add_var2nc
 from ruamel.yaml import YAML
+from pycurrents_ADCP_processing import utils
+from shapely.geometry import Point
 
 _FillValue = np.nan
 
@@ -1149,6 +1150,15 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     return meta_dict
 
 
+def find_geographic_area_attr(lon: float, lat: float):
+    # Geojson definitions for IOS
+    json_file = 'ios_polygons.geojson'
+    json_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), json_file)
+    # json_file = os.path.realpath(json_file)
+    polygons_dict = utils.read_geojson(json_file)
+    return utils.find_geographic_area(polygons_dict, Point(lon, lat))
+
+
 def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     """About:
     Perform level 1 processing on a raw ADCP file and export it as a netCDF file
@@ -1406,11 +1416,17 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
             out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))
 
     # Add attributes to each variable
+
     # fill_value = 1e+15
     add_attrs_2vars_L1(out_obj=out, metadata_dict=meta_dict, sensor_depth=sensor_dep,
                        pg_flag=flag_pg, vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
 
     # Global attributes
+
+    # Add geographic_area attr
+    out.attrs['geographic_area'] = find_geographic_area_attr(
+        lon=meta_dict['longitude'], lat=meta_dict['latitude']
+    )
 
     # Add select meta_dict items as global attributes
     pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model']
@@ -1505,10 +1521,11 @@ def example_L1_1():
     # Create netCDF file
     nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir)
 
-    # Produce new netCDF file that includes a geographic_area variable
-    geo_name = add_var2nc.add_geo(nc_name, dest_dir)
+    # # DEPRECProduce new netCDF file that includes a geographic_area variable
+    # geo_name = add_var2nc.add_geo(nc_name, dest_dir)
 
-    return nc_name, geo_name
+    # return nc_name, geo_name
+    return nc_name
 
 
 def example_L1_2():
@@ -1527,7 +1544,8 @@ def example_L1_2():
     # Create netCDF file
     nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, time_file=scott_time)
 
-    # Produce new netCDF file that includes a geographic_area variable
-    geo_name = add_var2nc.add_geo(nc_name, dest_dir)
+    # # DEPRECProduce new netCDF file that includes a geographic_area variable
+    # geo_name = add_var2nc.add_geo(nc_name, dest_dir)
 
-    return nc_name, geo_name
+    # return nc_name, geo_name
+    return nc_name
