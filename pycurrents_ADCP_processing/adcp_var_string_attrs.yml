@@ -1,6 +1,7 @@
+# units: seconds since 1970-01-01T00:00:00Z moved back to script due to
+# ValueError: failed to prevent overwriting existing key units in attrs on variable 'time'.
 - id: time
   dtype: float64  # added to agree with CTD nc files
-  units: seconds since 1970-01-01T00:00:00Z
   long_name: time
   cf_role: profile_id
   calendar: gregorian

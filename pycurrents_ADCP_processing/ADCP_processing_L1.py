@@ -363,7 +363,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, metadata_dict: dict, sensor_depth,
 
     # Time
     var = out_obj.time
-    # var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
+    var.encoding['units'] = "seconds since 1970-01-01T00:00:00Z"
     var.encoding['_FillValue'] = _FillValue
     # var.attrs['long_name'] = "time"
     # var.attrs['cf_role'] = "profile_id"
