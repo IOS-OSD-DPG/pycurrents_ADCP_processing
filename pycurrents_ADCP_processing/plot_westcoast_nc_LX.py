@@ -1159,12 +1159,14 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
     return ncout_path
 
 
-def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_depth: float,
+def quiver_plot(dest_dir: str, data_filename,
+                station: str, deployment_number: str, instrument_depth: float,
                 time_lim: np.ndarray, bin_depths_lim: np.ndarray,
                 ns_lim: np.ndarray, ew_lim: np.ndarray, single_bin_inds: list, resampled=None):
     """
     Make subplots of speed and direction for unfiltered ADCP data
     :param dest_dir: name of directory for containing output files
+    :param data_filename: object returned from xr.Dataset.filename
     :param station: station name
     :param deployment_number: deployment number for mooring
     :param instrument_depth: instrument depth
@@ -1262,7 +1264,13 @@ def quiver_plot(dest_dir: str, station: str, deployment_number: str, instrument_
         plot_name = f'{station}-{deployment_number}_{instrument_depth}m_quiver_plotCOUNTER.png'
         if resampled:
             plot_name.replace('.png', f'_{resampled}_resampled.png')
-        plot_name = os.path.join(dest_dir, plot_name)
+
+        # Create L1_Python_plots or L2_Python_plots subfolder if not made already
+        plot_dir = get_plot_dir(data_filename, dest_dir)
+        if not os.path.exists(plot_dir):
+            os.makedirs(plot_dir)
+
+        plot_name = os.path.join(plot_dir, plot_name)
 
         counter = 1
         while os.path.exists(plot_name.replace('COUNTER', str(counter))):
@@ -1600,7 +1608,8 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
     return fig, ax_neg, ax_pos, hneg, hpos
 
 
-def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str, instrument_depth: float,
+def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deployment_number: str,
+                             instrument_depth: float,
                              bin_number: int, bin_depths_lim: np.ndarray, time_lim: np.ndarray,
                              ns_lim: np.ndarray, ew_lim: np.ndarray, latitude: float,
                              resampled=None, axis=-1, do_tidal_annotation=True):
@@ -1677,7 +1686,13 @@ def make_plot_rotary_spectra(dest_dir: str, station: str, deployment_number: str
         plot_name = plot_name.replace('.png', '_ttide.png')
     if resampled:
         plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
-    plot_name = os.path.join(dest_dir, plot_name)
+
+    # Create L1_Python_plots or L2_Python_plots subfolder if not made already
+    plot_dir = get_plot_dir(data_filename, dest_dir)
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    plot_name = os.path.join(plot_dir, plot_name)
     plt.savefig(plot_name)
     plt.close()
 
@@ -1709,7 +1724,7 @@ def rot_freqinterp(rot_dict: dict) -> tuple:
     return ftarget, pneg_interp, ppos_interp
 
 
-def pcolor_rot_component(dest_dir: str, station: str, deployment_number: str,
+def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_number: str,
                          x: np.ndarray, y, c: np.ndarray, clim: tuple, neg_or_pos: str,
                          funits='cpd', resampled=False):
     """
@@ -1758,13 +1773,18 @@ def pcolor_rot_component(dest_dir: str, station: str, deployment_number: str,
         plot_name = plot_name.replace('.png', '_pos_ccw.png')
     if resampled:
         plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+    # Create L1_Python_plots or L2_Python_plots subfolder if not made already
+    plot_dir = get_plot_dir(data_filename, dest_dir)
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
     plot_name = os.path.join(dest_dir, plot_name)
     plt.savefig(plot_name)
     plt.close()
     return plot_name
 
 
-def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str,
+def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deployment_number: str,
                              bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
                              ew_lim: np.ndarray, time_lim: np.ndarray, resampled=None):
     """
@@ -1808,6 +1828,7 @@ def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str
     # pcolor plot, skipping the 0 frequency
     pneg_plot_name = pcolor_rot_component(
         dest_dir,
+        data_filename,
         station,
         deployment_number,
         x=ftarget,
@@ -1820,6 +1841,7 @@ def make_depth_prof_rot_spec(dest_dir: str, station: str, deployment_number: str
 
     ppos_plot_name = pcolor_rot_component(
         dest_dir,
+        data_filename,
         station,
         deployment_number,
         x=ftarget,
@@ -2018,7 +2040,7 @@ def parse_tidal_constituents(constituents, tide_result):
     return tidal_par, error_par
 
 
-def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str, latitude: float,
+def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deployment_number: str, latitude: float,
                              time_lim: np.ndarray, bin_depth_lim: np.ndarray, ns_lim: np.ndarray,
                              ew_lim: np.ndarray, resampled=None):
     """
@@ -2178,7 +2200,13 @@ def make_plot_tidal_ellipses(dest_dir: str, station: str, deployment_number: str
     plot_name = f'{station}-{deployment_number}_tidal_ellipses.png'
     if resampled:
         plot_name.replace('.png', f'_{resampled}_resampled.png')
-    plot_name = os.path.join(dest_dir, plot_name)
+
+    # Create L1_Python_plots or L2_Python_plots subfolder if not made already
+    plot_dir = get_plot_dir(data_filename, dest_dir)
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    plot_name = os.path.join(plot_dir, plot_name)
     plt.savefig(plot_name)
     plt.close()
     return plot_name
@@ -2370,7 +2398,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     # Feather/quiver plots
 
     # Returns a list of names not a single name; apply to non-filtered data
-    fnames_quiver = quiver_plot(dest_dir, ncdata.station, ncdata.deployment_number,
+    fnames_quiver = quiver_plot(dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
                                 ncdata.instrument_depth, time_lim, bin_depths_lim,
                                 ns_lim, ew_lim, single_bin_inds, resampled)
 
@@ -2384,7 +2412,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         if bin_idx < len(bin_depths_lim):
             fnames_rot_spec.append(
                 make_plot_rotary_spectra(
-                    dest_dir, ncdata.station, ncdata.deployment_number, ncdata.instrument_depth,
+                    dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number, ncdata.instrument_depth,
                     bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
                     ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
                     resampled=resampled, axis=-1
@@ -2396,13 +2424,13 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
     # Profile plots of tidal ellipses
     fname_tidal_ellipse = make_plot_tidal_ellipses(
-        dest_dir, ncdata.station, ncdata.deployment_number, ncdata.latitude.data,
+        dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number, ncdata.latitude.data,
         time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
     )
 
     # pcolor (pseudocolour) depth profile plot of rotary spectra
     fnames_depth_prof = make_depth_prof_rot_spec(
-        dest_dir, station=ncdata.station, deployment_number=ncdata.deployment_number,
+        dest_dir, ncdata.filename, station=ncdata.station, deployment_number=ncdata.deployment_number,
         bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
     )
 
