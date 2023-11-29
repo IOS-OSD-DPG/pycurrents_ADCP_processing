@@ -34,6 +34,11 @@ from pycurrents_ADCP_processing import utils
 from shapely.geometry import Point
 
 _FillValue = np.nan
+bodc_flag_dict = {
+    'no_quality_control': 0, 'good_value': 1, 'probably_good_value': 2, 'probably_bad_value': 3,
+    'bad_value': 4, 'changed_value': 5, 'value_below_detection': 6, 'value_in_excess': 7,
+    'interpolated_value': 8, 'missing_value': 9
+}
 
 
 def mean_orientation(o: list):
@@ -232,7 +237,7 @@ def coordsystem_2enu(vel_var, fixed_leader_var, metadata_dict: dict):
     # Make note in processing_history
     metadata_dict['processing_history'] += " The coordinate system was rotated from {} to enu " \
                                            "coordinates.".format(vel_var.trans.coordsystem)
-    print('Coordinate system rotated from {} to enu'.format(vel_var.trans.coordsystem))
+
     vel_var.trans.coordsystem = 'enu'
     metadata_dict['coord_system'] = 'enu'  # Add item to metadata dictionary for coordinate system
 
@@ -246,29 +251,29 @@ def flag_pressure(pres, ens1: int, ens2: int, metadata_dict: dict):
     ens2: number of trailing bad ensembles from after instrument deployment; int type
     metadata_dict: dictionary object of metadata items
     """
-
+    # 'no_quality_control': 0
     PRESPR01_QC_var = np.zeros(shape=pres.shape, dtype='float32')
     # 2/2 pressure
-    PRESPR01_QC_var[:ens1] = 4
+    PRESPR01_QC_var[:ens1] = bodc_flag_dict['bad_value']
     if ens2 != 0:
-        PRESPR01_QC_var[-ens2:] = 4
+        PRESPR01_QC_var[-ens2:] = bodc_flag_dict['bad_value']
 
     # Flag negative pressure values
-    PRESPR01_QC_var[pres < 0] = 4
+    PRESPR01_QC_var[pres < 0] = bodc_flag_dict['bad_value']
 
-    pres[PRESPR01_QC_var == 4] = np.nan
+    # pres[PRESPR01_QC_var == 4] = np.nan
 
-    metadata_dict['processing_history'] += " Quality control flags set based on " \
-                                           "SeaDataNet flag scheme from BODC."
-    metadata_dict['processing_history'] += " Negative pressure values flagged as " \
-                                           "\"bad_data\" and set to nan\'s."
+    metadata_dict['processing_history'] += (f" The leading {ens1} and trailing {ens2} pressure observations were"
+                                            f" flagged based on the SeaDataNet flag scheme from BODC.")
+    metadata_dict['processing_history'] += " Any remaining negative pressure values were also flagged."
 
-    return PRESPR01_QC_var  # todo also return pres, otherwise it's unchanged
+    return PRESPR01_QC_var
 
 
-def flag_velocity(ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=None):
+def flag_velocity(meta_dict: dict, ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=None):
     """
     Create QC variables containing flag arrays
+    meta_dict: dictionary of metadata items
     ens1: number of leading bad ensembles from before instrument deployment; int type
     ens2: number of trailing bad ensembles from after instrument deployment; int type
     number_of_cells: number of bins
@@ -282,32 +287,45 @@ def flag_velocity(ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=Non
     LCNSAP01_QC_var = np.zeros(shape=v2.shape, dtype='float32')
     LRZAAP01_QC_var = np.zeros(shape=v3.shape, dtype='float32')
 
-    for qc in [LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var]:
+    list_qc_vars = [LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var]
+    if v5 is not None:
+        LRZUVP01_QC_var = np.zeros(shape=v5.shape, dtype='float32')
+        list_qc_vars.append(LRZUVP01_QC_var)
+
+    for qc in list_qc_vars:
         # 0=no_quality_control, 4=value_seems_erroneous
         for bin_num in range(number_of_cells):
-            qc[:ens1, bin_num] = 4
+            qc[:ens1, bin_num] = bodc_flag_dict['bad_value']
             if ens2 != 0:
-                qc[-ens2:, bin_num] = 4  # if ens2==0, the slice [-0:] would index the whole array
+                # if ens2==0, the slice [-0:] would index the whole array
+                qc[-ens2:, bin_num] = bodc_flag_dict['bad_value']
 
-    # Apply the flags to the data and set bad data to NAs
-    # print(v1.shape, LCEWAP01_QC_var.shape)
-    # print(v1)
-    # print(LCEWAP01_QC_var)
-    v1[LCEWAP01_QC_var == 4] = np.nan
-    v2[LCNSAP01_QC_var == 4] = np.nan
-    v3[LRZAAP01_QC_var == 4] = np.nan
-    # print('Set u, v, w to nans')
-    # Vertical beam velocity flagging for Sentinel V's
-    if v5 is None:
-        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
-    else:
-        LRZUVP01_QC_var = np.zeros(shape=v5.shape, dtype='float32')
-        for bin_num in range(number_of_cells):
-            LRZUVP01_QC_var[:ens1, bin_num] = 4
-            if ens2 != 0:
-                LRZUVP01_QC_var[-ens2:, bin_num] = 4
+    # Update metadata dict
+    meta_dict['processing_history'] += (' The leading {} and trailing {} velocity ensembles were flagged '
+                                        'based on the SeaDataNet flag scheme from BODC.')
 
+    # # Apply the flags to the data and set bad data to NAs
+    # # print(v1.shape, LCEWAP01_QC_var.shape)
+    # # print(v1)
+    # # print(LCEWAP01_QC_var)
+    # v1[LCEWAP01_QC_var == 4] = np.nan
+    # v2[LCNSAP01_QC_var == 4] = np.nan
+    # v3[LRZAAP01_QC_var == 4] = np.nan
+    # # print('Set u, v, w to nans')
+    # # Vertical beam velocity flagging for Sentinel V's
+    # if v5 is None:
+    #     return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
+    # else:
+    #     LRZUVP01_QC_var = np.zeros(shape=v5.shape, dtype='float32')
+    #     for bin_num in range(number_of_cells):
+    #         LRZUVP01_QC_var[:ens1, bin_num] = 4
+    #         if ens2 != 0:
+    #             LRZUVP01_QC_var[-ens2:, bin_num] = 4
+
+    if v5 is not None:
         return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var, LRZUVP01_QC_var
+    else:
+        return LCEWAP01_QC_var, LCNSAP01_QC_var, LRZAAP01_QC_var
 
 
 def read_yml_to_dict(yml_file: str):
@@ -1159,7 +1177,7 @@ def find_geographic_area_attr(lon: float, lat: float):
     return utils.find_geographic_area(polygons_dict, Point(lon, lat))
 
 
-def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
+def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     """About:
     Perform level 1 processing on a raw ADCP file and export it as a netCDF file
     :param inFile: full file name of raw ADCP file
@@ -1167,6 +1185,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     :param dest_dir: string type; name of folder in which files will be output
     :param time_file: full file name of csv file containing user-generated time data;
                 required if inFile has garbled out-of-range time data
+    :param verbose: If True then print out progress statements
     """
 
     # If your raw file has time values out of range, you must also use the
@@ -1180,7 +1199,10 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
 
     # Splice file name to get output netCDF file name
     out_name = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
-    print(out_name)
+
+    if verbose:
+        print(out_name)
+
     if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
         out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
     else:
@@ -1189,14 +1211,16 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = create_meta_dict_L1(file_meta)
 
-    # print(meta_dict['model'])
-    print('Read in csv metadata file')
+    if verbose:
+        print('Read in csv metadata file')
 
     # ------------------------Read in data and start processing--------------------
 
     # Read in raw ADCP file and model type
     data = rdiraw.rawfile(inFile, meta_dict['model'], trim=True)
-    print('Read in raw data')
+
+    if verbose:
+        print('Read in raw data')
 
     # Extract multidimensional variables from data object: 
     # fixed leader, velocity, amplitude intensity, correlation magnitude, and
@@ -1272,7 +1296,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # negative so that depth is positive; units=m
     depth = -np.round(gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude']),
                       decimals=2)
-    print('Calculated sea surface height from sea pressure using gsw package')
+
+    if verbose:
+        print('Calculated sea surface height from sea pressure using gsw package')
 
     # Check instrument_depth from metadata csv file: compare with pressure values
     check_depths(pressure, distance, meta_dict['instrument_depth'],
@@ -1280,9 +1306,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
 
     # Calculate sensor depth of instrument based off mean instrument depth
     sensor_dep = np.nanmean(depth)
-    meta_dict['processing_history'] += " Sensor depth and mean depth set to {} based " \
-                                       "on trimmed depth values.".format(
-        str(sensor_dep))
 
     # Calculate height of sea surface
     if meta_dict['orientation'] == 'up':
@@ -1293,6 +1316,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # Round sensor_dep
     sensor_dep = np.round(sensor_dep, decimals=2)
 
+    meta_dict['processing_history'] += " Sensor depth and mean depth set to {} based " \
+                                       "on trimmed depth values.".format(
+        str(sensor_dep))
     # ------------------------Adjust velocity data-------------------------
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic
@@ -1306,8 +1332,12 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
     # For Sentinel V instruments, transformations are done independently of vertical
     # beam velocity data
     if vel.trans.coordsystem not in ['earth', 'enu']:
+        old_coordsystem = vel.trans.coordsystem
         vel1, vel2, vel3, vel4 = coordsystem_2enu(
             vel_var=vel, fixed_leader_var=fixed_leader, metadata_dict=meta_dict)
+
+        if verbose:
+            print('Coordinate system rotated from {} to enu'.format(old_coordsystem))
     else:
         vel1 = vel.vel1.data
         vel2 = vel.vel2.data
@@ -1330,36 +1360,37 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None):
 
     if meta_dict['model'] != 'sv' or flag_vb == 1:
         LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC = flag_velocity(
-            e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3)
+            meta_dict, e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3)
     else:
         LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC, LRZUVP01_QC = flag_velocity(
-            e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3, vb_vel.vbvel.data)
+            meta_dict, e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3, vb_vel.vbvel.data)
 
-    # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) todo undo this
-    # from before dep. and after rec. of ADCP
-    for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
-        variable[:e1] = np.nan
-        if e2 != 0:
-            variable[-e2:] = np.nan
+    # # Limit variables (depth, temperature, pitch, roll, heading, sound_speed) todo undo this
+    # # from before dep. and after rec. of ADCP
+    # for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
+    #     variable[:e1] = np.nan
+    #     if e2 != 0:
+    #         variable[-e2:] = np.nan
+    #
+    # # Update processing history
+    # if e2 != 0:
+    #     meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
+    #                                        "sound_speed limited by deployment ({} UTC) and recovery ({} UTC) " \
+    #                                        "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
+    # else:
+    #     meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
+    #                                        "sound_speed limited by " \
+    #                                        "deployment ({} UTC) time.".format(time_DTUT8601[e1])
+    #
+    # meta_dict['processing_history'] += ' Level 1 processing was performed on the dataset. This entailed corrections' \
+    #                                    ' for magnetic declination based on an average of the dataset and cleaning ' \
+    #                                    'of the beginning and end of the dataset. The leading {} ensembles and the ' \
+    #                                    'trailing {} ensembles ' \
+    #                                    'were removed from the data set.'.format(meta_dict['cut_lead_ensembles'],
+    #                                                                             meta_dict['cut_trail_ensembles'])
 
-    # Update processing history
-    if e2 != 0:
-        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
-                                           "sound_speed limited by deployment ({} UTC) and recovery ({} UTC) " \
-                                           "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
-    else:
-        meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
-                                           "sound_speed limited by " \
-                                           "deployment ({} UTC) time.".format(time_DTUT8601[e1])
-
-    meta_dict['processing_history'] += ' Level 1 processing was performed on the dataset. This entailed corrections' \
-                                       ' for magnetic declination based on an average of the dataset and cleaning ' \
-                                       'of the beginning and end of the dataset. The leading {} ensembles and the ' \
-                                       'trailing {} ensembles ' \
-                                       'were removed from the data set.'.format(meta_dict['cut_lead_ensembles'],
-                                                                                meta_dict['cut_trail_ensembles'])
-
-    print('Finished QCing data; making netCDF object next')
+    if verbose:
+        print('Finished QCing data; making netCDF object next')
 
     # -------------------------Make into netCDF file---------------------------
 
