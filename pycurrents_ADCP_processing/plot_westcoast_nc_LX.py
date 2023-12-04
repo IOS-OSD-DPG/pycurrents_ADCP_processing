@@ -616,10 +616,10 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
         os.makedirs(plot_dir)
 
     if level0:
-        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
             int(np.round(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
     else:
-        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
+        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
             int(np.round(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
     fig.savefig(plot_name)
     plt.close()
