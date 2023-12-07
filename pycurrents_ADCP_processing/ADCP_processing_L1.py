@@ -73,7 +73,7 @@ def correct_true_north(measured_east, measured_north, meta_dict: dict):
 
 
 def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
-                     time_csv):
+                     time_csv) -> np.ndarray:
     """
     Includes exception handling for bad times
     time_var: vel.dday; time variable with units in days since the beginning
@@ -93,14 +93,14 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
             pd.to_datetime(time_var, unit='D', origin=data_origin,
                            utc=True).strftime('%Y-%m-%d %H:%M:%S'),
             dtype='datetime64[s]')
-        # DTUT8601 variable: time strings
-        t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin,
-                                    utc=True).strftime(
-            '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
+        # # DTUT8601 variable: time strings
+        # t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin,
+        #                             utc=True).strftime(
+        #     '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
         print('Using user-created time range')
         t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[s]')
-        t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
+        # t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
         with open(time_csv) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
             # Skip headers
@@ -112,8 +112,8 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
                     t_s[count] = np.datetime64(
                         pd.to_datetime(row[0], utc=True).strftime(
                             '%Y-%m-%d %H:%M:%S'))
-                    t_DTUT8601[count] = pd.to_datetime(
-                        row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
+                    # t_DTUT8601[count] = pd.to_datetime(
+                    #     row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
 
         meta_dict['processing_history'] += ' OutOfBoundsDateTime exception ' \
                                            'triggered by raw time data; used user-generated time ' \
@@ -132,11 +132,15 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
     t_s = np.array(t_df, dtype='datetime64[s]')
 
     # t_s[indexer_out_rng] = pd.NaT
-    dtut_df = pd.Series(t_DTUT8601)
-    dtut_df.loc[indexer_out_rng] = 'NaN'  # String type
-    t_DTUT8601 = np.array(dtut_df)
+    # dtut_df = pd.Series(t_DTUT8601)
+    # dtut_df.loc[indexer_out_rng] = 'NaN'  # String type
+    # t_DTUT8601 = np.array(dtut_df)
 
-    return t_s, t_DTUT8601
+    return t_s  # , t_DTUT8601
+
+
+def numpy_datetime_to_str(t: np.datetime64):
+    return t.astype(str).replace('T', ' ')
 
 
 def assign_pres(vel_var, meta_dict: dict):
@@ -242,7 +246,7 @@ def coordsystem_2enu(vel_var, fixed_leader_var, meta_dict: dict):
     return velocity1, velocity2, velocity3, velocity4
 
 
-def flag_pressure(pres, ens1: int, ens2: int, meta_dict: dict):
+def flag_pressure(pres, meta_dict: dict):
     """
     pres: pressure variable; array type
     ens1: number of leading bad ensembles from before instrument deployment; int type
@@ -251,19 +255,13 @@ def flag_pressure(pres, ens1: int, ens2: int, meta_dict: dict):
     """
     # 'no_quality_control': 0
     PRESPR01_QC_var = np.zeros(shape=pres.shape, dtype='float32')
-    # 2/2 pressure
-    PRESPR01_QC_var[:ens1] = bodc_flag_dict['bad_value']
-    if ens2 != 0:
-        PRESPR01_QC_var[-ens2:] = bodc_flag_dict['bad_value']
 
     # Flag negative pressure values
     PRESPR01_QC_var[pres < 0] = bodc_flag_dict['bad_value']
 
     # pres[PRESPR01_QC_var == 4] = np.nan
 
-    meta_dict['processing_history'] += (f" The leading {ens1} and trailing {ens2} pressure observations were"
-                                        f" flagged based on the SeaDataNet flag scheme from BODC. Any"
-                                        f" remaining negative pressure values were also flagged.")
+    meta_dict['processing_history'] += " Any negative pressure values were flagged."
 
     return PRESPR01_QC_var
 
@@ -613,8 +611,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss
-    var = out_obj.DTUT8601
+    # # DTUT8601: time values as ISO8601 string, YY-MM-DD hh:mm:ss
+    # var = out_obj.DTUT8601
 
     # CMAGZZ01-4: correlation magnitude
     var = out_obj.CMAGZZ01
@@ -874,7 +872,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     #     test_var = pg.pg1.data[:5]
     # except AttributeError:
     #     flag_pg += 1
-    flag_pg = 0 if 'pg1' in pg.keys() else 1
+    # --------Create flags if variables are *present* NOT missing
+    flag_pg = 1 if 'pg1' in pg.keys() else 0
     flag_vb = 0
     flag_vb_pg = 0
 
@@ -888,7 +887,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
         # Test for missing Sentinel V vertical beam data; if true treat file as
         # regular 4-beam file
-        if 'vbvel' not in vb_vel.keys():
+        if 'vbvel' in vb_vel.keys():
             flag_vb += 1
             # try:
         #     # Vertical beam velocity data also available from vb_vel.raw.VBVelocity
@@ -899,26 +898,72 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
         # Test for missing vertical beam percent good data
         try:
             test_var = vb_pg.raw.VBPercentGood[:5]
-        except AttributeError:
             flag_vb_pg += 1
+        except AttributeError:
+            pass
 
     # Metadata value corrections using info from the raw data file
     meta_dict = update_meta_dict_L1(meta_dict, data, fixed_leader)
 
     # --------------------Set up dimensions and variables-----------------
 
-    time_s, time_DTUT8601 = convert_time_var(
+    # Initialize dictionary to hold all the variables
+    var_dict = {}
+
+    # Time dimension
+    var_dict['time'] = convert_time_var(
         time_var=vel.dday, number_of_profiles=data.nprofs, meta_dict=meta_dict,
-        origin_year=data.yearbase, time_csv=time_file)
+        origin_year=data.yearbase, time_csv=time_file
+    )
 
     # Distance dimension
-    distance = np.round(vel.dep.data, decimals=2)
+    var_dict['distance'] = np.round(vel.dep.data, decimals=2)
+
+    # Amplitude
+    var_dict['TNIHCE01'] = amp.amp1.transpose()
+    var_dict['TNIHCE02'] = amp.amp2.transpose()
+    var_dict['TNIHCE03'] = amp.amp3.transpose()
+    var_dict['TNIHCE04'] = amp.amp4.transpose()
+    if flag_vb == 1:
+        var_dict['TNIHCE05'] = vb_amp.raw.VBIntensity.transpose()
+
+    # Correlation magnitude
+    var_dict['CMAGZZ01'] = cor.cor1.transpose()
+    var_dict['CMAGZZ02'] = cor.cor2.transpose()
+    var_dict['CMAGZZ03'] = cor.cor3.transpose()
+    var_dict['CMAGZZ04'] = cor.cor4.transpose()
+    if flag_vb == 1:
+        var_dict['CMAGZZ05'] = vb_cor.raw.VBCorrelation.transpose()
+
+    if flag_pg == 1:
+        var_dict['PCGDAP00'] = pg.pg1.transpose()
+        var_dict['PCGDAP02'] = pg.pg2.transpose()
+        var_dict['PCGDAP03'] = pg.pg3.transpose()
+        var_dict['PCGDAP04'] = pg.pg4.transpose()
+
+    if flag_vb_pg == 1:
+        var_dict['PCGDAP05'] = vb_pg.raw.VBPercentGood.transpose()
+
+    var_dict['TEMPPR01'] = vel.temperature
+    var_dict['PTCHGP01'] = vel.pitch
+    var_dict['ROLLGP01'] = vel.roll
+    var_dict['HEADCM01'] = vel.heading
 
     # Convert SoundSpeed from int16 to float32
-    sound_speed = np.float32(vel.VL['SoundSpeed'])
+    var_dict['SVELCV01'] = np.float32(vel.VL['SoundSpeed'])
 
     # Convert pressure
-    pressure = assign_pres(vel_var=vel, meta_dict=meta_dict)
+    var_dict['PRESPR01'] = assign_pres(vel_var=vel, meta_dict=meta_dict)
+
+    # Dimensionless vars
+    var_dict['ALATZZ01'] = meta_dict['latitude']
+    var_dict['ALONZZ01'] = meta_dict['longitude']
+    var_dict['latitude'] = meta_dict['latitude']
+    var_dict['longitude'] = meta_dict['longitude']
+    var_dict['filename'] = out_name[:-3]  # do not include .nc suffix
+    var_dict['instrument_serial_number'] = meta_dict['serial_number']
+    var_dict['instrument_model'] = meta_dict['instrument_model']
+    var_dict['geographic_area'] = meta_dict['geographic_area']
 
     # ------------------------Adjust velocity data-------------------------
 
@@ -949,72 +994,72 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     # Correct magnetic declination in velocities and round to the input number of decimal places
     LCEWAP01, LCNSAP01 = correct_true_north(vel1, vel2, meta_dict)
 
-    # Flag data based on cut_lead_ensembles and cut_trail_ensembles
+    var_dict['LCEWAP01'] = LCEWAP01.transpose()
+    var_dict['LCNSAP01'] = LCNSAP01.transpose()
+    var_dict['LRZAAP01'] = vel3.transpose()
+    var_dict['LERRAP01'] = vel4.transpose()
+    if flag_vb == 1:
+        var_dict['LRZUVP01'] = vb_vel.vbvel.data.transpose()
+
+    # -----------Truncate time series variables before computing derived variables-----------
 
     # Set start and end indices
     e1 = int(meta_dict['cut_lead_ensembles'])  # "ensemble 1"
     e2 = int(meta_dict['cut_trail_ensembles'])  # "ensemble 2"
 
+    trunc_func_2d = lambda arr: arr[:, e1:-e2] if e2 != 0 else arr[:, e1:]
+    trunc_func_1d = lambda arr: arr[e1:-e2] if e2 != 0 else arr[e1:]
+
     # Flag measurements from before deployment and after recovery using e1 and e2
+    old_time_series_len = len(var_dict['time'])
+    for key in var_dict.keys():
+        if type(var_dict[key]) == np.ndarray:
+            if len(var_dict[key].shape) == 2:
+                var_dict[key] = trunc_func_2d(var_dict[key])
+            elif len(var_dict[key]) == old_time_series_len:
+                var_dict[key] = trunc_func_1d(var_dict[key])
 
-    PRESPR01_QC = flag_pressure(pres=pressure, ens1=e1, ens2=e2, meta_dict=meta_dict)
+    # todo change {e1} to equivalent of ({} UTC).format(DTUT8601[e1])?
+    # some data after deployment and before recovery are also sometimes cut - statements not accurate
+    if e1 != 0:
+        meta_dict['processing_history'] += f' Leading {e1} ensembles from before deployment discarded.'
+    if e2 != 0:
+        meta_dict['processing_history'] += f' Trailing {e2} ensembles from after recovery discarded.'
 
-    if meta_dict['model'] != 'sv' or flag_vb == 1:
-        LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC = flag_velocity(
-            meta_dict, e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3)
-    else:
-        LCEWAP01_QC, LCNSAP01_QC, LRZAAP01_QC, LRZUVP01_QC = flag_velocity(
-            meta_dict, e1, e2, data.NCells, LCEWAP01, LCNSAP01, vel3, vb_vel.vbvel.data)
+    # --------------------------------Additional flagging--------------------------------
 
-    # # Limit variables (depth, temperature, pitch, roll, heading, sound_speed)
-    # # from before dep. and after rec. of ADCP
-    # for variable in [depth, vel.temperature, vel.pitch, vel.roll, vel.heading, sound_speed]:
-    #     variable[:e1] = np.nan
-    #     if e2 != 0:
-    #         variable[-e2:] = np.nan
-    #
-    # # Update processing history
-    # if e2 != 0:
-    #     meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
-    #                                        "sound_speed limited by deployment ({} UTC) and recovery ({} UTC) " \
-    #                                        "times.".format(time_DTUT8601[e1], time_DTUT8601[-e2])
-    # else:
-    #     meta_dict['processing_history'] += " Velocity, pressure, depth, temperature, pitch, roll, heading, and " \
-    #                                        "sound_speed limited by " \
-    #                                        "deployment ({} UTC) time.".format(time_DTUT8601[e1])
-    #
-    # meta_dict['processing_history'] += ' Level 1 processing was performed on the dataset. This entailed corrections' \
-    #                                    ' for magnetic declination based on an average of the dataset and cleaning ' \
-    #                                    'of the beginning and end of the dataset. The leading {} ensembles and the ' \
-    #                                    'trailing {} ensembles ' \
-    #                                    'were removed from the data set.'.format(meta_dict['cut_lead_ensembles'],
-    #                                                                             meta_dict['cut_trail_ensembles'])
+    var_dict['PRESPR01_QC'] = flag_pressure(pres=var_dict['PRESPR01'], meta_dict=meta_dict)
+
+    for velocity in ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LRZUVP01']:
+        if velocity in var_dict.keys():
+            var_dict[f'{velocity}_QC'] = np.zeros(shape=var_dict[velocity].shape)
 
     # -----------------------------Compute derived variables------------------------------
 
     # Apply equivalent of swDepth() to depth data: Calculate height from sea pressure
     # using gsw package. Negative so that depth is positive; units=m
-    depth = -np.round(gsw.conversions.z_from_p(p=pressure, lat=meta_dict['latitude']),
-                      decimals=2)
+    var_dict['PPSAADCP'] = -np.round(
+        gsw.conversions.z_from_p(p=var_dict['PRESPR01'], lat=meta_dict['latitude']), decimals=2
+    )
 
-    meta_dict['processing_history'] += " Depth calculated from pressure using " \
-                                       "the TEOS-10 75-term expression for specific volume."
+    meta_dict['processing_history'] += (" Time series sea surface height calculated from pressure "
+                                        "using the TEOS-10 75-term expression for specific volume.")
 
     if verbose:
         print('Calculated sea surface height from sea pressure using the gsw package')
 
     # Check instrument_depth from metadata csv file: compare with pressure values
-    check_depths(pressure, distance, meta_dict['instrument_depth'],
-                 meta_dict['water_depth'])
+    check_depths(pres=var_dict['PRESPR01'], dist=var_dict['distance'],
+                 instr_depth=meta_dict['instrument_depth'], water_depth=meta_dict['water_depth'])
 
     # Calculate sensor depth of instrument based off mean instrument depth
-    sensor_dep = np.nanmean(depth)
+    sensor_dep = np.nanmean(var_dict['PPSAADCP'])
 
     # Calculate height of sea surface
     if meta_dict['orientation'] == 'up':
-        DISTTRAN = np.round(sensor_dep - distance, decimals=2)
+        var_dict['DISTTRAN'] = np.round(sensor_dep - var_dict['distance'], decimals=2)
     else:
-        DISTTRAN = np.round(sensor_dep + distance, decimals=2)
+        var_dict['DISTTRAN'] = np.round(sensor_dep + var_dict['distance'], decimals=2)
 
     # Round sensor_dep
     sensor_dep = np.round(sensor_dep, decimals=2)
@@ -1028,62 +1073,70 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     # Create xarray Dataset object containing all dimensions and variables
     # Sentinel V instruments don't have percent good ('pg') variables
-    out = xr.Dataset(coords={'time': time_s, 'distance': distance},
-                     data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
-                                'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
-                                'LRZAAP01': (['distance', 'time'], vel3.transpose()),
-                                'LERRAP01': (['distance', 'time'], vel4.transpose()),
-                                'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
-                                'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
-                                'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
-                                'ELTMEP01': (['time'], time_s),
-                                'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
-                                'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
-                                'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
-                                'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
-                                'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
-                                'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
-                                'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
-                                'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
-                                'PTCHGP01': (['time'], vel.pitch),
-                                'HEADCM01': (['time'], vel.heading),
-                                'ROLLGP01': (['time'], vel.roll),
-                                'TEMPPR01': (['time'], vel.temperature),
-                                'DISTTRAN': (['distance'], DISTTRAN),
-                                'PPSAADCP': (['time'], depth),
-                                'ALATZZ01': ([], meta_dict['latitude']),
-                                'ALONZZ01': ([], meta_dict['longitude']),
-                                'latitude': ([], meta_dict['latitude']),
-                                'longitude': ([], meta_dict['longitude']),
-                                'PRESPR01': (['time'], pressure),
-                                'PRESPR01_QC': (['time'], PRESPR01_QC),
-                                'SVELCV01': (['time'], sound_speed),
-                                'DTUT8601': (['time'], time_DTUT8601),
-                                'filename': ([], out_name[:-3]),  # do not include .nc suffix
-                                'instrument_serial_number': ([], meta_dict['serial_number']),
-                                'instrument_model': ([], meta_dict['instrument_model']),
-                                'geographic_area': ([], meta_dict['geographic_area'])})
+    # out = xr.Dataset(coords={'time': time_s, 'distance': distance},
+    #                  data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
+    #                             'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
+    #                             'LRZAAP01': (['distance', 'time'], vel3.transpose()),
+    #                             'LERRAP01': (['distance', 'time'], vel4.transpose()),
+    #                             'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
+    #                             'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
+    #                             'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
+    #                             'ELTMEP01': (['time'], time_s),
+    #                             'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
+    #                             'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
+    #                             'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
+    #                             'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
+    #                             'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
+    #                             'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
+    #                             'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
+    #                             'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
+    #                             'PTCHGP01': (['time'], vel.pitch),
+    #                             'HEADCM01': (['time'], vel.heading),
+    #                             'ROLLGP01': (['time'], vel.roll),
+    #                             'TEMPPR01': (['time'], vel.temperature),
+    #                             'DISTTRAN': (['distance'], DISTTRAN),
+    #                             'PPSAADCP': (['time'], depth),
+    #                             'ALATZZ01': ([], meta_dict['latitude']),
+    #                             'ALONZZ01': ([], meta_dict['longitude']),
+    #                             'latitude': ([], meta_dict['latitude']),
+    #                             'longitude': ([], meta_dict['longitude']),
+    #                             'PRESPR01': (['time'], pressure),
+    #                             'PRESPR01_QC': (['time'], PRESPR01_QC),
+    #                             'SVELCV01': (['time'], sound_speed),
+    #                             'DTUT8601': (['time'], time_DTUT8601),
+    #                             'filename': ([], out_name[:-3]),  # do not include .nc suffix
+    #                             'instrument_serial_number': ([], meta_dict['serial_number']),
+    #                             'instrument_model': ([], meta_dict['instrument_model']),
+    #                             'geographic_area': ([], meta_dict['geographic_area'])})
 
-    # Add percent good data if these are available
-    if flag_pg == 0:
-        out = out.assign(PCGDAP00=(('distance', 'time'), pg.pg1.transpose()))
-        out = out.assign(PCGDAP02=(('distance', 'time'), pg.pg2.transpose()))
-        out = out.assign(PCGDAP03=(('distance', 'time'), pg.pg3.transpose()))
-        out = out.assign(PCGDAP04=(('distance', 'time'), pg.pg4.transpose()))
+    out = xr.Dataset(coords={'time': var_dict['time'], 'distance': var_dict['distance']})
 
-    # Add Sentinel V fifth beam data if these are available
-    if meta_dict['model'] == 'sv' and flag_vb == 0:
-        out = out.assign(LRZUVP01=(('distance', 'time'), vb_vel.vbvel.data.transpose()))
-        out = out.assign(LRZUVP01_QC=(('distance', 'time'), LRZUVP01_QC.transpose()))
-        out = out.assign(TNIHCE05=(('distance', 'time'), vb_amp.raw.VBIntensity.transpose()))
-        out = out.assign(CMAGZZ05=(('distance', 'time'), vb_cor.raw.VBCorrelation.transpose()))
-        if flag_vb_pg == 0:
-            # OR vb_pg.VBPercentGood.transpose() ?
-            out = out.assign(PCGDAP05=(('distance', 'time'), vb_pg.raw.VBPercentGood.transpose()))
+    variable_order = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LERRAP01', 'LRZUVP01',
+                      'LCEWAP01_QC', 'LCNSAP01_QC', 'LRZAAP01_QC', 'LRZUVP01_QC'
+                      'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
+                      'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05'
+                      'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04', 'PCGDAP05',
+                      'ELTMEP01', 'DISTTRAN', 'PPSAADCP', 'PRESPR01',
+                      'ALATZZ01', 'ALONZZ01', 'latitude', 'longitude',
+                      'PTCHGP01', 'HEADCM01', 'ROLLGP01',
+                      'TEMPPR01', 'SVELCV01',
+                      'filename', 'instrument_serial_number', 'instrument_model',
+                      'geographic_area']
+
+    for key in variable_order:
+        if key in var_dict.keys():
+            if type(var_dict[key]) == np.ndarray:
+                if len(var_dict[key].shape) == 2:
+                    out[key] = (('distance', 'time'), var_dict[key])
+                elif len(var_dict[key]) == len(var_dict['time']):
+                    out[key] = (('time'), var_dict[key])
+                elif len(var_dict[key]) == len(var_dict['distance']):
+                    out[key] = (('distance'), var_dict[key])
+            if type(var_dict[key]) == str:
+                out[key] = ((), var_dict[key])
 
     # Add variable-specific attributes
 
-    # fill_value = 1e+15
     add_attrs_2vars_L1(out_obj=out, meta_dict=meta_dict, sensor_depth=sensor_dep,
                        pg_flag=flag_pg, vb_flag=flag_vb, vb_pg_flag=flag_vb_pg)
 
@@ -1092,11 +1145,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     # Add select meta_dict items as global attributes
     pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model']
     for key, value in meta_dict.items():
-        if key in pass_dict_keys:  # Exclude certain items in the dictionary
-            pass
-        # elif key == 'serialNumber':  # camelCase replaced with underscore
-        #     out.attrs['serial_number'] = value
-        else:
+        if key not in pass_dict_keys:  # Exclude certain items in the dictionary
             out.attrs[key] = value
 
     # Rest of attributes not from metadata file:
@@ -1142,8 +1191,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
     out.attrs['xmit_length'] = fixed_leader.FL['Pulse']
-    out.attrs['time_coverage_start'] = time_DTUT8601[e1] + ' UTC'
-    out.attrs['time_coverage_end'] = time_DTUT8601[-e2 - 1] + ' UTC'  # -1 is last time entry before cut ones
+    out.attrs['time_coverage_start'] = numpy_datetime_to_str(var_dict['ELTMEP01'][e1]) + ' UTC'
+    out.attrs['time_coverage_end'] = numpy_datetime_to_str(var_dict['ELTMEP01'][-e2 - 1]) + ' UTC'
 
     # geospatial lat, lon, and vertical min/max calculations
     out.attrs['geospatial_lat_min'] = meta_dict['latitude']
