@@ -963,6 +963,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     var_dict['instrument_model'] = meta_dict['instrument_model']
     var_dict['geographic_area'] = meta_dict['geographic_area']
 
+    if verbose:
+        print(var_dict.keys())
+
     # ------------------------Adjust velocity data-------------------------
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic
