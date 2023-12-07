@@ -944,6 +944,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     if flag_vb_pg == 1:
         var_dict['PCGDAP05'] = vb_pg.raw.VBPercentGood.transpose()
 
+    var_dict['ELTMEP01'] = var_dict['time']
     var_dict['TEMPPR01'] = vel.temperature
     var_dict['PTCHGP01'] = vel.pitch
     var_dict['ROLLGP01'] = vel.roll
@@ -1191,8 +1192,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
     out.attrs['xmit_length'] = fixed_leader.FL['Pulse']
-    out.attrs['time_coverage_start'] = numpy_datetime_to_str(var_dict['ELTMEP01'][e1]) + ' UTC'
-    out.attrs['time_coverage_end'] = numpy_datetime_to_str(var_dict['ELTMEP01'][-e2 - 1]) + ' UTC'
+    out.attrs['time_coverage_start'] = numpy_datetime_to_str(var_dict['time'][e1]) + ' UTC'
+    out.attrs['time_coverage_end'] = numpy_datetime_to_str(var_dict['time'][-e2 - 1]) + ' UTC'
 
     # geospatial lat, lon, and vertical min/max calculations
     out.attrs['geospatial_lat_min'] = meta_dict['latitude']
