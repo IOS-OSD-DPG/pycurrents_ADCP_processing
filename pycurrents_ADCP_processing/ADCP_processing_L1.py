@@ -491,9 +491,6 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # PCGDAP00 - 4: percent good beam 1-4
     if pg_flag == 1:
-        # omit percent good beam data, since it isn't available
-        pass
-    else:
         var = out_obj.PCGDAP00
         # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
@@ -649,7 +646,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # done variables
 
     # Add Vertical Beam variable attrs for Sentinel V instruments
-    if meta_dict['model'] == 'sv' and vb_flag == 0:
+    if vb_flag == 1:
         var = out_obj.LRZUVP01
         # var.attrs['units'] = 'm s-1'
         var.attrs['_FillValue'] = _FillValue
@@ -682,7 +679,7 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
-        if vb_pg_flag == 0:
+        if vb_pg_flag == 1:
             var = out_obj.PCGDAP05
             # var.attrs['units'] = 'percent'
             var.attrs['_FillValue'] = _FillValue
@@ -944,7 +941,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     if flag_vb_pg == 1:
         var_dict['PCGDAP05'] = vb_pg.raw.VBPercentGood.transpose()
 
-    var_dict['ELTMEP01'] = var_dict['time']
+    var_dict['ELTMEP01'] = var_dict['time']  # todo remove
     var_dict['TEMPPR01'] = vel.temperature
     var_dict['PTCHGP01'] = vel.pitch
     var_dict['ROLLGP01'] = vel.roll
@@ -1135,6 +1132,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
                     out[key] = (('distance'), var_dict[key])
             if type(var_dict[key]) == str:
                 out[key] = ((), var_dict[key])
+
+    if verbose:
+        print(out.data_vars)  # Check that all available vars have been added
 
     # Add variable-specific attributes
 
