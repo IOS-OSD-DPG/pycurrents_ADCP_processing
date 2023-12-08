@@ -1127,10 +1127,11 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
         if key in var_dict.keys():
             if len(np.shape(var_dict[key])) == 0:
                 out[key] = ((), var_dict[key])
-            elif len(var_dict[key]) == len(var_dict['distance']):
-                out[key] = (('distance'), var_dict[key])
-            elif len(var_dict[key]) == len(var_dict['time']):
-                out[key] = (('time'), var_dict[key])
+            elif len(np.shape(var_dict[key])) == 1:
+                if len(var_dict[key]) == len(var_dict['distance']):
+                    out[key] = (('distance'), var_dict[key])
+                elif len(var_dict[key]) == len(var_dict['time']):
+                    out[key] = (('time'), var_dict[key])
             elif len(np.shape(var_dict[key])) == 2:
                 out[key] = (('distance', 'time'), var_dict[key])
             else:
