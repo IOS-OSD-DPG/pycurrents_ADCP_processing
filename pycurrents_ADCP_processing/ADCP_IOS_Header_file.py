@@ -95,7 +95,7 @@ def write_file(nc):
         if channel == 'DATE':
             channel_dict[channel] = {
                 'channel_num': str(channel_num),
-                'name_to_use': nc.DTUT8601.time_zone + " " + "Date",
+                'name_to_use': "UTC Date",
                 'unit': "YYYY-MM-DD", 'data_min': "n/a", 'data_max': "n/a",
                 'pad': "' '", 'width': "' '", 'format': 'YYYY-MM-DD', 'type': 'D',
                 'decimal_places': "' '"}
@@ -103,7 +103,7 @@ def write_file(nc):
         elif channel == 'TIME':
             channel_dict[channel] = {
                 'channel_num': str(channel_num),
-                'name_to_use': nc.DTUT8601.time_zone + " " + "Time",
+                'name_to_use': "UTC Time",
                 'unit': "HH:MM:SS", 'data_min': "n/a", 'data_max': "n/a",
                 'pad': "' '", 'width': "' '", 'format': 'HH:MM:SS', 'type': 'T',
                 'decimal_places': "' '"}
