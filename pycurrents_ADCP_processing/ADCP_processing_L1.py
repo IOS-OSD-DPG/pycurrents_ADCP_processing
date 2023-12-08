@@ -1110,12 +1110,10 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     out = xr.Dataset(coords={'time': var_dict['time'], 'distance': var_dict['distance']})
 
     variable_order = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LERRAP01', 'LRZUVP01',
-                      'LCEWAP01_QC', 'LCNSAP01_QC', 'LRZAAP01_QC', 'LRZUVP01_QC'
-                                                                   'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04',
-                      'TNIHCE05',
-                      'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05'
-                                                                      'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04',
-                      'PCGDAP05',
+                      'LCEWAP01_QC', 'LCNSAP01_QC', 'LRZAAP01_QC', 'LRZUVP01_QC',
+                      'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
+                      'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05',
+                      'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04', 'PCGDAP05',
                       'ELTMEP01', 'DISTTRAN', 'PPSAADCP', 'PRESPR01',
                       'ALATZZ01', 'ALONZZ01', 'latitude', 'longitude',
                       'PTCHGP01', 'HEADCM01', 'ROLLGP01',
