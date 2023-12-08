@@ -404,15 +404,15 @@
   sdn_uom_name: Metres per second
   standard_name: speed_of_sound_in_sea_water
 
-- id: DTUT8601
-  dtype: U24
-  comment: time values as ISO8601 string, YY-MM-DD hh:mm:ss  # changed attr name from note to comment
-  time_zone: UTC
-  legacy_GF3_code: SDN:GF3::time_string
-  sdn_parameter_name: >
-    String corresponding to format \'YYYY-MM-DDThh:mm:ss.sssZ\' or other valid ISO8601 string
-  sdn_uom_urn: SDN:P06::TISO
-  sdn_uom_name: ISO8601
+#- id: DTUT8601
+#  dtype: U24
+#  comment: time values as ISO8601 string, YY-MM-DD hh:mm:ss  # changed attr name from note to comment
+#  time_zone: UTC
+#  legacy_GF3_code: SDN:GF3::time_string
+#  sdn_parameter_name: >
+#    String corresponding to format \'YYYY-MM-DDThh:mm:ss.sssZ\' or other valid ISO8601 string
+#  sdn_uom_urn: SDN:P06::TISO
+#  sdn_uom_name: ISO8601
 
 - id: CMAGZZ01
   dtype: float32
