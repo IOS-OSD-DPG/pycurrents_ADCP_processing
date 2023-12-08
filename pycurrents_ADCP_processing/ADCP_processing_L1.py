@@ -963,9 +963,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     var_dict['instrument_model'] = meta_dict['instrument_model']
     var_dict['geographic_area'] = meta_dict['geographic_area']
 
-    if verbose:
-        print(var_dict.keys())
-
     # ------------------------Adjust velocity data-------------------------
 
     # Set velocity values of -32768.0 to nans, since -32768.0 is the automatic
@@ -1114,9 +1111,11 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     variable_order = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LERRAP01', 'LRZUVP01',
                       'LCEWAP01_QC', 'LCNSAP01_QC', 'LRZAAP01_QC', 'LRZUVP01_QC'
-                      'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
+                                                                   'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04',
+                      'TNIHCE05',
                       'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05'
-                      'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04', 'PCGDAP05',
+                                                                      'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04',
+                      'PCGDAP05',
                       'ELTMEP01', 'DISTTRAN', 'PPSAADCP', 'PRESPR01',
                       'ALATZZ01', 'ALONZZ01', 'latitude', 'longitude',
                       'PTCHGP01', 'HEADCM01', 'ROLLGP01',
@@ -1126,15 +1125,16 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     for key in variable_order:
         if key in var_dict.keys():
-            if type(var_dict[key]) == np.ndarray:
-                if len(var_dict[key].shape) == 2:
-                    out[key] = (('distance', 'time'), var_dict[key])
-                elif len(var_dict[key]) == len(var_dict['time']):
-                    out[key] = (('time'), var_dict[key])
-                elif len(var_dict[key]) == len(var_dict['distance']):
-                    out[key] = (('distance'), var_dict[key])
-            if type(var_dict[key]) == str:
+            if len(np.shape(var_dict[key])) == 2:
+                out[key] = (('distance', 'time'), var_dict[key])
+            elif len(var_dict[key]) == len(var_dict['time']):
+                out[key] = (('time'), var_dict[key])
+            elif len(var_dict[key]) == len(var_dict['distance']):
+                out[key] = (('distance'), var_dict[key])
+            elif len(np.shape(var_dict[key])) == 0:
                 out[key] = ((), var_dict[key])
+            else:
+                warnings.warn(f'Shape of variable {key} not compatible')
 
     if verbose:
         print(out.data_vars)  # Check that all available vars have been added
