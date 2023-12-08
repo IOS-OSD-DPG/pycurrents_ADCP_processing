@@ -521,7 +521,7 @@ def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
     #Start
     in_f_name = f.split("/")[-1]
     # Create subdir for new netCDF file if one doesn't exist yet
-    newnc_dir = './{}/newnc/'.format(dest_dir)
+    newnc_dir = './{}/'.format(dest_dir)
     if not os.path.exists(newnc_dir):
         os.makedirs(newnc_dir)
     f_output = newnc_dir + in_f_name.split(".")[0] + ".adcp"
