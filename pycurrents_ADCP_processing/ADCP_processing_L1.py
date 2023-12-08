@@ -1114,10 +1114,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
                       'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
                       'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05',
                       'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04', 'PCGDAP05',
-                      'ELTMEP01', 'DISTTRAN', 'PPSAADCP', 'PRESPR01',
+                      'ELTMEP01', 'DISTTRAN', 'PPSAADCP', 'PRESPR01', 'PRESPR01_QC',
                       'ALATZZ01', 'ALONZZ01', 'latitude', 'longitude',
-                      'PTCHGP01', 'HEADCM01', 'ROLLGP01',
-                      'TEMPPR01', 'SVELCV01',
+                      'PTCHGP01', 'HEADCM01', 'ROLLGP01', 'TEMPPR01', 'SVELCV01',
                       'filename', 'instrument_serial_number', 'instrument_model',
                       'geographic_area']
 
@@ -1135,8 +1134,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
             else:
                 warnings.warn(f'Shape of variable {key} not compatible')
 
-    if verbose:
-        print(out.data_vars)  # Check that all available vars have been added
+    # if verbose:
+    #     print(out.data_vars)  # Check that all available vars have been added
 
     # Add variable-specific attributes
 
