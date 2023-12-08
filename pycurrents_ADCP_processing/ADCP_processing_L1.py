@@ -384,16 +384,14 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # Bin distances
     var = out_obj.distance
     var.encoding['_FillValue'] = _FillValue  # None
-    # var.attrs['units'] = "m"
     var.attrs['positive'] = 'up' if meta_dict['orientation'] == 'up' else 'down'
 
     # LCEWAP01: eastward velocity (vel1)
     # all velocities have many of the same attribute values, but not all, so each velocity is done separately
     var = out_obj.LCEWAP01
-    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
@@ -401,10 +399,9 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # LCNSAP01: northward velocity (vel2)
     var = out_obj.LCNSAP01
-    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
@@ -412,10 +409,9 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # LRZAAP01: vertical velocity (vel3)
     var = out_obj.LRZAAP01
-    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = uvw_vel_max
@@ -423,10 +419,9 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # LERRAP01: error velocity (vel4)
     var = out_obj.LERRAP01
-    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['valid_max'] = 2 * uvw_vel_max
@@ -458,138 +453,121 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # TNIHCE01-4: echo intensity beam 1-4
     var = out_obj.TNIHCE01
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.TNIHCE02
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.TNIHCE03
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.TNIHCE04
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PCGDAP00 - 4: percent good beam 1-4
     if pg_flag == 1:
         var = out_obj.PCGDAP00
-        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.PCGDAP02
-        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.PCGDAP03
-        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.PCGDAP04
-        # var.attrs['units'] = 'percent'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
     # PTCHGP01: pitch
     var = out_obj.PTCHGP01
-    # var.attrs['units'] = 'degree'
     var.attrs['_FillValue'] = _FillValue
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # ROLLGP01: roll
     var = out_obj.ROLLGP01
-    # var.attrs['units'] = 'degree'
     var.attrs['_FillValue'] = _FillValue
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # DISTTRAN: height of sea surface (hght)
     var = out_obj.DISTTRAN
-    # var.attrs['units'] = 'm'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # TEMPPR01: transducer temp
     var = out_obj.TEMPPR01
-    # var.attrs['units'] = 'degree_C'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PPSAADCP: instrument depth (formerly DEPFP01)
     var = out_obj.PPSAADCP
-    # var.attrs['units'] = 'm'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['bin_size'] = meta_dict['cell_size']  # bin size
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['bin_size'] = meta_dict['cell_size']  # bin size
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # ALONZZ01, longitude
     for var in [out_obj.ALONZZ01, out_obj.longitude]:
         var.encoding['_FillValue'] = _FillValue  # None
-        # var.attrs['units'] = 'degrees_east'
 
     # ALATZZ01, latitude
     for var in [out_obj.ALATZZ01, out_obj.latitude]:
         var.encoding['_FillValue'] = _FillValue  # None
-        # var.attrs['units'] = 'degrees_north'
 
     # HEADCM01: heading
     var = out_obj.HEADCM01
-    # var.attrs['units'] = 'degree'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     # PRESPR01: pressure
     var = out_obj.PRESPR01
-    # var.attrs['units'] = 'dbar'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -601,10 +579,9 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # SVELCV01: sound velocity
     var = out_obj.SVELCV01
-    # var.attrs['units'] = 'm s-1'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -613,34 +590,30 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
     # CMAGZZ01-4: correlation magnitude
     var = out_obj.CMAGZZ01
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.CMAGZZ02
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.CMAGZZ03
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
     var = out_obj.CMAGZZ04
-    # var.attrs['units'] = 'counts'
     var.attrs['_FillValue'] = _FillValue
-    var.attrs['sensor_depth'] = sensor_depth
-    var.attrs['serial_number'] = meta_dict['serial_number']
+    # var.attrs['sensor_depth'] = sensor_depth
+    # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
     # done variables
@@ -648,10 +621,9 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # Add Vertical Beam variable attrs for Sentinel V instruments
     if vb_flag == 1:
         var = out_obj.LRZUVP01
-        # var.attrs['units'] = 'm s-1'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_max'] = np.nanmax(var.data)
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['valid_max'] = uvw_vel_max
@@ -659,32 +631,28 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
 
         var = out_obj.LRZUVP01_QC
         var.attrs['_FillValue'] = _FillValue
-
         var.attrs['data_max'] = np.max(var.data)
         var.attrs['data_min'] = np.min(var.data)
 
         var = out_obj.TNIHCE05
-        # var.attrs['units'] = 'counts'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         var = out_obj.CMAGZZ05
-        # var.attrs['units'] = 'counts'
         var.attrs['_FillValue'] = _FillValue
-        var.attrs['sensor_depth'] = sensor_depth
-        var.attrs['serial_number'] = meta_dict['serial_number']
+        # var.attrs['sensor_depth'] = sensor_depth
+        # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_min'] = np.nanmin(var.data)
         var.attrs['data_max'] = np.nanmax(var.data)
 
         if vb_pg_flag == 1:
             var = out_obj.PCGDAP05
-            # var.attrs['units'] = 'percent'
             var.attrs['_FillValue'] = _FillValue
-            var.attrs['sensor_depth'] = sensor_depth
-            var.attrs['serial_number'] = meta_dict['serial_number']
+            # var.attrs['sensor_depth'] = sensor_depth
+            # var.attrs['serial_number'] = meta_dict['serial_number']
             var.attrs['data_min'] = np.nanmin(var.data)
             var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -1151,6 +1119,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
             out.attrs[key] = value
 
     # Rest of attributes not from metadata file:
+    out.attrs['deployment_type'] = 'Sub Surface'
     out.attrs['time_coverage_duration'] = vel.dday[-1] - vel.dday[0]
     out.attrs['time_coverage_duration_units'] = "days"
     # ^calculated from start and end times; in days: add time_coverage_duration_units?
