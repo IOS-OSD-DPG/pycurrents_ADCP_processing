@@ -71,3 +71,23 @@ def find_geographic_area(poly_dict, point):
             name_str = '{}{} '.format(name_str, key.replace(' ', '-'))
             # print(name_str)
     return name_str
+
+
+def parse_processing_history(processing_history: str):
+    """
+    Get number of leading and trailing ensembles cut from an ADCP dataset
+    """
+    history_parts = processing_history.split('. ')  # Break into list of sentences
+
+    leading_ens_cut = 0
+    trailing_ens_cut = 0
+
+    for part in history_parts:
+        if part.startswith('Leading') and part.endswith('ensembles from before deployment discarded'):
+            # Assume part has format: "Leading 16 ensembles from before deployment discarded"
+            leading_ens_cut = int(part.split()[1])  # Split by space " "
+        elif part.startswith('Trailing') and part.endswith('ensembles from after recovery discarded'):
+            # Assume part has format: "Trailing 16 ensembles from after recovery discarded"
+            trailing_ens_cut = int(part.split()[1])  # Split by space " "
+
+    return leading_ens_cut, trailing_ens_cut

@@ -48,6 +48,7 @@ import ttide
 from scipy.interpolate import interp1d
 from matplotlib.colors import LogNorm
 import matplotlib
+from pycurrents_ADCP_processing.utils import parse_processing_history
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -67,24 +68,6 @@ def resolve_to_alongcross(u_true, v_true, along_angle):
     u_cross = u_true * np.sin(along_angle) - v_true * np.cos(along_angle)
 
     return u_along, u_cross
-
-
-def get_L1_start_end(ncdata: xr.Dataset):
-    """
-    Obtain the number of leading and trailing ensembles that were set to nans in L1 processing
-    from the processing_history global attribute.
-    Then get the index of the last ensemble cut from the beginning of the time series
-    and the index of the first ensemble cut from the end of the time series.
-    ncdata: dataset-type object created by reading in a netCDF ADCP file with the xarray package
-    Returns: a tuple of the form (a, b), where a is the index of the first good ensemble and b
-             is the index of the last good ensemble
-    """
-    digits_in_process_hist = [int(s) for s in ncdata.attrs['processing_history'].split() if s.isdigit()]
-    # The indices used are conditional upon the contents of the processing history remaining unchanged
-    # in L1 and before L2. Appending to the end of the processing history is ok
-    start_end_indices = (digits_in_process_hist[1], len(ncdata.time.data) - digits_in_process_hist[2] - 1)
-
-    return start_end_indices
 
 
 def fmamidir(u, v):
@@ -462,9 +445,10 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
     # data.time should be limited to the data.time with no NA values; bins must be limited
     if time_range is None:
         if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
-            time_first_last = get_L1_start_end(ncdata=ncdata)
-        else:
-            time_first_last = (0, len(ew_data[0]))
+            leading_ens_cut, trailing_ens_cut = parse_processing_history(
+                ncdata.attrs['processing_history']
+            )
+            time_first_last = (leading_ens_cut, len(ew_data[0]) - trailing_ens_cut)
     else:
         time_first_last = time_range
 

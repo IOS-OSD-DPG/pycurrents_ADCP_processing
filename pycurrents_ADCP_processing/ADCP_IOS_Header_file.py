@@ -11,6 +11,7 @@ import sys
 from datetime import datetime
 # from datetime import timedelta
 from decimal import Decimal
+from pycurrents_ADCP_processing.utils import parse_processing_history
 
 ## File Section+_updated
 
@@ -464,10 +465,8 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     process_1 = "ADCP2NC "
     process_1_ver = '1'  # str(nc.attrs["pred_accuracy"])
     date_time_1 = nc.attrs["date_modified"]
-    digits_in_process_hist = [
-        int(s) for s in nc.attrs['processing_history'].split() if s.isdigit()
-    ] #H.Hourston May 27, 2020
-    Recs_in_1 = str(digits_in_process_hist[-2] + digits_in_process_hist[-1] + nc.coords["time"].size)
+    leading_ens_cut, trailing_ens_cut = parse_processing_history(nc.attrs['processing_history'])
+    Recs_in_1 = str(leading_ens_cut + trailing_ens_cut + nc.coords["time"].size)
     Recs_out_1 = str(nc.coords["time"].size)
     process_2 = "NC2IOS "
     process_2_ver = "1.0"
@@ -476,7 +475,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     Recs_in_2 = Recs_out_1
     Recs_out_2 = Recs_out_1
 
-    # Add note about L2 processing steps if applicable
+    # Add note about L2 processing steps if applicable todo make sure line length not exceeded
     if ds_is_segment:
         nc.attrs['history'] += ' The dataset was split into segments where water depth changed from mooring strike(s).'
 

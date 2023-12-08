@@ -987,6 +987,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     # todo change {e1} to equivalent of ({} UTC).format(DTUT8601[e1])?
     # some data after deployment and before recovery are also sometimes cut - statements not accurate
+    # If these are changed, update utils.parse_processing_history() !!!!
     if e1 != 0:
         meta_dict['processing_history'] += f' Leading {e1} ensembles from before deployment discarded.'
     if e2 != 0:
