@@ -32,6 +32,7 @@ import gsw
 from ruamel.yaml import YAML
 from pycurrents_ADCP_processing import utils
 from shapely.geometry import Point
+# from datetime import datetime, timezone
 
 _FillValue = np.nan
 bodc_flag_dict = {
@@ -137,10 +138,6 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
     # t_DTUT8601 = np.array(dtut_df)
 
     return t_s  # , t_DTUT8601
-
-
-def numpy_datetime_to_str(t: np.datetime64):
-    return t.astype(str).replace('T', ' ')
 
 
 def assign_pres(vel_var, meta_dict: dict):
@@ -773,7 +770,251 @@ def find_geographic_area_attr(lon: float, lat: float):
     return utils.find_geographic_area(polygons_dict, Point(lon, lat))
 
 
-def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
+def get_segment_start_end_idx_depth(
+        segment_starts_ends, time_series_depth: np.ndarray,
+        datetime_pd: np.ndarray, original_instr_depth: float
+):
+    """
+    Get start and end indices of time series segments and their corresponding instrument depths.
+    Calculate instrument depth from the pressure during subsequent segments using gsw.
+
+    segment_starts_ends: dict or None
+    time_series_depth: PPSAADCP
+    """
+
+    # Assume the first segment instrument depth was already correct
+    # before the mooring was displaced, so pass the original depth here
+
+    # Create flag
+    ds_is_split = True
+
+    # Convert the user-input segment starts and ends into usable format
+    if type(segment_starts_ends) == dict:
+        # Determine the type of the objects in the list
+        if all([type(k) == str for k in segment_starts_ends.keys()]):
+            # key is a datetime in string format 'YYYYMMDD HH:MM:SS'
+            segment_starts_ends = {
+                pd.to_datetime(k): pd.to_datetime(v)
+                for k, v in segment_starts_ends.items()
+            }
+            # Convert it to an index (integer type)
+            idx = {}
+            for k, v in segment_starts_ends.items():
+                idx_k = np.where(
+                    abs(datetime_pd - pd.to_datetime(k)
+                        ) == min(abs(datetime_pd - pd.to_datetime(k)))
+                )[0]
+                print(idx_k)
+                idx_v = np.where(
+                    abs(datetime_pd - pd.to_datetime(v)
+                        ) == min(abs(datetime_pd - pd.to_datetime(v)))
+                )[0]
+                idx[idx_k[0]] = idx_v[0]
+            segment_start_end_idx = idx
+        elif all([type(k) == int for k in segment_starts_ends.keys()]):
+            segment_start_end_idx = segment_starts_ends
+    elif segment_starts_ends is None:
+        segment_start_end_idx = {0: len(datetime_pd) - 1}  # {0: -1}??
+        ds_is_split = False
+    else:
+        ValueError(
+            f'Segment start and end items are type {type(segment_starts_ends)} and must be dict or None'
+        )
+
+    # Add 1 to the end index because python indexing is not inclusive
+    for k, v in segment_start_end_idx.items():
+        segment_start_end_idx[k] = v + 1
+
+    # Get the mean instrument depth for each segment
+    segment_instrument_depths = np.zeros(
+        len(segment_start_end_idx), dtype='float32')
+
+    for i, k, v in zip(range(len(segment_start_end_idx)),
+                       segment_start_end_idx.keys(),
+                       segment_start_end_idx.values()):
+        # Keep original instrument_depth for first segment
+        if i == 0:
+            segment_instrument_depths[i] = original_instr_depth
+        else:
+            segment_instrument_depths[i] = np.round(np.nanmean(time_series_depth[k: v]), 1)
+
+    return segment_start_end_idx, segment_instrument_depths, ds_is_split
+
+
+def make_dataset_from_subset(
+        ds: xr.Dataset, start_idx: int, end_idx: int,
+        instrument_depth: float, ds_is_split: bool, new_filename: str,
+        recovery_lat_lon=None
+):
+    """
+    Create an xarray dataset to contain data from a single segment
+    """
+    # Add variables
+    var_dict = {}
+    for key in ds.data_vars.keys():
+        if key == 'filename':
+            var_dict[key] = ([], new_filename)
+        elif key == 'latitude' and recovery_lat_lon is not None:
+            var_dict[key] = ([], recovery_lat_lon[0])
+        elif key == 'longitude' and recovery_lat_lon is not None:
+            var_dict[key] = ([], recovery_lat_lon[1])
+        elif 'time' in ds[key].coords:
+            if 'distance' in ds[key].coords:
+                var_dict[key] = (['distance', 'time'],
+                                 ds[key].data[:, start_idx:end_idx])
+            else:
+                var_dict[key] = (['time'],
+                                 ds[key].data[start_idx:end_idx])
+        elif 'distance' in ds[key].coords:
+            var_dict[key] = (['distance'], ds[key].data)
+        else:
+            var_dict[key] = ([], ds[key].data)
+
+    dsout = xr.Dataset(
+        coords={'time': ds.time.data[start_idx:end_idx],
+                'distance': ds.distance.data}, data_vars=var_dict
+    )
+
+    # Add attributes and encoding back to the variables
+    for var in dsout.keys():
+        try:
+            dsout[var].encoding['_FillValue'] = ds[var].encoding['_FillValue']
+        except KeyError:
+            pass
+        for attr, attr_val in ds[var].attrs.items():
+            # Recalculate data min and max
+            if attr == 'data_min':
+                dsout[var].attrs[attr] = np.nanmin(
+                    dsout[var].data)
+            elif attr == 'data_max':
+                dsout[var].attrs[attr] = np.nanmax(
+                    dsout[var].data)
+            # Update sensor depth for each segment
+            elif attr == 'sensor_depth':
+                dsout[var].attrs[attr] = instrument_depth
+            else:
+                dsout[var].attrs[attr] = attr_val
+
+    # Add global attributes
+    for key, value in ds.attrs.items():
+        dsout.attrs[key] = value
+
+    GLOBAL_ATTRS_TO_UPDATE = [
+        'instrument_depth', 'processing_history',
+        'time_coverage_duration', 'time_coverage_start', 'source',
+        'time_coverage_end', 'geospatial_vertical_min',
+        'geospatial_vertical_max', 'date_modified',
+        'geospatial_lat_min', 'geospatial_lat_max',
+        'geospatial_lon_min', 'geospatial_lon_max'
+    ]
+
+    ns_to_days = 1./(60 * 60 * 24 * 1e9)  # nanoseconds to days
+
+    geospatial_vertical_min, geospatial_vertical_max = utils.geospatial_vertical_extrema(
+        dsout.orientation, dsout.instrument_depth, dsout.distance.data
+    )
+
+    dsout.attrs['instrument_depth'] = instrument_depth
+    if ds_is_split:  # todo add time of each split to the processing history?
+        dsout.attrs['processing_history'] += ' The data were segmented by pressure ' \
+                                             'changes from a mooring strike.'
+    # duration must be in decimal days format
+    dsout.attrs['time_coverage_duration'] = float(
+        dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
+    # dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
+    # string format
+    dsout.attrs['time_coverage_start'] = utils.numpy_datetime_to_str_utc(dsout.time.data[0])
+    dsout.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(dsout.time.data[-1])
+    dsout.attrs['geospatial_vertical_min'] = geospatial_vertical_min
+    dsout.attrs['geospatial_vertical_max'] = geospatial_vertical_max
+    dsout.attrs['date_modified'] = datetime.datetime.now(datetime.timezone.utc).strftime(
+        '%Y-%m-%d %H:%M:%S UTC'
+    )
+    if recovery_lat_lon is not None:
+        dsout.attrs['geospatial_lat_min'] = recovery_lat_lon[0]
+        dsout.attrs['geospatial_lat_max'] = recovery_lat_lon[0]
+        dsout.attrs['geospatial_lon_min'] = recovery_lat_lon[1]
+        dsout.attrs['geospatial_lon_max'] = recovery_lat_lon[1]
+
+    return dsout
+
+
+def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts_ends: dict,
+                         dest_dir: str, recovery_lat_lon=None, verbose=False):
+    """
+    Split dataset by pressure changes if the mooring was hit and displaced
+    :param input_ds: input ADCP dataset
+    :param segment_starts_ends: format {start: end} dict
+    :param recovery_lat_lon: tuple format (lat, lon) if not None
+    :param dest_dir: destination directory for output files
+    :param verbose: print out progress statements if True; default False
+    """
+
+    # Get the indices and segment instrument depths from the user-input values
+    segment_st_en_idx, segment_instr_depths, ds_is_split = get_segment_start_end_idx_depth(
+        segment_starts_ends, input_ds.PPSAADCP.data, input_ds.time.data, input_ds.instrument_depth
+    )
+
+    # Initialize list to hold the file names of all netcdf files to be output
+    netcdf_filenames = []
+
+    if not ds_is_split:
+        # Skip to exporting the data in netCDF format
+        # filename variable missing '.nc' suffix, so add this back in
+        netcdf_filenames.append(os.path.join(dest_dir, input_ds.filename.data + '.nc'))
+        input_ds.to_netcdf(netcdf_filenames[0], mode='w', format='NETCDF4')
+    else:
+        # Iterate through all the segments and create a netCDF file from each
+        for st_idx, en_idx, i in zip(
+                segment_st_en_idx.keys(), segment_st_en_idx.values(),
+                range(len(segment_instr_depths))
+        ):
+            # Generate as many file names as there are segments of data
+            # only use the "date" part of the datetime and not the time portion
+            # format the depth to 4 string characters by adding zeros if necessary
+
+            # Need to subtract 1 from en_idx because +1 is added in
+            # get_user_segment_start_end_idx_depth() for inclusive ranges
+            # but ranges are not called here
+            out_segment_name = '{}_{}_{}_{}m.adcp.L1.nc'.format(
+                input_ds.station.lower(),
+                utils.numpy_datetime_to_str_utc(input_ds.time.data[st_idx])[:10].replace('-', ''),
+                utils.numpy_datetime_to_str_utc(input_ds.time.data[en_idx - 1])[:10].replace('-', ''),
+                f'000{int(np.round(segment_instr_depths[i]))}'[-4:]
+            )
+
+            # File name
+            absolute_segment_name = os.path.join(dest_dir, out_segment_name)
+
+            netcdf_filenames.append(absolute_segment_name)
+
+            # split the dataset by creating subsets from the original
+            # Only apply the recovery lat and lon to the last segment of data
+            if i < len(segment_instr_depths) - 1:
+                ds_segment = make_dataset_from_subset(
+                    input_ds, st_idx, en_idx, segment_instr_depths[i],
+                    ds_is_split, out_segment_name
+                )
+            else:
+                # The last segment of data where i == len(segment_instr_depths) - 1
+                ds_segment = make_dataset_from_subset(
+                    input_ds, st_idx, en_idx, segment_instr_depths[i],
+                    ds_is_split, out_segment_name, recovery_lat_lon
+                )
+
+            if verbose:
+                print('New netCDF file:', out_segment_name)
+
+            # Export the dataset object as a new netCDF file
+            ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
+
+            ds_segment.close()
+
+        return netcdf_filenames
+
+
+def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, segment_starts_ends=None,
+                 recovery_lat_lon=None, verbose=False):
     """About:
     Perform level 1 processing on a raw ADCP file and export it as a netCDF file
     :param inFile: full file name of raw ADCP file
@@ -781,6 +1022,11 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     :param dest_dir: string type; name of folder in which files will be output
     :param time_file: full file name of csv file containing user-generated time data;
                 required if inFile has garbled out-of-range time data
+    :param segment_starts_ends: if mooring was struck and displaced, segment starts and ends
+                in dict format like {start1:end1, start2:end2}. start and end can be
+                indices or time in string format "YYYYMMDD hh:mm:ss"
+    :param recovery_lat_lon: if mooring was struck and displaced, the latitude and longitude
+                recorded at the recovery time in tuple format (lat, lon)
     :param verbose: If True then print out progress statements
     """
 
@@ -798,11 +1044,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     if verbose:
         print(out_name)
-
-    if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
-        out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
-    else:
-        out_absolute_name = os.path.abspath(dest_dir + out_name)
 
     # Read information from metadata file into a dictionary, called meta_dict
     meta_dict = create_meta_dict_L1(file_meta)
@@ -1041,44 +1282,6 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     # -------------------------Make into netCDF file---------------------------
 
-    # Create xarray Dataset object containing all dimensions and variables
-    # Sentinel V instruments don't have percent good ('pg') variables
-    # out = xr.Dataset(coords={'time': time_s, 'distance': distance},
-    #                  data_vars={'LCEWAP01': (['distance', 'time'], LCEWAP01.transpose()),
-    #                             'LCNSAP01': (['distance', 'time'], LCNSAP01.transpose()),
-    #                             'LRZAAP01': (['distance', 'time'], vel3.transpose()),
-    #                             'LERRAP01': (['distance', 'time'], vel4.transpose()),
-    #                             'LCEWAP01_QC': (['distance', 'time'], LCEWAP01_QC.transpose()),
-    #                             'LCNSAP01_QC': (['distance', 'time'], LCNSAP01_QC.transpose()),
-    #                             'LRZAAP01_QC': (['distance', 'time'], LRZAAP01_QC.transpose()),
-    #                             'ELTMEP01': (['time'], time_s),
-    #                             'TNIHCE01': (['distance', 'time'], amp.amp1.transpose()),
-    #                             'TNIHCE02': (['distance', 'time'], amp.amp2.transpose()),
-    #                             'TNIHCE03': (['distance', 'time'], amp.amp3.transpose()),
-    #                             'TNIHCE04': (['distance', 'time'], amp.amp4.transpose()),
-    #                             'CMAGZZ01': (['distance', 'time'], cor.cor1.transpose()),
-    #                             'CMAGZZ02': (['distance', 'time'], cor.cor2.transpose()),
-    #                             'CMAGZZ03': (['distance', 'time'], cor.cor3.transpose()),
-    #                             'CMAGZZ04': (['distance', 'time'], cor.cor4.transpose()),
-    #                             'PTCHGP01': (['time'], vel.pitch),
-    #                             'HEADCM01': (['time'], vel.heading),
-    #                             'ROLLGP01': (['time'], vel.roll),
-    #                             'TEMPPR01': (['time'], vel.temperature),
-    #                             'DISTTRAN': (['distance'], DISTTRAN),
-    #                             'PPSAADCP': (['time'], depth),
-    #                             'ALATZZ01': ([], meta_dict['latitude']),
-    #                             'ALONZZ01': ([], meta_dict['longitude']),
-    #                             'latitude': ([], meta_dict['latitude']),
-    #                             'longitude': ([], meta_dict['longitude']),
-    #                             'PRESPR01': (['time'], pressure),
-    #                             'PRESPR01_QC': (['time'], PRESPR01_QC),
-    #                             'SVELCV01': (['time'], sound_speed),
-    #                             'DTUT8601': (['time'], time_DTUT8601),
-    #                             'filename': ([], out_name[:-3]),  # do not include .nc suffix
-    #                             'instrument_serial_number': ([], meta_dict['serial_number']),
-    #                             'instrument_model': ([], meta_dict['instrument_model']),
-    #                             'geographic_area': ([], meta_dict['geographic_area'])})
-
     out = xr.Dataset(coords={'time': var_dict['time'], 'distance': var_dict['distance']})
 
     # 2023-12-11 removed 'ELTMEP01', 'ALATZZ01', 'ALONZZ01'
@@ -1124,6 +1327,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
             out.attrs[key] = value
 
     # Rest of attributes not from metadata file:
+
     out.attrs['deployment_type'] = 'Sub Surface'
     out.attrs['time_coverage_duration'] = vel.dday[-1] - vel.dday[0]
     out.attrs['time_coverage_duration_units'] = "days"
@@ -1167,8 +1371,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
     out.attrs['xmit_length'] = fixed_leader.FL['Pulse']
-    out.attrs['time_coverage_start'] = numpy_datetime_to_str(var_dict['time'][e1]) + ' UTC'
-    out.attrs['time_coverage_end'] = numpy_datetime_to_str(var_dict['time'][-e2 - 1]) + ' UTC'
+    out.attrs['time_coverage_start'] = utils.numpy_datetime_to_str_utc(var_dict['time'][e1])
+    out.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(var_dict['time'][-e2 - 1])
 
     # geospatial lat, lon, and vertical min/max calculations
     out.attrs['geospatial_lat_min'] = meta_dict['latitude']
@@ -1179,18 +1383,23 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['geospatial_lon_units'] = "degrees_east"
 
     # sensor_depth is a variable attribute, not a global attribute
-    if out.attrs['orientation'] == 'up':
-        out.attrs['geospatial_vertical_min'] = sensor_dep - np.nanmax(out.distance.data)
-        out.attrs['geospatial_vertical_max'] = sensor_dep - np.nanmin(out.distance.data)
-    elif out.attrs['orientation'] == 'down':
-        out.attrs['geospatial_vertical_min'] = sensor_dep + np.nanmin(out.distance.data)
-        out.attrs['geospatial_vertical_max'] = sensor_dep + np.nanmax(out.distance.data)
+    out.attrs['geospatial_vertical_min'], out.attrs['geospatial_vertical_max'] = utils.geospatial_vertical_extrema(
+        out.attrs['orientation'], sensor_dep, out.distance.data
+    )
 
-    # Export the 'out' object as a netCDF file
-    out.to_netcdf(out_absolute_name, mode='w', format='NETCDF4')
+    # -----------------Split dataset by pressure changes if any--------------
+
+    # User inputs indices or datetimes
+    # returns a dictionary of the start and end indices of format {start: end}
+    # and a numpy array of depths with length equal to the dictionary
+    nc_names = split_ds_by_pressure(
+        input_ds=out, segment_starts_ends=segment_starts_ends,
+        recovery_lat_lon=recovery_lat_lon, dest_dir=dest_dir, verbose=verbose
+    )
+
     out.close()
 
-    return out_absolute_name
+    return nc_names
 
 
 def example_L1_1():

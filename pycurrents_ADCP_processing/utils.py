@@ -1,5 +1,6 @@
 from shapely.geometry import Polygon, Point
 import json
+import numpy as np
 
 
 # general utility functions common to multiple classes
@@ -91,3 +92,25 @@ def parse_processing_history(processing_history: str):
             trailing_ens_cut = int(part.split()[1])  # Split by space " "
 
     return leading_ens_cut, trailing_ens_cut
+
+
+def numpy_datetime_to_str_utc(t: np.datetime64):
+    return t.astype(str).replace('T', ' ') + ' UTC'
+
+
+def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance: np.ndarray):
+    """
+    :param orientation: 'up' or 'down', from xr.Dataset.attrs['orientation']
+    :param sensor_depth: mean of PPSAADCP
+    :param distance: distance of each bin from the ADCP; dimension of the netCDF file
+    """
+    if orientation == 'up':
+        geospatial_vertical_min = sensor_depth - np.nanmax(distance)
+        geospatial_vertical_max = sensor_depth - np.nanmin(distance)
+    elif orientation == 'down':
+        geospatial_vertical_min = sensor_depth + np.nanmin(distance)
+        geospatial_vertical_max = sensor_depth + np.nanmax(distance)
+    else:
+        ValueError(f'Orientation value {orientation} invalid')
+
+    return geospatial_vertical_min, geospatial_vertical_max
