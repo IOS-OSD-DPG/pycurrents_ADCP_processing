@@ -359,8 +359,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     metadata_dict: dictionary object of metadata items
     sensor_depth: sensor depth recorded by instrument
     """
-    uvw_vel_min = -1000
-    uvw_vel_max = 1000
+    # uvw_vel_min = -1000
+    # uvw_vel_max = 1000
 
     yml_file = os.path.join(os.path.abspath(os.path.dirname(__file__)),
                             'adcp_var_string_attrs.yml')
@@ -394,8 +394,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['valid_max'] = uvw_vel_max
-    var.attrs['valid_min'] = uvw_vel_min
+    # var.attrs['valid_max'] = uvw_vel_max
+    # var.attrs['valid_min'] = uvw_vel_min
 
     # LCNSAP01: northward velocity (vel2)
     var = out_obj.LCNSAP01
@@ -404,8 +404,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['valid_max'] = uvw_vel_max
-    var.attrs['valid_min'] = uvw_vel_min
+    # var.attrs['valid_max'] = uvw_vel_max
+    # var.attrs['valid_min'] = uvw_vel_min
 
     # LRZAAP01: vertical velocity (vel3)
     var = out_obj.LRZAAP01
@@ -414,8 +414,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['valid_max'] = uvw_vel_max
-    var.attrs['valid_min'] = uvw_vel_min
+    # var.attrs['valid_max'] = uvw_vel_max
+    # var.attrs['valid_min'] = uvw_vel_min
 
     # LERRAP01: error velocity (vel4)
     var = out_obj.LERRAP01
@@ -424,8 +424,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     # var.attrs['serial_number'] = meta_dict['serial_number']
     var.attrs['data_max'] = np.nanmax(var.data)
     var.attrs['data_min'] = np.nanmin(var.data)
-    var.attrs['valid_max'] = 2 * uvw_vel_max
-    var.attrs['valid_min'] = 2 * uvw_vel_min
+    # var.attrs['valid_max'] = 2 * uvw_vel_max
+    # var.attrs['valid_min'] = 2 * uvw_vel_min
 
     # Velocity variable quality flags
     var = out_obj.LCEWAP01_QC
@@ -446,10 +446,10 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     var.attrs['data_max'] = np.max(var.data)
     var.attrs['data_min'] = np.min(var.data)
 
-    # ELTMEP01: seconds since 1970
-    var = out_obj.ELTMEP01
-    var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
-    var.attrs['_FillValue'] = _FillValue
+    # # ELTMEP01: seconds since 1970
+    # var = out_obj.ELTMEP01
+    # var.encoding['units'] = 'seconds since 1970-01-01T00:00:00Z'
+    # var.attrs['_FillValue'] = _FillValue
 
     # TNIHCE01-4: echo intensity beam 1-4
     var = out_obj.TNIHCE01
@@ -547,13 +547,13 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
-    # ALONZZ01, longitude
-    for var in [out_obj.ALONZZ01, out_obj.longitude]:
+    # latitude and longitude
+    for var in [out_obj.latitude, out_obj.longitude]:
         var.encoding['_FillValue'] = _FillValue  # None
 
-    # ALATZZ01, latitude
-    for var in [out_obj.ALATZZ01, out_obj.latitude]:
-        var.encoding['_FillValue'] = _FillValue  # None
+    # # ALATZZ01, latitude
+    # for var in [out_obj.ALATZZ01, out_obj.latitude]:
+    #     var.encoding['_FillValue'] = _FillValue  # None
 
     # HEADCM01: heading
     var = out_obj.HEADCM01
@@ -626,8 +626,8 @@ def add_attrs_2vars_L1(out_obj: xr.Dataset, meta_dict: dict, sensor_depth,
         # var.attrs['serial_number'] = meta_dict['serial_number']
         var.attrs['data_max'] = np.nanmax(var.data)
         var.attrs['data_min'] = np.nanmin(var.data)
-        var.attrs['valid_max'] = uvw_vel_max
-        var.attrs['valid_min'] = uvw_vel_min
+        # var.attrs['valid_max'] = uvw_vel_max
+        # var.attrs['valid_min'] = uvw_vel_min
 
         var = out_obj.LRZUVP01_QC
         var.attrs['_FillValue'] = _FillValue
@@ -909,7 +909,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     if flag_vb_pg == 1:
         var_dict['PCGDAP05'] = vb_pg.raw.VBPercentGood.transpose()
 
-    var_dict['ELTMEP01'] = var_dict['time']  # todo remove
+    # var_dict['ELTMEP01'] = var_dict['time']  # todo remove
     var_dict['TEMPPR01'] = vel.temperature
     var_dict['PTCHGP01'] = vel.pitch
     var_dict['ROLLGP01'] = vel.roll
@@ -922,8 +922,8 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     var_dict['PRESPR01'] = assign_pres(vel_var=vel, meta_dict=meta_dict)
 
     # Dimensionless vars
-    var_dict['ALATZZ01'] = meta_dict['latitude']
-    var_dict['ALONZZ01'] = meta_dict['longitude']
+    # var_dict['ALATZZ01'] = meta_dict['latitude']
+    # var_dict['ALONZZ01'] = meta_dict['longitude']
     var_dict['latitude'] = meta_dict['latitude']
     var_dict['longitude'] = meta_dict['longitude']
     var_dict['filename'] = out_name[:-3]  # do not include .nc suffix
@@ -959,6 +959,9 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     # Correct magnetic declination in velocities and round to the input number of decimal places
     LCEWAP01, LCNSAP01 = correct_true_north(vel1, vel2, meta_dict)
+
+    if verbose:
+        print('Applied magnetic declination to north and east velocities')
 
     var_dict['LCEWAP01'] = LCEWAP01.transpose()
     var_dict['LCNSAP01'] = LCNSAP01.transpose()
@@ -1078,13 +1081,14 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
 
     out = xr.Dataset(coords={'time': var_dict['time'], 'distance': var_dict['distance']})
 
+    # 2023-12-11 removed 'ELTMEP01', 'ALATZZ01', 'ALONZZ01'
     variable_order = ['LCEWAP01', 'LCNSAP01', 'LRZAAP01', 'LERRAP01', 'LRZUVP01',
                       'LCEWAP01_QC', 'LCNSAP01_QC', 'LRZAAP01_QC', 'LRZUVP01_QC',
                       'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
                       'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05',
                       'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04', 'PCGDAP05',
-                      'ELTMEP01', 'DISTTRAN', 'PPSAADCP', 'PRESPR01', 'PRESPR01_QC',
-                      'ALATZZ01', 'ALONZZ01', 'latitude', 'longitude',
+                      'DISTTRAN', 'PPSAADCP', 'PRESPR01', 'PRESPR01_QC',
+                      'latitude', 'longitude',
                       'PTCHGP01', 'HEADCM01', 'ROLLGP01', 'TEMPPR01', 'SVELCV01',
                       'filename', 'instrument_serial_number', 'instrument_model',
                       'geographic_area']
@@ -1135,7 +1139,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['transmit_pulse_length_cm'] = vel.FL['Pulse']
     out.attrs['instrument_type'] = "adcp"
     out.attrs['manufacturer'] = meta_dict['manufacturer']
-    out.attrs['source'] = "Python code: github: pycurrents_ADCP_processing"
+    out.attrs['source'] = "Python code: GitHub: pycurrents_ADCP_processing"
     now = datetime.datetime.now()
     out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
     out.attrs['_FillValue'] = _FillValue  # str(fill_value)
