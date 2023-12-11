@@ -1762,7 +1762,7 @@ def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_
     plot_dir = get_plot_dir(data_filename, dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
-    plot_name = os.path.join(dest_dir, plot_name)
+    plot_name = os.path.join(plot_dir, plot_name)
     plt.savefig(plot_name)
     plt.close()
     return plot_name
