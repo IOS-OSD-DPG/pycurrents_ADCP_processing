@@ -149,7 +149,9 @@ def assign_pres(vel_var, meta_dict: dict):
     metadata_dict: dictionary object of metadata items
     """
 
-    if meta_dict['model'] == 'wh' or meta_dict['model'] == 'sv':
+    static_pressure_flag = 0
+
+    if meta_dict['model'] in ['wh', 'lr', 'sv']:
         # convert decapascal to decibars
         pres = np.array(vel_var.VL['Pressure'] / 1000, dtype='float32')
 
@@ -158,14 +160,11 @@ def assign_pres(vel_var, meta_dict: dict):
         # pressure values
         # Handle no unique modes from statistics.mode(pressure)
         pressure_unique, counts = np.unique(pres, return_counts=True)
-        # index_of_zero = np.where(pressure_unique == 0)
-        # print('np.max(counts):', np.max(counts), sep=' ')
-        # print('counts[index_of_zero]:', counts[index_of_zero], sep=' ')
-        # print('serial number:', metadata_dict['serial_number'])
+        static_pressure_flag += 1 if np.max(counts) > len(pres) / 2 else 0
 
     # Check if model is type missing pressure sensor or if zero is a mode of pressure
     # Amendment 2023-09-18: change to "if pressure is static for over half the dataset" as the former became a bug
-    if meta_dict['model'] == 'bb' or np.max(counts) > len(pres) / 2:  # or np.max(counts) == counts[index_of_zero]:
+    if meta_dict['model'] == 'bb' or static_pressure_flag == 1:  # or np.max(counts) == counts[index_of_zero]:
         p = np.round(gsw.conversions.p_from_z(-meta_dict['instrument_depth'],
                                               meta_dict['latitude']),
                      decimals=1)  # depth negative because positive is up for this function
@@ -726,8 +725,9 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     """
     # Correct the long ranger model after reading in the raw data with pycurrents
     if data.sysconfig['kHz'] == 75 and meta_dict['model'] == 'wh':
-        meta_dict['model'] = 'lr'
-        meta_dict['instrument_subtype'] = 'Long Ranger'
+        meta_dict['instrument_subtype'] = 'Workhorse Long Ranger'
+        meta_dict['serial_number'] = meta_dict['serial_number'].replace('WH', 'LR')
+        warnings.warn('Workhorse ADCP identified as 75 kHz Long Ranger')
 
     # Add instrument model variable value
     meta_dict['instrument_model'] = 'RDI {} ADCP {}kHz ({})'.format(
@@ -1013,11 +1013,11 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts_ends: dict,
         return netcdf_filenames
 
 
-def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, segment_starts_ends=None,
+def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_ends=None,
                  recovery_lat_lon=None, verbose=False):
     """About:
     Perform level 1 processing on a raw ADCP file and export it as a netCDF file
-    :param inFile: full file name of raw ADCP file
+    :param in_file: full file name of raw ADCP file
     :param file_meta: full file name of csv metadata file associated with inFile
     :param dest_dir: string type; name of folder in which files will be output
     :param time_file: full file name of csv file containing user-generated time data;
@@ -1040,7 +1040,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, segment_starts_end
         os.makedirs(dest_dir)
 
     # Splice file name to get output netCDF file name
-    out_name = os.path.basename(inFile)[:-4] + '.adcp.L1.nc'
+    out_name = os.path.basename(in_file)[:-4] + '.adcp.L1.nc'
 
     if verbose:
         print(out_name)
@@ -1054,7 +1054,7 @@ def nc_create_L1(inFile, file_meta, dest_dir, time_file=None, segment_starts_end
     # ------------------------Read in data and start processing--------------------
 
     # Read in raw ADCP file and model type
-    data = rdiraw.rawfile(inFile, meta_dict['model'], trim=True)
+    data = rdiraw.rawfile(in_file, meta_dict['model'], trim=True)
 
     if verbose:
         print('Read in raw data')
@@ -1414,7 +1414,7 @@ def example_L1_1():
     dest_dir = 'dest_dir'
 
     # Create netCDF file
-    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir)
+    nc_name = nc_create_L1(in_file=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir)
 
     # # DEPRECProduce new netCDF file that includes a geographic_area variable
     # geo_name = add_var2nc.add_geo(nc_name, dest_dir)
@@ -1437,7 +1437,7 @@ def example_L1_2():
     dest_dir = 'dest_dir'
 
     # Create netCDF file
-    nc_name = nc_create_L1(inFile=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, time_file=scott_time)
+    nc_name = nc_create_L1(in_file=raw_file, file_meta=raw_file_meta, dest_dir=dest_dir, time_file=scott_time)
 
     # # DEPRECProduce new netCDF file that includes a geographic_area variable
     # geo_name = add_var2nc.add_geo(nc_name, dest_dir)
