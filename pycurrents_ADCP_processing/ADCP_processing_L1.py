@@ -877,10 +877,12 @@ def make_dataset_from_subset(
 
     # Add attributes and encoding back to the variables
     for var in dsout.keys():
-        try:
-            dsout[var].encoding['_FillValue'] = ds[var].encoding['_FillValue']
-        except KeyError:
-            pass
+        # try:
+        #     dsout[var].encoding['_FillValue'] = ds[var].encoding['_FillValue']
+        # except KeyError:
+        #     pass
+        for encoding, encoding_val in ds[var].encoding.items():
+            dsout[var].encoding[encoding] = encoding_val
         for attr, attr_val in ds[var].attrs.items():
             # Recalculate data min and max
             if attr == 'data_min':
