@@ -31,6 +31,7 @@ import pycurrents.adcp.transform as transform
 import gsw
 from ruamel.yaml import YAML
 from pycurrents_ADCP_processing import utils
+from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pw
 from shapely.geometry import Point
 # from datetime import datetime, timezone
 
@@ -116,9 +117,11 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
                     # t_DTUT8601[count] = pd.to_datetime(
                     #     row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
 
-        meta_dict['processing_history'] += ' OutOfBoundsDateTime exception ' \
-                                           'triggered by raw time data; used user-generated time ' \
-                                           'range as time data.'
+        warnings.warn('OutOfBoundsDateTime exception triggered by raw time data; '
+                      'used user-generated time range as time data', UserWarning)
+
+        meta_dict['processing_history'] += (' OutOfBoundsDateTime exception triggered by raw time data; '
+                                            'used user-generated time range as time data.')
 
     # Set times out of range to NaNs
     # Get timedelta object with value of one year long
@@ -245,8 +248,6 @@ def coordsystem_2enu(vel_var, fixed_leader_var, meta_dict: dict):
 def flag_pressure(pres, meta_dict: dict):
     """
     pres: pressure variable; array type
-    ens1: number of leading bad ensembles from before instrument deployment; int type
-    ens2: number of trailing bad ensembles from after instrument deployment; int type
     metadata_dict: dictionary object of metadata items
     """
     # 'no_quality_control': 0
@@ -262,7 +263,7 @@ def flag_pressure(pres, meta_dict: dict):
     return PRESPR01_QC_var
 
 
-def flag_velocity(meta_dict: dict, ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=None):
+def flag_velocity_DEPREC(meta_dict: dict, ens1: int, ens2: int, number_of_cells: int, v1, v2, v3, v5=None):
     """
     Create QC variables containing flag arrays
     meta_dict: dictionary of metadata items
@@ -339,7 +340,7 @@ def read_yml_to_dict(yml_file: str):
                     var_dict[k1][k2] = var_dict[k1][k2][0].replace('\n', '')
                 else:
                     warnings.warn(
-                        'Check YAML file content parsing to list\n' + str(var_dict[k1][k2])
+                        'Check YAML file content parsing to list\n' + str(var_dict[k1][k2]), UserWarning
                     )
 
     for k1 in var_dict.keys():
@@ -672,10 +673,10 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
             # extract all metadata from csv file into dictionary
             # some items not passed to netCDF file but are extracted anyway
             if row[0] == '' and row[1] == '':
-                warnings.warn('Metadata file contains a blank row; skipping this row !')
+                warnings.warn('Metadata file contains a blank row; skipping this row !', UserWarning)
             elif row[0] != '' and row[1] == '':
                 warnings.warn('Metadata item in csv file has blank value; skipping this row '
-                              'in metadata file !')
+                              'in metadata file !', UserWarning)
             else:
                 meta_dict[row[0]] = row[1]
 
@@ -705,8 +706,7 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
         meta_dict['model'] = "sv"
         meta_dict['manufacturer'] = 'Teledyne RDI'
     else:
-        ValueError('meta_dict["instrumentSubtype"] not understood:',
-                   meta_dict["instrumentSubtype"])
+        ValueError(f'meta_dict["instrumentSubtype"] not understood: {meta_dict["instrumentSubtype"]}')
 
     # Add leading zero to serial numbers that have 3 digits
     if len(str(meta_dict['serial_number'])) == 3:
@@ -718,6 +718,14 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
     return meta_dict
 
 
+def matlab_index_to_python(ind):
+    """
+    Matlab and R indexing starts at 1 and includes the end
+    Python indexing starts at 0 and excludes the end
+    """
+    return ind - 1
+
+
 def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
                         fixed_leader: rdiraw.Bunch) -> dict:
     """
@@ -727,7 +735,7 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     if data.sysconfig['kHz'] == 75 and meta_dict['model'] == 'wh':
         meta_dict['instrument_subtype'] = 'Workhorse Long Ranger'
         meta_dict['serial_number'] = meta_dict['serial_number'].replace('WH', 'LR')
-        warnings.warn('Workhorse ADCP identified as 75 kHz Long Ranger')
+        warnings.warn('Workhorse ADCP identified as 75 kHz Long Ranger', UserWarning)
 
     # Add instrument model variable value
     meta_dict['instrument_model'] = 'RDI {} ADCP {}kHz ({})'.format(
@@ -753,7 +761,31 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     else:
         meta_dict['beam_pattern'] = 'concave'
 
-    meta_dict['cell_size'] = data.CellSize  # Written to global attributes later
+    # Convert segment indices from string/int to list and from
+    if 'segment_start_indices' in meta_dict.keys():
+        if type(meta_dict['segment_start_indices']) == str and ',' in meta_dict['segment_start_indices']:
+            # Multiple segments
+            meta_dict['segment_start_indices'] = [
+                matlab_index_to_python(int(ind)) for ind in meta_dict['segment_start_indices'].split(',')
+            ]
+            meta_dict['segment_end_indices'] = [
+                int(ind) for ind in meta_dict['segment_end_indices'].split(',')
+            ]
+        elif type(meta_dict['segment_start_indices']) == int:
+            # Replaces numbers of ensembles to cut
+            meta_dict['segment_start_indices'] = [
+                matlab_index_to_python(meta_dict['segment_start_indices'])
+            ]
+            meta_dict['segment_end_indices'] = [meta_dict['segment_end_indices']]
+        elif meta_dict['segment_start_indices'] == pd.NA:
+            # No ensembles to cut
+            meta_dict['segment_start_indices'] = [0]
+            meta_dict['segment_end_indices'] = [len(fixed_leader['raw']['FixedLeader'])]
+    else:
+        meta_dict['segment_start_indices'] = [meta_dict['cut_lead_ensembles']]
+        meta_dict['segment_end_indices'] = [
+            len(fixed_leader['raw']['FixedLeader']) - meta_dict['cut_trail_ensembles']
+        ]
 
     # Begin writing processing history, which will be added as a global attribute to the output netCDF file
     meta_dict['processing_history'] = "Metadata read in from CSV file."
@@ -966,6 +998,9 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts_ends: dict,
         netcdf_filenames.append(os.path.join(dest_dir, input_ds.filename.data + '.nc'))
         input_ds.to_netcdf(netcdf_filenames[0], mode='w', format='NETCDF4')
     else:
+        # Make a plot of pressure before splitting up the dataset
+        pw.plot_adcp_pressure(input_ds, dest_dir=dest_dir, is_pre_split=True)
+
         # Iterate through all the segments and create a netCDF file from each
         for st_idx, en_idx, i in zip(
                 segment_st_en_idx.keys(), segment_st_en_idx.values(),
@@ -1013,6 +1048,39 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts_ends: dict,
             ds_segment.close()
 
         return netcdf_filenames
+
+
+def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
+    # Set start and end indices
+    if 'segment_start_indices' in meta_dict.keys():
+        # Take the first start index and the last end index of these list-type values
+        e1 = meta_dict['segment_start_indices'][0]
+        e2 = len(var_dict['time']) - meta_dict['segment_end_indices'][-1]
+    else:
+        e1 = int(meta_dict['cut_lead_ensembles'])  # "ensemble 1"
+        e2 = int(meta_dict['cut_trail_ensembles'])  # "ensemble 2"
+
+    trunc_func_2d = lambda arr: arr[:, e1:-e2] if e2 != 0 else arr[:, e1:]
+    trunc_func_1d = lambda arr: arr[e1:-e2] if e2 != 0 else arr[e1:]
+
+    # Flag measurements from before deployment and after recovery using e1 and e2
+    old_time_series_len = len(var_dict['time'])
+    for key in var_dict.keys():
+        if type(var_dict[key]) == np.ndarray:
+            if len(var_dict[key].shape) == 2:
+                var_dict[key] = trunc_func_2d(var_dict[key])
+            elif len(var_dict[key]) == old_time_series_len:
+                var_dict[key] = trunc_func_1d(var_dict[key])
+
+    # todo change {e1} to equivalent of ({} UTC).format(DTUT8601[e1])?
+    # some data after deployment and before recovery are also sometimes cut - statements not accurate
+    # If these are changed, update utils.parse_processing_history() !!!!
+    if e1 != 0:
+        meta_dict['processing_history'] += f' Leading {e1} ensembles from before deployment discarded.'
+    if e2 != 0:
+        meta_dict['processing_history'] += f' Trailing {e2} ensembles from after recovery discarded.'
+
+    return var_dict
 
 
 def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_ends=None,
@@ -1215,29 +1283,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
 
     # -----------Truncate time series variables before computing derived variables-----------
 
-    # Set start and end indices
-    e1 = int(meta_dict['cut_lead_ensembles'])  # "ensemble 1"
-    e2 = int(meta_dict['cut_trail_ensembles'])  # "ensemble 2"
-
-    trunc_func_2d = lambda arr: arr[:, e1:-e2] if e2 != 0 else arr[:, e1:]
-    trunc_func_1d = lambda arr: arr[e1:-e2] if e2 != 0 else arr[e1:]
-
-    # Flag measurements from before deployment and after recovery using e1 and e2
-    old_time_series_len = len(var_dict['time'])
-    for key in var_dict.keys():
-        if type(var_dict[key]) == np.ndarray:
-            if len(var_dict[key].shape) == 2:
-                var_dict[key] = trunc_func_2d(var_dict[key])
-            elif len(var_dict[key]) == old_time_series_len:
-                var_dict[key] = trunc_func_1d(var_dict[key])
-
-    # todo change {e1} to equivalent of ({} UTC).format(DTUT8601[e1])?
-    # some data after deployment and before recovery are also sometimes cut - statements not accurate
-    # If these are changed, update utils.parse_processing_history() !!!!
-    if e1 != 0:
-        meta_dict['processing_history'] += f' Leading {e1} ensembles from before deployment discarded.'
-    if e2 != 0:
-        meta_dict['processing_history'] += f' Trailing {e2} ensembles from after recovery discarded.'
+    var_dict = truncate_time_series_ends(var_dict, meta_dict)
 
     # --------------------------------Additional flagging--------------------------------
 
@@ -1310,7 +1356,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
             elif len(np.shape(var_dict[key])) == 2:
                 out[key] = (('distance', 'time'), var_dict[key])
             else:
-                warnings.warn(f'Shape of variable {key} not compatible')
+                warnings.warn(f'Shape of variable {key} not compatible', UserWarning)
 
     # if verbose:
     #     print(out.data_vars)  # Check that all available vars have been added
@@ -1323,7 +1369,8 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
     # ----------------------Global attributes----------------------
 
     # Add select meta_dict items as global attributes
-    pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model']
+    pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model',
+                      'segment_start_indices', 'segment_end_indices']
     for key, value in meta_dict.items():
         if key not in pass_dict_keys:  # Exclude certain items in the dictionary
             out.attrs[key] = value
@@ -1373,8 +1420,8 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
     out.attrs['xmit_length'] = fixed_leader.FL['Pulse']
-    out.attrs['time_coverage_start'] = utils.numpy_datetime_to_str_utc(var_dict['time'][e1])
-    out.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(var_dict['time'][-e2 - 1])
+    out.attrs['time_coverage_start'] = utils.numpy_datetime_to_str_utc(var_dict['time'][0])
+    out.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(var_dict['time'][-1])
 
     # geospatial lat, lon, and vertical min/max calculations
     out.attrs['geospatial_lat_min'] = meta_dict['latitude']

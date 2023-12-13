@@ -181,11 +181,11 @@ def get_plot_dir(filename, dest_dir):
              input netCDF file
     """
     if 'L0' in filename.data.tolist():
-        plot_dir = './{}/L0_Python_plots/'.format(dest_dir)
+        plot_dir = './{}/L0_plots/'.format(dest_dir)
     elif 'L1' in filename.data.tolist():
-        plot_dir = './{}/L1_Python_plots/'.format(dest_dir)
+        plot_dir = './{}/L1_plots/'.format(dest_dir)
     elif 'L2' in filename.data.tolist():
-        plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
+        plot_dir = './{}/L2_plots/'.format(dest_dir)
     else:
         ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
         return None
@@ -193,11 +193,13 @@ def get_plot_dir(filename, dest_dir):
     return plot_dir
 
 
-def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
+def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_split=False):
     """Plot pressure, PRESPR01, vs time
     :param nc: xarray dataset object from xarray.open_dataset(ncpath)
     :param dest_dir: name of subfolder to which plot will be saved
     :param resampled: "30min" if resampled to 30 minutes; None if not resampled
+    :param is_pre_split: True if plot is being made before splitting the dataset into multiple
+        segments in the case of a mooring strike in L1, False otherwise
     """
 
     fig = plt.figure(dpi=400)
@@ -213,21 +215,21 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None):
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    if resampled is None:
-        plt.title("{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
-                                             nc.instrument_serial_number.data))
+    plot_title = "{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
+                                            nc.instrument_serial_number.data)
 
-        png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
-            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            int(np.round(nc.instrument_depth, 0)))
-    else:
-        plt.title("{}-{} {} PRESPR01 {} subsampled".format(
-            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            resampled))
+    png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
+        nc.station, nc.deployment_number, nc.instrument_serial_number.data,
+        int(np.round(nc.instrument_depth)))
 
-        png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01_{}_subsamp.png".format(
-            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            int(np.round(nc.instrument_depth, 0)), resampled)
+    if is_pre_split:
+        png_name.replace('.png', '_pre-split.png')
+
+    if resampled is not None:
+        plot_title += ' subsampled'
+        png_name.replace('.png', '_subsamp.png')
+
+    plt.title(plot_title)
 
     fig.savefig(png_name)
     plt.close(fig)
