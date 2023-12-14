@@ -675,8 +675,8 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
             if row[0] == '' and row[1] == '':
                 warnings.warn('Metadata file contains a blank row; skipping this row !', UserWarning)
             elif row[0] != '' and row[1] == '':
-                warnings.warn('Metadata item in csv file has blank value; skipping this row '
-                              'in metadata file !', UserWarning)
+                warnings.warn(f'Metadata item {row[0]} in csv file has blank value', UserWarning)
+                meta_dict[row[0]] = pd.NA
             else:
                 meta_dict[row[0]] = row[1]
 
