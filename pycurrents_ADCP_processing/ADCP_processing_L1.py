@@ -715,6 +715,9 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
     # Overwrite serial number to include the model: upper returns uppercase
     meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
 
+    # Begin writing processing history, which will be added as a global attribute to the output netCDF file
+    meta_dict['processing_history'] = "Metadata read in from CSV file."
+
     return meta_dict
 
 
@@ -761,7 +764,7 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     else:
         meta_dict['beam_pattern'] = 'concave'
 
-    # Convert segment indices from string/int to list and from
+    # Convert segment indices from string/int to list and from matlab start at 1 to python start at 0
     if 'segment_start_indices' in meta_dict.keys():
         if type(meta_dict['segment_start_indices']) == str and ',' in meta_dict['segment_start_indices']:
             # Multiple segments
@@ -769,26 +772,21 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
                 matlab_index_to_python(int(ind)) for ind in meta_dict['segment_start_indices'].split(',')
             ]
             meta_dict['segment_end_indices'] = [
-                int(ind) for ind in meta_dict['segment_end_indices'].split(',')
+                matlab_index_to_python(int(ind)) for ind in meta_dict['segment_end_indices'].split(',')
             ]
         elif type(meta_dict['segment_start_indices']) == int:
             # Replaces numbers of ensembles to cut
-            meta_dict['segment_start_indices'] = [
-                matlab_index_to_python(meta_dict['segment_start_indices'])
-            ]
-            meta_dict['segment_end_indices'] = [meta_dict['segment_end_indices']]
+            meta_dict['segment_start_indices'] = [matlab_index_to_python(meta_dict['segment_start_indices'])]
+            meta_dict['segment_end_indices'] = [matlab_index_to_python(meta_dict['segment_end_indices'])]
         elif meta_dict['segment_start_indices'] == pd.NA:
             # No ensembles to cut
             meta_dict['segment_start_indices'] = [0]
-            meta_dict['segment_end_indices'] = [len(fixed_leader['raw']['FixedLeader'])]
+            meta_dict['segment_end_indices'] = [matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']))]
     else:
         meta_dict['segment_start_indices'] = [meta_dict['cut_lead_ensembles']]
         meta_dict['segment_end_indices'] = [
-            len(fixed_leader['raw']['FixedLeader']) - meta_dict['cut_trail_ensembles']
+            matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']) - meta_dict['cut_trail_ensembles'])
         ]
-
-    # Begin writing processing history, which will be added as a global attribute to the output netCDF file
-    meta_dict['processing_history'] = "Metadata read in from CSV file."
 
     return meta_dict
 
@@ -802,7 +800,7 @@ def find_geographic_area_attr(lon: float, lat: float):
     return utils.find_geographic_area(polygons_dict, Point(lon, lat))
 
 
-def get_segment_start_end_idx_depth(
+def get_segment_start_end_idx_depth_DEPREC(
         segment_starts_ends, time_series_depth: np.ndarray,
         datetime_pd: np.ndarray, original_instr_depth: float
 ):
@@ -873,10 +871,25 @@ def get_segment_start_end_idx_depth(
     return segment_start_end_idx, segment_instrument_depths, ds_is_split
 
 
+def get_segment_instrument_depths(
+        start_indices, end_indices, time_series_depth: np.ndarray
+):
+    """
+    Compute instrument depth from the average time series depth PPSAADCP for each segment
+    """
+    instrument_depths = np.zeros(len(start_indices))
+    for i in range(len(start_indices)):
+        instrument_depths[i] = np.round(
+            np.nanmean(time_series_depth[start_indices[i]: end_indices[i]]),
+            1
+        )
+    return instrument_depths
+
+
 def make_dataset_from_subset(
         ds: xr.Dataset, start_idx: int, end_idx: int,
-        instrument_depth: float, ds_is_split: bool, new_filename: str,
-        recovery_lat_lon=None
+        instrument_depth: float, new_filename: str, num_segments: int,
+        time_of_strike: str, recovery_lat_lon=None
 ):
     """
     Create an xarray dataset to contain data from a single segment
@@ -949,9 +962,7 @@ def make_dataset_from_subset(
     )
 
     dsout.attrs['instrument_depth'] = instrument_depth
-    if ds_is_split:  # todo add time of each split to the processing history?
-        dsout.attrs['processing_history'] += ' The data were segmented by pressure ' \
-                                             'changes from a mooring strike.'
+
     # duration must be in decimal days format
     dsout.attrs['time_coverage_duration'] = float(
         dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
@@ -970,84 +981,87 @@ def make_dataset_from_subset(
         dsout.attrs['geospatial_lon_min'] = recovery_lat_lon[1]
         dsout.attrs['geospatial_lon_max'] = recovery_lat_lon[1]
 
+    # Update processing_history
+    dsout.attrs['processing_history'] += (f" Dataset split into {num_segments} segments due to a mooring "
+                                          f"strike(s) at {time_of_strike}.")
+
     return dsout
 
 
-def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts_ends: dict,
+def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_ends: list,
                          dest_dir: str, recovery_lat_lon=None, verbose=False):
     """
     Split dataset by pressure changes if the mooring was hit and displaced
     :param input_ds: input ADCP dataset
-    :param segment_starts_ends: format {start: end} dict
+    :param segment_starts: segment start indices; list of ints
+    :param segment_ends: segment end indices; list of ints
     :param recovery_lat_lon: tuple format (lat, lon) if not None
     :param dest_dir: destination directory for output files
     :param verbose: print out progress statements if True; default False
     """
+    segment_instr_depths = get_segment_instrument_depths(segment_starts, segment_ends,
+                                                         input_ds.PPSAADCP.data)
 
-    # Get the indices and segment instrument depths from the user-input values
-    segment_st_en_idx, segment_instr_depths, ds_is_split = get_segment_start_end_idx_depth(
-        segment_starts_ends, input_ds.PPSAADCP.data, input_ds.time.data, input_ds.instrument_depth
+    num_segments = len(segment_instr_depths)
+
+    # Join times of splits if there were more than one mooring strike
+    time_of_split = ' & '.join(
+        [utils.numpy_datetime_to_str_utc(t) for t in input_ds.time.data[segment_ends[:-1] + 1]]
     )
 
     # Initialize list to hold the file names of all netcdf files to be output
     netcdf_filenames = []
 
-    if not ds_is_split:
-        # Skip to exporting the data in netCDF format
-        # filename variable missing '.nc' suffix, so add this back in
-        netcdf_filenames.append(os.path.join(dest_dir, input_ds.filename.data + '.nc'))
-        input_ds.to_netcdf(netcdf_filenames[0], mode='w', format='NETCDF4')
-    else:
-        # Make a plot of pressure before splitting up the dataset
-        pw.plot_adcp_pressure(input_ds, dest_dir=dest_dir, is_pre_split=True)
+    # Make a plot of pressure before splitting up the dataset
+    if verbose:
+        print('Plotting pressure before splitting dataset...')
+    pw.plot_adcp_pressure(input_ds, dest_dir=dest_dir, is_pre_split=True)
 
-        # Iterate through all the segments and create a netCDF file from each
-        for st_idx, en_idx, i in zip(
-                segment_st_en_idx.keys(), segment_st_en_idx.values(),
-                range(len(segment_instr_depths))
-        ):
-            # Generate as many file names as there are segments of data
-            # only use the "date" part of the datetime and not the time portion
-            # format the depth to 4 string characters by adding zeros if necessary
+    # Iterate through all the segments and create a netCDF file from each
+    for st_idx, en_idx, i in zip(segment_starts, segment_ends, range(num_segments)):
+        # Generate as many file names as there are segments of data
+        # only use the "date" part of the datetime and not the time portion
+        # format the depth to 4 string characters by adding zeros if necessary
 
-            # Need to subtract 1 from en_idx because +1 is added in
-            # get_user_segment_start_end_idx_depth() for inclusive ranges
-            # but ranges are not called here
-            out_segment_name = '{}_{}_{}_{}m.adcp.L1.nc'.format(
-                input_ds.station.lower(),
-                utils.numpy_datetime_to_str_utc(input_ds.time.data[st_idx])[:10].replace('-', ''),
-                utils.numpy_datetime_to_str_utc(input_ds.time.data[en_idx - 1])[:10].replace('-', ''),
-                f'000{int(np.round(segment_instr_depths[i]))}'[-4:]
+        # Need to subtract 1 from en_idx because +1 is added in
+        # get_user_segment_start_end_idx_depth() for inclusive ranges
+        # but ranges are not called here
+        out_segment_name = '{}_{}_{}_{}m.adcp.L1.nc'.format(
+            input_ds.station.lower(),
+            utils.numpy_datetime_to_str_utc(input_ds.time.data[st_idx])[:10].replace('-', ''),
+            utils.numpy_datetime_to_str_utc(input_ds.time.data[en_idx])[:10].replace('-', ''),
+            f'000{int(np.round(segment_instr_depths[i]))}'[-4:]
+        )
+
+        # File name
+        absolute_segment_name = os.path.join(dest_dir, out_segment_name)
+
+        netcdf_filenames.append(absolute_segment_name)
+
+        # split the dataset by creating subsets from the original
+        # Only apply the recovery lat and lon to the last segment of data
+        if i < len(segment_instr_depths) - 1:
+            ds_segment = make_dataset_from_subset(
+                input_ds, st_idx, en_idx, segment_instr_depths[i],
+                out_segment_name, num_segments, time_of_strike=time_of_split
+            )
+        else:
+            # The last segment of data where i == len(segment_instr_depths) - 1
+            ds_segment = make_dataset_from_subset(
+                input_ds, st_idx, en_idx, segment_instr_depths[i],
+                out_segment_name, num_segments, time_of_strike=time_of_split,
+                recovery_lat_lon=recovery_lat_lon
             )
 
-            # File name
-            absolute_segment_name = os.path.join(dest_dir, out_segment_name)
+        if verbose:
+            print('New netCDF file:', out_segment_name)
 
-            netcdf_filenames.append(absolute_segment_name)
+        # Export the dataset object as a new netCDF file
+        ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
 
-            # split the dataset by creating subsets from the original
-            # Only apply the recovery lat and lon to the last segment of data
-            if i < len(segment_instr_depths) - 1:
-                ds_segment = make_dataset_from_subset(
-                    input_ds, st_idx, en_idx, segment_instr_depths[i],
-                    ds_is_split, out_segment_name
-                )
-            else:
-                # The last segment of data where i == len(segment_instr_depths) - 1
-                ds_segment = make_dataset_from_subset(
-                    input_ds, st_idx, en_idx, segment_instr_depths[i],
-                    ds_is_split, out_segment_name, recovery_lat_lon
-                )
+        ds_segment.close()
 
-            if verbose:
-                print('New netCDF file:', out_segment_name)
-
-            # Export the dataset object as a new netCDF file
-            ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
-
-            ds_segment.close()
-
-        return netcdf_filenames
+    return netcdf_filenames
 
 
 def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
@@ -1080,11 +1094,14 @@ def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
     if e2 != 0:
         meta_dict['processing_history'] += f' Trailing {e2} ensembles from after recovery discarded.'
 
+    # Update segment_start_indices and segment_end_indices in case of mooring strike to start from zero
+    meta_dict['segment_start_indices'] = [ind - e1 for ind in meta_dict['segment_start_indices']]
+    meta_dict['segment_end_indices'] = [ind - e1 for ind in meta_dict['segment_end_indices']]
+
     return var_dict
 
 
-def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_ends=None,
-                 recovery_lat_lon=None, verbose=False):
+def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     """About:
     Perform level 1 processing on a raw ADCP file and export it as a netCDF file
     :param in_file: full file name of raw ADCP file
@@ -1092,11 +1109,6 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
     :param dest_dir: string type; name of folder in which files will be output
     :param time_file: full file name of csv file containing user-generated time data;
                 required if inFile has garbled out-of-range time data
-    :param segment_starts_ends: if mooring was struck and displaced, segment starts and ends
-                in dict format like {start1:end1, start2:end2}. start and end can be
-                indices or time in string format "YYYYMMDD hh:mm:ss"
-    :param recovery_lat_lon: if mooring was struck and displaced, the latitude and longitude
-                recorded at the recovery time in tuple format (lat, lon)
     :param verbose: If True then print out progress statements
     """
 
@@ -1444,10 +1456,15 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
     # User inputs indices or datetimes
     # returns a dictionary of the start and end indices of format {start: end}
     # and a numpy array of depths with length equal to the dictionary
-    nc_names = split_ds_by_pressure(
-        input_ds=out, segment_starts_ends=segment_starts_ends,
-        recovery_lat_lon=recovery_lat_lon, dest_dir=dest_dir, verbose=verbose
-    )
+    if len(meta_dict['segment_start_indices']) > 1:
+        nc_names = split_ds_by_pressure(
+            input_ds=out, segment_starts=meta_dict['segment_start_indices'],
+            segment_ends=meta_dict['segment_end_indices'],
+            dest_dir=dest_dir, verbose=verbose
+        )
+    else:
+        nc_names = [os.path.join(dest_dir, out_name)]
+        out.to_netcdf(nc_names[0], mode='w', format='NETCDF4')
 
     out.close()
 
