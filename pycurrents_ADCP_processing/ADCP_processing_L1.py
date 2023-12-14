@@ -989,13 +989,14 @@ def make_dataset_from_subset(
 
 
 def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_ends: list,
-                         dest_dir: str, recovery_lat_lon=None, verbose=False):
+                         dest_dir: str, recovery_lat=None, recovery_lon=None, verbose=False):
     """
     Split dataset by pressure changes if the mooring was hit and displaced
     :param input_ds: input ADCP dataset
     :param segment_starts: segment start indices; list of ints
     :param segment_ends: segment end indices; list of ints
-    :param recovery_lat_lon: tuple format (lat, lon) if not None
+    :param recovery_lat: latitude recorded on recovery cruise; optional
+    :param recovery_lon: longitude recorded on recovery cruise; optional
     :param dest_dir: destination directory for output files
     :param verbose: print out progress statements if True; default False
     """
@@ -1050,7 +1051,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
             ds_segment = make_dataset_from_subset(
                 input_ds, st_idx, en_idx, segment_instr_depths[i],
                 out_segment_name, num_segments, time_of_strike=time_of_split,
-                recovery_lat_lon=recovery_lat_lon
+                recovery_lat_lon=(recovery_lat, recovery_lon)
             )
 
         if verbose:
@@ -1460,7 +1461,8 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
         nc_names = split_ds_by_pressure(
             input_ds=out, segment_starts=meta_dict['segment_start_indices'],
             segment_ends=meta_dict['segment_end_indices'],
-            dest_dir=dest_dir, verbose=verbose
+            dest_dir=dest_dir, recovery_lat=meta_dict['recovery_lat'],
+            recovery_lon=meta_dict['recovery_lon'], verbose=verbose
         )
     else:
         nc_names = [os.path.join(dest_dir, out_name)]
