@@ -889,7 +889,7 @@ def get_segment_instrument_depths(
 def make_dataset_from_subset(
         ds: xr.Dataset, start_idx: int, end_idx: int,
         instrument_depth: float, new_filename: str, num_segments: int,
-        time_of_strike: str, recovery_lat_lon=None
+        time_of_strike: str, recovery_lat=pd.NA, recovery_lon=pd.NA
 ):
     """
     Create an xarray dataset to contain data from a single segment
@@ -899,10 +899,10 @@ def make_dataset_from_subset(
     for key in ds.data_vars.keys():
         if key == 'filename':
             var_dict[key] = ([], new_filename)
-        elif key == 'latitude' and recovery_lat_lon is not None:
-            var_dict[key] = ([], recovery_lat_lon[0])
-        elif key == 'longitude' and recovery_lat_lon is not None:
-            var_dict[key] = ([], recovery_lat_lon[1])
+        elif key == 'latitude' and recovery_lat != pd.NA:
+            var_dict[key] = ([], recovery_lat)
+        elif key == 'longitude' and recovery_lon != pd.NA:
+            var_dict[key] = ([], recovery_lon[1])
         elif 'time' in ds[key].coords:
             if 'distance' in ds[key].coords:
                 var_dict[key] = (['distance', 'time'],
@@ -989,7 +989,7 @@ def make_dataset_from_subset(
 
 
 def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_ends: list,
-                         dest_dir: str, recovery_lat=None, recovery_lon=None, verbose=False):
+                         dest_dir: str, recovery_lat=pd.NA, recovery_lon=pd.NA, verbose=False):
     """
     Split dataset by pressure changes if the mooring was hit and displaced
     :param input_ds: input ADCP dataset
@@ -1051,7 +1051,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
             ds_segment = make_dataset_from_subset(
                 input_ds, st_idx, en_idx, segment_instr_depths[i],
                 out_segment_name, num_segments, time_of_strike=time_of_split,
-                recovery_lat_lon=(recovery_lat, recovery_lon)
+                recovery_lat=recovery_lat, recovery_lon=recovery_lon
             )
 
         if verbose:
