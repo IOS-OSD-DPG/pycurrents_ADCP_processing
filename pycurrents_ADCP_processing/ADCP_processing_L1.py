@@ -1317,13 +1317,16 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, segment_starts_en
     # Calculate height of sea surface
     if meta_dict['orientation'] == 'up':
         var_dict['DISTTRAN'] = np.round(sensor_dep - var_dict['distance'], decimals=2)
+        history = ' DISTTRAN calculated as sensor depth minus distance for upward-facing ADCPs.'
     else:
         var_dict['DISTTRAN'] = np.round(sensor_dep + var_dict['distance'], decimals=2)
+        history = ' DISTTRAN calculated as sensor depth plus distance for downward-facing ADCPs.'
 
     # Round sensor_dep
     sensor_dep = np.round(sensor_dep, decimals=2)
 
     meta_dict['processing_history'] += f" Sensor depth set to the mean of trimmed depth values: {sensor_dep} m."
+    meta_dict['processing_history'] += history
 
     if verbose:
         print('Finished QCing data; making netCDF object next')
