@@ -975,11 +975,12 @@ def make_dataset_from_subset(
     dsout.attrs['date_modified'] = datetime.datetime.now(datetime.timezone.utc).strftime(
         '%Y-%m-%d %H:%M:%S UTC'
     )
-    if recovery_lat_lon is not None:
-        dsout.attrs['geospatial_lat_min'] = recovery_lat_lon[0]
-        dsout.attrs['geospatial_lat_max'] = recovery_lat_lon[0]
-        dsout.attrs['geospatial_lon_min'] = recovery_lat_lon[1]
-        dsout.attrs['geospatial_lon_max'] = recovery_lat_lon[1]
+    if recovery_lat != pd.NA:
+        dsout.attrs['geospatial_lat_min'] = recovery_lat
+        dsout.attrs['geospatial_lat_max'] = recovery_lat
+    if recovery_lon != pd.NA:
+        dsout.attrs['geospatial_lon_min'] = recovery_lon
+        dsout.attrs['geospatial_lon_max'] = recovery_lon
 
     # Update processing_history
     dsout.attrs['processing_history'] += (f" Dataset split into {num_segments} segments due to a mooring "
