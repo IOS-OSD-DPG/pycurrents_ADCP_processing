@@ -1076,7 +1076,9 @@ def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
     if 'segment_start_indices' in meta_dict.keys():
         # Take the first start index and the last end index of these list-type values
         e1 = meta_dict['segment_start_indices'][0]
-        e2 = len(var_dict['time']) - meta_dict['segment_end_indices'][-1]
+        # Need to subtract 1 since len(var_dict['time']) >= last index of var_dict['time'] + 1
+        # otherwise e2 can never be == 0
+        e2 = len(var_dict['time']) - meta_dict['segment_end_indices'][-1] - 1
     else:
         e1 = int(meta_dict['cut_lead_ensembles'])  # "ensemble 1"
         e2 = int(meta_dict['cut_trail_ensembles'])  # "ensemble 2"
@@ -1093,7 +1095,6 @@ def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
             elif len(var_dict[key]) == old_time_series_len:
                 var_dict[key] = trunc_func_1d(var_dict[key])
 
-    # todo change {e1} to equivalent of ({} UTC).format(DTUT8601[e1])?
     # some data after deployment and before recovery are also sometimes cut - statements not accurate
     # If these are changed, update utils.parse_processing_history() !!!!
     if e1 != 0:
