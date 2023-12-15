@@ -1060,6 +1060,9 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
         if verbose:
             print('New netCDF file:', out_segment_name)
 
+        print(ds_segment.attrs)
+        print(ds_segment)
+
         # Export the dataset object as a new netCDF file
         ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
 
