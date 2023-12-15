@@ -1060,8 +1060,8 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
         if verbose:
             print('New netCDF file:', out_segment_name)
 
-        print(ds_segment.attrs)
-        print(ds_segment)
+        # print(ds_segment.attrs)
+        # print(ds_segment)
 
         # Export the dataset object as a new netCDF file
         ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
@@ -1392,7 +1392,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
 
     # Add select meta_dict items as global attributes
     pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model',
-                      'segment_start_indices', 'segment_end_indices']
+                      'segment_start_indices', 'segment_end_indices', 'recovery_lat', 'recovery_lon']
     for key, value in meta_dict.items():
         if key not in pass_dict_keys:  # Exclude certain items in the dictionary
             out.attrs[key] = value
