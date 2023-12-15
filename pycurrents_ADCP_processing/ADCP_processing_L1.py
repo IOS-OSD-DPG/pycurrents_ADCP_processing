@@ -899,17 +899,15 @@ def make_dataset_from_subset(
     for key in ds.data_vars.keys():
         if key == 'filename':
             var_dict[key] = ([], new_filename)
-        elif key == 'latitude' and recovery_lat != pd.NA:
+        elif key == 'latitude' and ~pd.isna(recovery_lat):
             var_dict[key] = ([], recovery_lat)
-        elif key == 'longitude' and recovery_lon != pd.NA:
+        elif key == 'longitude' and ~pd.isna(recovery_lon):
             var_dict[key] = ([], recovery_lon[1])
         elif 'time' in ds[key].coords:
             if 'distance' in ds[key].coords:
-                var_dict[key] = (['distance', 'time'],
-                                 ds[key].data[:, start_idx:end_idx])
+                var_dict[key] = (['distance', 'time'], ds[key].data[:, start_idx:end_idx])
             else:
-                var_dict[key] = (['time'],
-                                 ds[key].data[start_idx:end_idx])
+                var_dict[key] = (['time'], ds[key].data[start_idx:end_idx])
         elif 'distance' in ds[key].coords:
             var_dict[key] = (['distance'], ds[key].data)
         else:
@@ -975,16 +973,19 @@ def make_dataset_from_subset(
     dsout.attrs['date_modified'] = datetime.datetime.now(datetime.timezone.utc).strftime(
         '%Y-%m-%d %H:%M:%S UTC'
     )
-    if recovery_lat != pd.NA:
-        dsout.attrs['geospatial_lat_min'] = recovery_lat
-        dsout.attrs['geospatial_lat_max'] = recovery_lat
-    if recovery_lon != pd.NA:
-        dsout.attrs['geospatial_lon_min'] = recovery_lon
-        dsout.attrs['geospatial_lon_max'] = recovery_lon
 
     # Update processing_history
     dsout.attrs['processing_history'] += (f" Dataset split into {num_segments} segments due to a mooring "
                                           f"strike(s) at {time_of_strike}.")
+
+    if ~pd.isna(recovery_lat):
+        dsout.attrs['geospatial_lat_min'] = recovery_lat
+        dsout.attrs['geospatial_lat_max'] = recovery_lat
+        dsout.attrs['processing_history'] += ' Latitude updated with coordinates from recovery cruise.'
+    if ~pd.isna(recovery_lon):
+        dsout.attrs['geospatial_lon_min'] = recovery_lon
+        dsout.attrs['geospatial_lon_max'] = recovery_lon
+        dsout.attrs['processing_history'] += ' Longitude updated with coordinates from recovery cruise.'
 
     return dsout
 
