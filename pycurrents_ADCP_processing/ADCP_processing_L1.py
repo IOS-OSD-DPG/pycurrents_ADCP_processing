@@ -900,9 +900,10 @@ def make_dataset_from_subset(
         if key == 'filename':
             var_dict[key] = ([], new_filename)
         elif key == 'latitude' and ~pd.isna(recovery_lat):
+            print(recovery_lat, recovery_lon)
             var_dict[key] = ([], recovery_lat)
         elif key == 'longitude' and ~pd.isna(recovery_lon):
-            var_dict[key] = ([], recovery_lon[1])
+            var_dict[key] = ([], recovery_lon)
         elif 'time' in ds[key].coords:
             if 'distance' in ds[key].coords:
                 var_dict[key] = (['distance', 'time'], ds[key].data[:, start_idx:end_idx])
