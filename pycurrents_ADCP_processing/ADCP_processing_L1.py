@@ -1006,8 +1006,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
 
     num_segments = len(segment_instr_depths)
 
-    # Join times of splits if there were more than one mooring strike todo
-    print(input_ds.time.data[segment_ends[:-1] + 1], input_ds.time.data[segment_ends[0] + 2])
+    # Join times of splits if there were more than one mooring strike
     time_of_split = ' & '.join(
         [utils.numpy_datetime_to_str_utc(t) for t in input_ds.time.data[segment_ends[:-1] + 1]]
     )

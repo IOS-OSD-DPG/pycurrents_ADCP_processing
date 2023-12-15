@@ -95,8 +95,7 @@ def parse_processing_history(processing_history: str):
 
 
 def numpy_datetime_to_str_utc(t: np.datetime64):
-    # In case there are decimal seconds in the time
-    return t.astype(str).replace('T', ' ').split('.')[0] + ' UTC'
+    return t.astype(str).replace('T', ' ') + ' UTC'
 
 
 def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance: np.ndarray):
