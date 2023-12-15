@@ -979,11 +979,11 @@ def make_dataset_from_subset(
     dsout.attrs['processing_history'] += (f" Dataset split into {num_segments} segments due to a mooring "
                                           f"strike(s) at {time_of_strike}.")
 
-    if ~pd.isna(recovery_lat):
+    if type(recovery_lat) == float:
         dsout.attrs['geospatial_lat_min'] = recovery_lat
         dsout.attrs['geospatial_lat_max'] = recovery_lat
         dsout.attrs['processing_history'] += ' Latitude updated with coordinates from recovery cruise.'
-    if ~pd.isna(recovery_lon):
+    if type(recovery_lon) == float:
         dsout.attrs['geospatial_lon_min'] = recovery_lon
         dsout.attrs['geospatial_lon_max'] = recovery_lon
         dsout.attrs['processing_history'] += ' Longitude updated with coordinates from recovery cruise.'
