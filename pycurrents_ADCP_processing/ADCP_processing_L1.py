@@ -1008,7 +1008,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
 
     # Join times of splits if there were more than one mooring strike
     time_of_split = ' & '.join(
-        [utils.numpy_datetime_to_str_utc(t) for t in input_ds.time.data[segment_ends[:-1] + 1]]
+        [utils.numpy_datetime_to_str_utc(t) for t in input_ds.time.data[np.array(segment_ends[:-1]) + 1]]
     )
 
     # Initialize list to hold the file names of all netcdf files to be output
