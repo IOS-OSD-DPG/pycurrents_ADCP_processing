@@ -689,6 +689,13 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
         # Limit especially the lon and lat to 5 decimal places
         meta_dict[key] = np.round(float(meta_dict[key]), 5)
 
+    for key in ['recovery_lat', 'recovery_lon']:
+        if key in meta_dict:
+            if ~pd.isna(meta_dict[key]):
+                meta_dict[key] = np.round(float(meta_dict[key]), 5)
+        else:
+            meta_dict[key] = pd.NA
+
     # Use Geojson definitions for IOS
     meta_dict['geographic_area'] = find_geographic_area_attr(
         lon=meta_dict['longitude'], lat=meta_dict['latitude']
