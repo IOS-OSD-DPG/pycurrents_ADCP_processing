@@ -676,7 +676,7 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
                 warnings.warn('Metadata file contains a blank row; skipping this row !', UserWarning)
             elif row[0] != '' and row[1] == '':
                 warnings.warn(f'Metadata item {row[0]} in csv file has blank value', UserWarning)
-                meta_dict[row[0]] = pd.NA
+                meta_dict[row[0]] = None
             else:
                 meta_dict[row[0]] = row[1]
 
@@ -685,16 +685,12 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
     meta_dict['country_institute_code'] = int(meta_dict['country_institute_code'])
 
     for key in ['instrument_depth', 'latitude', 'longitude', 'water_depth',
-                'magnetic_variation']:
-        # Limit especially the lon and lat to 5 decimal places
-        meta_dict[key] = np.round(float(meta_dict[key]), 5)
-
-    for key in ['recovery_lat', 'recovery_lon']:
+                'magnetic_variation', 'recovery_lat', 'recovery_lon']:
         if key in meta_dict:
-            if ~pd.isna(meta_dict[key]):
+            if meta_dict[key] is not None:
                 meta_dict[key] = np.round(float(meta_dict[key]), 5)
         else:
-            meta_dict[key] = pd.NA
+            meta_dict[key] = None
 
     # Use Geojson definitions for IOS
     meta_dict['geographic_area'] = find_geographic_area_attr(
@@ -785,7 +781,7 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
             # Replaces numbers of ensembles to cut
             meta_dict['segment_start_indices'] = [matlab_index_to_python(meta_dict['segment_start_indices'])]
             meta_dict['segment_end_indices'] = [matlab_index_to_python(meta_dict['segment_end_indices'])]
-        elif meta_dict['segment_start_indices'] == pd.NA:
+        elif meta_dict['segment_start_indices'] is None:
             # No ensembles to cut
             meta_dict['segment_start_indices'] = [0]
             meta_dict['segment_end_indices'] = [matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']))]
@@ -896,7 +892,7 @@ def get_segment_instrument_depths(
 def make_dataset_from_subset(
         ds: xr.Dataset, start_idx: int, end_idx: int,
         instrument_depth: float, new_filename: str, num_segments: int,
-        time_of_strike: str, recovery_lat=pd.NA, recovery_lon=pd.NA
+        time_of_strike: str, recovery_lat=None, recovery_lon=None
 ):
     """
     Create an xarray dataset to contain data from a single segment
@@ -1006,7 +1002,7 @@ def make_dataset_from_subset(
 
 
 def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_ends: list,
-                         dest_dir: str, recovery_lat=pd.NA, recovery_lon=pd.NA, verbose=False):
+                         dest_dir: str, recovery_lat=None, recovery_lon=None, verbose=False):
     """
     Split dataset by pressure changes if the mooring was hit and displaced
     :param input_ds: input ADCP dataset
