@@ -913,7 +913,7 @@ def make_dataset_from_subset(
             else:
                 var_dict[key] = (['time'], ds[key].data[start_idx:end_idx])
         elif key == 'DISTTRAN':
-            sensor_depth = np.nanmean(var_dict['PPSAADCP'])
+            sensor_depth = np.nanmean(ds['PPSAADCP'].data[start_idx:end_idx])
             DISTTRAN = compute_sea_surface_height(
                 orientation=ds.attrs['orientation'],
                 sensor_depth=sensor_depth,
