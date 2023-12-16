@@ -916,8 +916,15 @@ def make_dataset_from_subset(
                 var_dict[key] = (['distance', 'time'], ds[key].data[:, start_idx:end_idx])
             else:
                 var_dict[key] = (['time'], ds[key].data[start_idx:end_idx])
-        elif 'distance' in ds[key].coords:
-            var_dict[key] = (['distance'], ds[key].data)
+        elif key == 'DISTTRAN':
+            sensor_depth = np.nanmean(var_dict['PPSAADCP'])
+            DISTTRAN = compute_sea_surface_height(
+                orientation=ds.attrs['orientation'],
+                sensor_depth=sensor_depth,
+                distance=ds.distance.data,
+                meta_dict=None
+            )
+            var_dict[key] = (['distance'], DISTTRAN)
         else:
             var_dict[key] = ([], ds[key].data)
 
@@ -1076,6 +1083,21 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
         ds_segment.close()
 
     return netcdf_filenames
+
+
+def compute_sea_surface_height(orientation: 'str', sensor_depth: float, distance: np.ndarray,
+                               meta_dict=None):
+    if orientation == 'up':
+        DISTTRAN = np.round(sensor_depth - distance, decimals=2)
+        history = ' DISTTRAN calculated as sensor depth minus distance for upward-facing ADCPs.'
+    else:
+        DISTTRAN = np.round(sensor_depth + distance, decimals=2)
+        history = ' DISTTRAN calculated as sensor depth plus distance for downward-facing ADCPs.'
+
+    if meta_dict is not None:
+        meta_dict['processing_history'] += f" Sensor depth set to the mean of trimmed depth values."
+        meta_dict['processing_history'] += history
+    return DISTTRAN
 
 
 def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
@@ -1339,21 +1361,12 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
                  instr_depth=meta_dict['instrument_depth'], water_depth=meta_dict['water_depth'])
 
     # Calculate sensor depth of instrument based off mean instrument depth
-    sensor_dep = np.nanmean(var_dict['PPSAADCP'])
+    sensor_dep = np.round(np.nanmean(var_dict['PPSAADCP']), decimals=2)
 
     # Calculate height of sea surface
-    if meta_dict['orientation'] == 'up':
-        var_dict['DISTTRAN'] = np.round(sensor_dep - var_dict['distance'], decimals=2)
-        history = ' DISTTRAN calculated as sensor depth minus distance for upward-facing ADCPs.'
-    else:
-        var_dict['DISTTRAN'] = np.round(sensor_dep + var_dict['distance'], decimals=2)
-        history = ' DISTTRAN calculated as sensor depth plus distance for downward-facing ADCPs.'
-
-    # Round sensor_dep
-    sensor_dep = np.round(sensor_dep, decimals=2)
-
-    meta_dict['processing_history'] += f" Sensor depth set to the mean of trimmed depth values: {sensor_dep} m."
-    meta_dict['processing_history'] += history
+    var_dict['DISTTRAN'] = compute_sea_surface_height(
+        meta_dict['orientation'], sensor_dep, var_dict['distance'], meta_dict
+    )
 
     if verbose:
         print('Finished QCing data; making netCDF object next')
