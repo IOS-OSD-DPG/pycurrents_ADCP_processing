@@ -1128,7 +1128,8 @@ def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
         meta_dict['processing_history'] += f' Trailing {e2} ensembles from after recovery discarded.'
 
     # Update segment_start_indices and segment_end_indices in case of mooring strike to start from zero
-    meta_dict['segment_start_indices'] = [ind - e1 for ind in meta_dict['segment_start_indices']]
+    # Take max of start ind with zero in case ind < e1
+    meta_dict['segment_start_indices'] = [np.max([ind - e1, 0]) for ind in meta_dict['segment_start_indices']]
     meta_dict['segment_end_indices'] = [ind - e1 for ind in meta_dict['segment_end_indices']]
 
     return var_dict
