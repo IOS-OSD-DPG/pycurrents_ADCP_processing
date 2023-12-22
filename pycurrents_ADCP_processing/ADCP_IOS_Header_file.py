@@ -476,11 +476,22 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     Recs_out_2 = Recs_out_1
 
     # Add note about L2 processing steps if applicable todo make sure line length not exceeded
+    flag = 0
+    if not hasattr(nc, 'history'):
+        nc.attrs['history'] = ''
+        flag += 1
+
     if ds_is_segment:
-        nc.attrs['history'] += ' The dataset was split into segments where water depth changed from mooring strike(s).'
+        if flag == 0:
+            nc.attrs['history'] += ' '
+        else:
+            flag = 0
+        nc.attrs['history'] += 'The dataset was split into segments where water depth changed from mooring strike(s).'
 
     if ctd_pressure_file is not None:
-        nc.attrs['history'] += f' The ADCP dataset was missing (good quality) pressure sensor data,' \
+        if flag == 0:
+            nc.attrs['history'] += ' '
+        nc.attrs['history'] += f'The ADCP dataset was missing (good quality) pressure sensor data,' \
                                f' so pressure sensor data from {ctd_pressure_file} was merged with the ADCP dataset.'
 
     n = len(nc.history.split(". "))  # n = len(nc.processing_history.split(". "))
