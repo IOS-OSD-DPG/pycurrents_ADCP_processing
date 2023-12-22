@@ -351,7 +351,7 @@ def flag_below_seafloor(d):
     instrument_depth_2d = np.zeros((len(d.distance.data), len(d.time.data)), 'float32')
     instrument_depth_2d[:, :] = d.instrument_depth
     distance_2d = np.vstack((d.distance.data,) * len(d.time.data)).transpose()
-    bin_depths = instrument_depth_2d - distance_2d
+    bin_depths = instrument_depth_2d + distance_2d  # bin depth > instrument depth
 
     # Flag velocity data
     flag_vb = pwl.vb_flag(d)
