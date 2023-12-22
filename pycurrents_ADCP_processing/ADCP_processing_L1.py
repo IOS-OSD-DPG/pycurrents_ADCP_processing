@@ -33,6 +33,7 @@ from ruamel.yaml import YAML
 from pycurrents_ADCP_processing import utils
 from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pw
 from shapely.geometry import Point
+
 # from datetime import datetime, timezone
 
 _FillValue = np.nan
@@ -964,7 +965,7 @@ def make_dataset_from_subset(
         'geospatial_lon_min', 'geospatial_lon_max'
     ]
 
-    ns_to_days = 1./(60 * 60 * 24 * 1e9)  # nanoseconds to days
+    ns_to_days = 1. / (60 * 60 * 24 * 1e9)  # nanoseconds to days
 
     geospatial_vertical_min, geospatial_vertical_max = utils.geospatial_vertical_extrema(
         dsout.orientation, dsout.instrument_depth, dsout.distance.data
@@ -1412,13 +1413,13 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model',
                       'segment_start_indices', 'segment_end_indices', 'recovery_lat', 'recovery_lon']
 
-    accepted_netcdf_dtypes = [str, float, list, tuple, np.ndarray]
+    # accepted_netcdf_dtypes = [str, int, float, list, tuple, np.ndarray]
 
     for key, value in meta_dict.items():
         # Exclude certain items in the dictionary
-        if key not in pass_dict_keys and type(meta_dict[key]) in accepted_netcdf_dtypes:
+        if key not in pass_dict_keys and meta_dict[key] is not None:
             out.attrs[key] = value
-        elif type(meta_dict[key]) not in accepted_netcdf_dtypes:
+        elif meta_dict[key] is None:
             # Do not write to netcdf file
             warnings.warn(f'Metadata item {key} with value {meta_dict[key]} not supported by netCDF')
 
