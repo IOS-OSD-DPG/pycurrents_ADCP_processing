@@ -2221,36 +2221,66 @@ def default_single_bins(ncdata: xr.Dataset, time_range_idx: tuple, bin_range_idx
     Use percent good data or beam averaged backscatter data to find an uncontaminated shallow bin
     """
 
-    goodness_thresh = 75  # Percentage
+    if hasattr(ncdata, 'PCGDAP00'):
+        goodness_thresh = 75  # Percentage
 
-    # Take average over time
-    if hasattr(ncdata, 'PCGDAP05'):  # Sentinel V fifth beam
-        dim1 = 5
-    else:
-        dim1 = 4
-    # Apply prior bin and time limiting
-    time_avg_pg = np.zeros(shape=(dim1, bin_range_idx[1] - bin_range_idx[0]))
-    time_avg_pg[0, :] = np.nanmean(ncdata.PCGDAP00.data[bin_range_idx[0]:bin_range_idx[1],
-                                   time_range_idx[0]:time_range_idx[1]], axis=1)
-    time_avg_pg[1, :] = np.nanmean(ncdata.PCGDAP02.data[bin_range_idx[0]:bin_range_idx[1],
-                                   time_range_idx[0]:time_range_idx[1]], axis=1)
-    time_avg_pg[2, :] = np.nanmean(ncdata.PCGDAP03.data[bin_range_idx[0]:bin_range_idx[1],
-                                   time_range_idx[0]:time_range_idx[1]], axis=1)
-    time_avg_pg[3, :] = np.nanmean(ncdata.PCGDAP04.data[bin_range_idx[0]:bin_range_idx[1],
-                                   time_range_idx[0]:time_range_idx[1]], axis=1)
-    if hasattr(ncdata, 'PCGDAP05'):
-        time_avg_pg[4, :] = np.nanmean(ncdata.PCGDAP05.data[bin_range_idx[0]:bin_range_idx[1],
+        # Take average over time
+        if hasattr(ncdata, 'PCGDAP05'):  # Sentinel V fifth beam
+            dim1 = 5
+        else:
+            dim1 = 4
+        # Apply prior bin and time limiting
+        time_avg_pg = np.zeros(shape=(dim1, bin_range_idx[1] - bin_range_idx[0]))
+        time_avg_pg[0, :] = np.nanmean(ncdata.PCGDAP00.data[bin_range_idx[0]:bin_range_idx[1],
                                        time_range_idx[0]:time_range_idx[1]], axis=1)
+        time_avg_pg[1, :] = np.nanmean(ncdata.PCGDAP02.data[bin_range_idx[0]:bin_range_idx[1],
+                                       time_range_idx[0]:time_range_idx[1]], axis=1)
+        time_avg_pg[2, :] = np.nanmean(ncdata.PCGDAP03.data[bin_range_idx[0]:bin_range_idx[1],
+                                       time_range_idx[0]:time_range_idx[1]], axis=1)
+        time_avg_pg[3, :] = np.nanmean(ncdata.PCGDAP04.data[bin_range_idx[0]:bin_range_idx[1],
+                                       time_range_idx[0]:time_range_idx[1]], axis=1)
+        if hasattr(ncdata, 'PCGDAP05'):
+            time_avg_pg[4, :] = np.nanmean(ncdata.PCGDAP05.data[bin_range_idx[0]:bin_range_idx[1],
+                                           time_range_idx[0]:time_range_idx[1]], axis=1)
 
-    # Avg over all 4 or 5 beams to get a single number for each bin
-    max_time_avg_pg = np.nanmax(time_avg_pg, axis=0)
+        # Avg over all 4 or 5 beams to get a single number for each bin
+        max_time_avg_pg = np.nanmax(time_avg_pg, axis=0)
 
-    if ncdata.orientation == 'up':
-        shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # size of number of bins
+        if ncdata.orientation == 'up':
+            shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # size of number of bins
+            deep = 0
+        else:
+            shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][0]  # First good bin
+            deep = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # Last good bin
+
+    elif ncdata.orientation == 'up':
+        # Use beam- and time-averaged backscatter if percent good data are not available
+        if hasattr(ncdata, 'TNIHCE05'):
+            amp_beam_avg = np.nanmean([ncdata.TNIHCE01.data[:, :],
+                                       ncdata.TNIHCE02.data[:, :],
+                                       ncdata.TNIHCE03.data[:, :],
+                                       ncdata.TNIHCE04.data[:, :],
+                                       ncdata.TNIHCE05.data[:, :]], axis=(0, 2))
+        else:
+            amp_beam_avg = np.nanmean([ncdata.TNIHCE01.data[:, :],
+                                       ncdata.TNIHCE02.data[:, :],
+                                       ncdata.TNIHCE03.data[:, :],
+                                       ncdata.TNIHCE04.data[:, :]], axis=(0, 2))
+
+        # Take 1st order differences; do not prepend so that we don't index bad data
+        diffs = np.diff(amp_beam_avg)  # , prepend=amp_beam_avg[0]
+        # Locate where largest negative differences take place
+        # backscatter decreases from bottom to surface, then increases rapidly towards surface
         deep = 0
+        diff_increase_threshold = 10
+        shallow = np.where(diffs > diff_increase_threshold)[0][0]
+
     else:
-        shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][0]  # First good bin
-        deep = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # Last good bin
+        # Orientation == 'down'
+        bin_depths = ncdata.instrument_depth + ncdata.distance.data
+        # Find deepest bin above the sea floor
+        deep = np.where(bin_depths < ncdata.water_depth)[0][-1]
+        shallow = 0
 
     middle = int(abs(deep - shallow) / 2)  # Midpoint between shallow and deep bins
 
