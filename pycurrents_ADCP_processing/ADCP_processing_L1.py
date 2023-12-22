@@ -1411,9 +1411,16 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     # Add select meta_dict items as global attributes
     pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model',
                       'segment_start_indices', 'segment_end_indices', 'recovery_lat', 'recovery_lon']
+
+    accepted_netcdf_dtypes = [str, float, list, tuple, np.ndarray]
+
     for key, value in meta_dict.items():
-        if key not in pass_dict_keys:  # Exclude certain items in the dictionary
+        # Exclude certain items in the dictionary
+        if key not in pass_dict_keys and type(meta_dict[key]) in accepted_netcdf_dtypes:
             out.attrs[key] = value
+        elif type(meta_dict[key]) not in accepted_netcdf_dtypes:
+            # Do not write to netcdf file
+            warnings.warn(f'Metadata item {key} with value {meta_dict[key]} not supported by netCDF')
 
     # Rest of attributes not from metadata file:
 
