@@ -49,6 +49,7 @@ from scipy.interpolate import interp1d
 from matplotlib.colors import LogNorm
 import matplotlib
 from pycurrents_ADCP_processing.utils import parse_processing_history
+import warnings
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -2439,10 +2440,13 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                   f'length {len(bin_depths_lim)}')
 
     # Profile plots of tidal ellipses
-    fname_tidal_ellipse = make_plot_tidal_ellipses(
-        dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number, ncdata.latitude.data,
-        time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
-    )
+    try:
+        fname_tidal_ellipse = make_plot_tidal_ellipses(
+            dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number, ncdata.latitude.data,
+            time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
+        )
+    except ValueError as e:
+        warnings.warn(f'Tidal analysis failed: {e}')
 
     # pcolor (pseudocolour) depth profile plot of rotary spectra
     fnames_depth_prof = make_depth_prof_rot_spec(
@@ -2484,7 +2488,10 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
                        fname_ac_filt]
     fout_name_list += fnames_quiver
     fout_name_list += fnames_rot_spec
-    fout_name_list.append(fname_tidal_ellipse)
+    try:
+        fout_name_list.append(fname_tidal_ellipse)
+    except NameError:
+        pass
     fout_name_list += fnames_depth_prof
 
     return fout_name_list
