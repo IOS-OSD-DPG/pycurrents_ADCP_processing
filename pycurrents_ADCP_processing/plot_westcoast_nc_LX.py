@@ -1812,6 +1812,11 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
     cmin = np.min([np.min(cneg), np.min(cpos)])
     cmax = np.max([np.max(cneg), np.max(cpos)])
 
+    if cmin >= cmax:
+        clim = None
+    else:
+        clim = (cmin, cmax)
+
     # pcolor plot, skipping the 0 frequency
     pneg_plot_name = pcolor_rot_component(
         dest_dir,
@@ -1821,7 +1826,7 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
         x=ftarget,
         y=rot_dict.keys(),
         c=cneg,
-        clim=(cmin, cmax),
+        clim=clim,
         neg_or_pos='neg',
         resampled=resampled
     )
@@ -1834,7 +1839,7 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
         x=ftarget,
         y=rot_dict.keys(),
         c=cpos,
-        clim=(cmin, cmax),
+        clim=clim,
         neg_or_pos='pos',
         resampled=resampled
     )
