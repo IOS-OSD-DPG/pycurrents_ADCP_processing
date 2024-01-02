@@ -324,16 +324,6 @@ def write_instrument(nc):
     print()
 
 
-def convert_timedelta(duration):
-    # define function to find out time increment
-    days, seconds = duration.days, duration.seconds
-    hours = days * 24 + seconds // 3600
-    minutes = (seconds % 3600) // 60
-    seconds = (seconds % 60)
-    m_seconds = int(seconds * 0.001)
-    return str(days) + " " + str(hours) + " " + str(minutes) + " " + str(seconds) + " " + str(m_seconds)
-
-
 def write_raw(nc):
     # define function to write raw info
     time_start = str(nc.coords["time"].values[0].astype('M8[s]')).replace("T", " ")
