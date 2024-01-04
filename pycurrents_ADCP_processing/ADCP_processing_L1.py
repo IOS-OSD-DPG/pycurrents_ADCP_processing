@@ -1401,7 +1401,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
                       'latitude', 'longitude',
                       'PTCHGP01', 'HEADCM01', 'ROLLGP01', 'TEMPPR01', 'SVELCV01',
                       'filename', 'instrument_serial_number', 'instrument_model',
-                      'geographic_area']
+                      'instrument_depth', 'water_depth', 'geographic_area']
 
     for key in variable_order:
         if key in var_dict.keys():
