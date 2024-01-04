@@ -1157,7 +1157,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
         os.makedirs(dest_dir)
 
     # Splice file name to get output netCDF file name
-    out_name = os.path.basename(in_file)[:-4] + '.adcp.L1.nc'
+    out_name = os.path.basename(in_file)[:-4] + '_L1.adcp.nc'
 
     if verbose:
         print(out_name)
