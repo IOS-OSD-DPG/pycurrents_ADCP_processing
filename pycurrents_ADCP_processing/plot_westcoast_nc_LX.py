@@ -146,9 +146,9 @@ def calculate_depths(dataset: xr.Dataset):
     """
     # depths = np.mean(ncdata.PRESPR01[0,:]) - ncdata.distance  #What Di used
     if dataset.orientation == 'up':
-        return float(dataset.instrument_depth) - dataset.distance.data
+        return dataset.instrument_depth.data - dataset.distance.data
     else:
-        return float(dataset.instrument_depth) + dataset.distance.data
+        return dataset.instrument_depth.data + dataset.distance.data
 
 
 def vb_flag(dataset: xr.Dataset):
@@ -221,7 +221,7 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_spl
 
     png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
         nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-        int(np.round(nc.instrument_depth)))
+        int(np.round(nc.instrument_depth.data)))
 
     if is_pre_split:
         png_name.replace('.png', '_pre-split.png')
@@ -405,19 +405,19 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
 
     # Create centred figure title
     if resampled is None:
-        fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.serial_number,
-                                                     np.round(nc.instrument_depth, 1)), fontweight='semibold')
+        fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.instrument_serial_number.data,
+                                                     np.round(nc.instrument_depth.data, 1)), fontweight='semibold')
         fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic.png'.format(
-            nc.station, str(nc.deployment_number), nc.serial_number,
-            int(np.round(nc.instrument_depth, 0)))
+            nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
+            int(np.round(nc.instrument_depth.data, 0)))
     else:
         fig.suptitle('{}-{} {} at {} m depth, {} subsampled'.format(
-            nc.station, nc.deployment_number, nc.serial_number,
-            np.round(nc.instrument_depth, 1), resampled),
+            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
+            np.round(nc.instrument_depth.data, 1), resampled),
             fontweight='semibold')
         fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic_{}_subsamp.png'.format(
-            nc.station, str(nc.deployment_number), nc.serial_number,
-            int(np.round(nc.instrument_depth, 0)), resampled)
+            nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
+            int(np.round(nc.instrument_depth.data, 0)), resampled)
 
     fig.savefig(fig_name)
     plt.close()
@@ -440,9 +440,9 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
              cleaned north-south velocity data; and ew_lim; cleaned east-west velocity data
     """
     if ncdata.orientation == 'up':
-        bin_depths = ncdata.instrument_depth - ncdata.distance.data
+        bin_depths = ncdata.instrument_depth.data - ncdata.distance.data
     else:
-        bin_depths = ncdata.instrument_depth + ncdata.distance.data
+        bin_depths = ncdata.instrument_depth.data + ncdata.distance.data
     # print(bin_depths)
 
     # data.time should be limited to the data.time with no NA values; bins must be limited
@@ -556,17 +556,17 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
         ax.set_title(
             'ADCP ({}North, 30h average) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                nc.instrument_depth, resampled_str), fontsize=14)
+                nc.instrument_depth.data, resampled_str), fontsize=14)
     elif filter_type == 'Godin':
         ax.set_title(
             'ADCP ({}North, Godin Filtered) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                nc.instrument_depth, resampled_str), fontsize=14)
+                nc.instrument_depth.data, resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax.set_title(
             'ADCP ({}North, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                nc.instrument_depth, resampled_str), fontsize=14)
+                nc.instrument_depth.data, resampled_str), fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
@@ -583,16 +583,16 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
     if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
         ax2.set_title('ADCP ({}East, {} average) {}-{} {}m{}'.format(
             magnetic, filter_type, nc.attrs['station'], nc.attrs['deployment_number'],
-            nc.instrument_depth, resampled_str), fontsize=14)
+            nc.instrument_depth.data, resampled_str), fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m{}'.format(
             magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-            nc.instrument_depth, resampled_str), fontsize=14)
+            nc.instrument_depth.data, resampled_str), fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
             'ADCP ({}East, raw) {}-{} {}m{}'.format(
                 magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                nc.instrument_depth, resampled_str), fontsize=14)
+                nc.instrument_depth.data, resampled_str), fontsize=14)
 
     ax2.invert_yaxis()
 
@@ -603,11 +603,15 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
         os.makedirs(plot_dir)
 
     if level0:
-        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
-            int(np.round(nc.instrument_depth))) + '-magn_NE_{}{}.png'.format(filter_type, resampled_4fname)
+        plot_name = plot_dir + '{}-{}_{}_{}m-magn_NE_{}{}.png'.format(
+            nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
+            int(np.round(nc.instrument_depth.data)), filter_type, resampled_4fname
+        )
     else:
-        plot_name = plot_dir + nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
-            int(np.round(nc.instrument_depth))) + '-NE_{}{}.png'.format(filter_type, resampled_4fname)
+        plot_name = plot_dir + '{}-{}_{}_{}m-NE_{}{}.png'.format(
+            nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
+            int(np.round(nc.instrument_depth.data)), filter_type, resampled_4fname
+        )
     fig.savefig(plot_name)
     plt.close()
 
@@ -765,18 +769,18 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
         ax1.set_title(
             'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 filter_type, along_angle, data.attrs['station'], data.attrs['deployment_number'],
-                data.instrument_depth, resampled_str),
+                data.instrument_depth.data, resampled_str),
             fontsize=14)
     elif filter_type == 'Godin':
         ax1.set_title(
             'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 along_angle, data.attrs['station'], data.attrs['deployment_number'],
-                data.instrument_depth, resampled_str),
+                data.instrument_depth.data, resampled_str),
             fontsize=14)
     elif filter_type == 'raw':
         ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
             along_angle, data.attrs['station'], data.attrs['deployment_number'],
-            data.instrument_depth, resampled_str),
+            data.instrument_depth.data, resampled_str),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
@@ -795,19 +799,19 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
         ax2.set_title(
             'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 filter_type, cross_angle, data.attrs['station'], data.attrs['deployment_number'],
-                data.instrument_depth, resampled_str),
+                data.instrument_depth.data, resampled_str),
             fontsize=14)
     elif filter_type == 'Godin':
         ax2.set_title(
             'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
-                data.instrument_depth, resampled_str),
+                data.instrument_depth.data, resampled_str),
             fontsize=14)
     elif filter_type == 'raw':
         ax2.set_title(
             'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
                 str(cross_angle), data.attrs['station'], data.attrs['deployment_number'],
-                data.instrument_depth, resampled_str),
+                data.instrument_depth.data, resampled_str),
             fontsize=14)
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
@@ -819,8 +823,10 @@ def make_pcolor_ac(data: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim,
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    plot_name = data.attrs['station'] + '-' + data.attrs['deployment_number'] + '_{}m'.format(
-        int(np.round(data.instrument_depth))) + '-AC_{}{}.png'.format(filter_type, resampled_4fname)
+    plot_name = '{}-{}_{}_{}m-AC_{}{}.png'.format(
+        data.attrs['station'], data.attrs['deployment_number'], data.instrument_serial_number.data,
+        int(np.round(data.instrument_depth.data)), filter_type, resampled_4fname
+    )
     fig.savefig(plot_dir + plot_name)
     plt.close()
 
@@ -959,9 +965,9 @@ def binplot_compare_filt(nc: xr.Dataset, dest_dir, time, dat_raw, dat_filt, filt
 
     bin_index = 0  # which bin to plot
     if nc.orientation == 'up':
-        bin_depth = nc.instrument_depth - (bin_index + 1) * nc.cell_size
+        bin_depth = nc.instrument_depth.data - (bin_index + 1) * nc.cell_size
     else:
-        bin_depth = nc.instrument_depth + (bin_index + 1) * nc.cell_size
+        bin_depth = nc.instrument_depth.data + (bin_index + 1) * nc.cell_size
 
     fig = plt.figure(figsize=(13.75, 10))
 
@@ -987,15 +993,15 @@ def binplot_compare_filt(nc: xr.Dataset, dest_dir, time, dat_raw, dat_filt, filt
         ax1.set_title(
             'ADCP {}-{} {} bin {} at {}m'.format(nc.attrs['station'], nc.attrs['deployment_number'],
                                                  vel_code, bin_index + 1, bin_depth), fontsize=14)
-        plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}.png'.format(
+        plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
+            str(np.round(nc.instrument_depth.data))) + '-{}_bin{}_compare_{}.png'.format(
             vel_code, bin_index + 1, filter_type)
     else:
         ax1.set_title('ADCP {}-{} {} bin {} at {}m, {} subsampled'.format(
             nc.attrs['station'], nc.attrs['deployment_number'], vel_code, bin_index + 1, bin_depth,
             resampled), fontsize=14)
-        plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{0}m'.format(
-            str(math.ceil(nc.instrument_depth))) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
+        plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
+            str(np.round(nc.instrument_depth.data))) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
             vel_code, bin_index + 1, filter_type, resampled)
 
     fig.savefig(plot_dir + plot_name)
@@ -1147,7 +1153,7 @@ def resample_adcp_manual(ncname, ncdata: xr.Dataset, dest_dir):
 
 
 def quiver_plot(dest_dir: str, data_filename,
-                station: str, deployment_number: str, instrument_depth: float,
+                station: str, deployment_number: str, instrument_depth: float, serial_number: str,
                 time_lim: np.ndarray, bin_depths_lim: np.ndarray,
                 ns_lim: np.ndarray, ew_lim: np.ndarray, single_bin_inds: list, resampled=None):
     """
@@ -1157,6 +1163,7 @@ def quiver_plot(dest_dir: str, data_filename,
     :param station: station name
     :param deployment_number: deployment number for mooring
     :param instrument_depth: instrument depth
+    :param serial_number: instrument serial number
     :param time_lim: cleaned time data; array type
     :param bin_depths_lim: cleaned bin depth data; array type
     :param ns_lim: cleaned north-south velocity data; array type
@@ -1248,7 +1255,7 @@ def quiver_plot(dest_dir: str, data_filename,
 
         plt.tight_layout()  # Make sure labels don't overlap
 
-        plot_name = f'{station}-{deployment_number}_{instrument_depth}m_quiver_plotCOUNTER.png'
+        plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_quiver_plotCOUNTER.png'
         if resampled:
             plot_name.replace('.png', f'_{resampled}_resampled.png')
 
@@ -1596,7 +1603,7 @@ def plot_rot(r: dict, clabel=None, cx=None, cy=None, color=None, ccolor='k', uni
 
 
 def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deployment_number: str,
-                             instrument_depth: float,
+                             instrument_depth: float, serial_number: str,
                              bin_number: int, bin_depths_lim: np.ndarray, time_lim: np.ndarray,
                              ns_lim: np.ndarray, ew_lim: np.ndarray, latitude: float,
                              resampled=None, axis=-1, do_tidal_annotation=True):
@@ -1667,7 +1674,7 @@ def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deploym
     plt.suptitle(f'{station}-{deployment_number} Rotary Spectra - {np.round(bin_depth, 2)}m bin')
 
     # Save the figure
-    plot_name = (f'{station}-{deployment_number}_{instrument_depth}m'
+    plot_name = (f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m'
                  f'_rotary_spectra_bin_{int(np.round(bin_depth))}m.png')
     if do_tidal_annotation:
         plot_name = plot_name.replace('.png', '_ttide.png')
@@ -1712,6 +1719,7 @@ def rot_freqinterp(rot_dict: dict) -> tuple:
 
 
 def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_number: str,
+                         instrument_depth, serial_number: str,
                          x: np.ndarray, y, c: np.ndarray, clim: tuple, neg_or_pos: str,
                          funits='cpd', resampled=False):
     """
@@ -1753,7 +1761,7 @@ def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_
     plt.tight_layout()
 
     # Save the figure
-    plot_name = f'{station}-{deployment_number}_depth_prof_rot_spec.png'
+    plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_depth_prof_rot_spec.png'
     if neg_or_pos == 'neg':
         plot_name = plot_name.replace('.png', '_neg_cw.png')
     else:
@@ -1772,7 +1780,8 @@ def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_
 
 
 def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deployment_number: str,
-                             bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
+                             instrument_depth,
+                             serial_number: str, bin_depths_lim: np.ndarray, ns_lim: np.ndarray,
                              ew_lim: np.ndarray, time_lim: np.ndarray, resampled=None):
     """
     Plot depth profiles of rotary spectra in a pseudo-color (pcolor) plot
@@ -1823,6 +1832,8 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
         data_filename,
         station,
         deployment_number,
+        instrument_depth,
+        serial_number,
         x=ftarget,
         y=rot_dict.keys(),
         c=cneg,
@@ -1836,6 +1847,8 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
         data_filename,
         station,
         deployment_number,
+        instrument_depth,
+        serial_number,
         x=ftarget,
         y=rot_dict.keys(),
         c=cpos,
@@ -2032,7 +2045,8 @@ def parse_tidal_constituents(constituents, tide_result):
     return tidal_par, error_par
 
 
-def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deployment_number: str, latitude: float,
+def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deployment_number: str,
+                             serial_number: str, instrument_depth, latitude: float,
                              time_lim: np.ndarray, bin_depth_lim: np.ndarray, ns_lim: np.ndarray,
                              ew_lim: np.ndarray, resampled=None):
     """
@@ -2189,7 +2203,7 @@ def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deploym
     # axes[0].set_ylabel('Depth (m)')
 
     # Save the figure
-    plot_name = f'{station}-{deployment_number}_tidal_ellipses.png'
+    plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_tidal_ellipses.png'
     if resampled:
         plot_name.replace('.png', f'_{resampled}_resampled.png')
 
@@ -2283,7 +2297,7 @@ def default_single_bins(ncdata: xr.Dataset, time_range_idx: tuple, bin_range_idx
 
     else:
         # Orientation == 'down'
-        bin_depths = ncdata.instrument_depth + ncdata.distance.data
+        bin_depths = ncdata.instrument_depth.data + ncdata.distance.data
         # Find deepest bin above the sea floor
         deep = np.where(bin_depths < ncdata.water_depth)[0][-1]
         shallow = 0
@@ -2421,7 +2435,8 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
 
     # Returns a list of names not a single name; apply to non-filtered data
     fnames_quiver = quiver_plot(dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
-                                ncdata.instrument_depth, time_lim, bin_depths_lim,
+                                ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
+                                time_lim, bin_depths_lim,
                                 ns_lim, ew_lim, single_bin_inds, resampled)
 
     # Rotary spectra
@@ -2434,7 +2449,8 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         if bin_idx < len(bin_depths_lim):
             fnames_rot_spec.append(
                 make_plot_rotary_spectra(
-                    dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number, ncdata.instrument_depth,
+                    dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
+                    ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
                     bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
                     ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
                     resampled=resampled, axis=-1
@@ -2447,15 +2463,17 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     # Profile plots of tidal ellipses
     try:
         fname_tidal_ellipse = make_plot_tidal_ellipses(
-            dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number, ncdata.latitude.data,
+            dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
+            ncdata.instrument_serial_number.data, ncdata.instrument_depth.data, ncdata.latitude.data,
             time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
         )
     except ValueError as e:
-        warnings.warn(f'Tidal analysis failed: {e}')
+        warnings.warn(f'Tidal analysis failed with error: {e}')
 
     # pcolor (pseudocolour) depth profile plot of rotary spectra
     fnames_depth_prof = make_depth_prof_rot_spec(
         dest_dir, ncdata.filename, station=ncdata.station, deployment_number=ncdata.deployment_number,
+        serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
         bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
     )
 
