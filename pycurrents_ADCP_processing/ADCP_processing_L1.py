@@ -693,6 +693,8 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
         else:
             meta_dict[key] = None
 
+    meta_dict['processing_level'] = '1'
+
     # Use Geojson definitions for IOS
     meta_dict['geographic_area'] = find_geographic_area_attr(
         lon=meta_dict['longitude'], lat=meta_dict['latitude']
@@ -742,11 +744,17 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
     if data.sysconfig['kHz'] == 75 and meta_dict['model'] == 'wh':
         meta_dict['instrument_subtype'] = 'Workhorse Long Ranger'
         meta_dict['serial_number'] = meta_dict['serial_number'].replace('WH', 'LR')
+        meta_dict['instrument_model'] = 'RDI {} Long Ranger ADCP {}kHz'.format(
+            meta_dict['model'].upper(), data.sysconfig['kHz']
+        )
         warnings.warn('Workhorse ADCP identified as 75 kHz Long Ranger', UserWarning)
-
-    # Add instrument model variable value
-    meta_dict['instrument_model'] = 'RDI {} ADCP {}kHz ({})'.format(
-        meta_dict['model'].upper(), data.sysconfig['kHz'], meta_dict['serial_number'])
+    else:
+        # Add instrument model variable value
+        # meta_dict['instrument_model'] = 'RDI {} ADCP {}kHz ({})'.format(
+        #     meta_dict['model'].upper(), data.sysconfig['kHz'], meta_dict['serial_number'])
+        meta_dict['instrument_model'] = 'RDI {} ADCP {}kHz'.format(
+            meta_dict['model'].upper(), data.sysconfig['kHz']
+        )
 
     # Extract metadata from data object
 
@@ -1086,10 +1094,10 @@ def compute_sea_surface_height(orientation: 'str', sensor_depth: float, distance
                                meta_dict=None):
     if orientation == 'up':
         DISTTRAN = np.round(sensor_depth - distance, decimals=2)
-        history = ' DISTTRAN calculated as sensor depth minus distance for upward-facing ADCPs.'
+        history = ' DISTTRAN (sea-surface height) calculated as sensor depth minus distance for upward-facing ADCPs.'
     else:
         DISTTRAN = np.round(sensor_depth + distance, decimals=2)
-        history = ' DISTTRAN calculated as sensor depth plus distance for downward-facing ADCPs.'
+        history = ' DISTTRAN (sea-surface height) calculated as sensor depth plus distance for downward-facing ADCPs.'
 
     if meta_dict is not None:
         meta_dict['processing_history'] += f" Sensor depth set to the mean of trimmed depth values."
@@ -1134,6 +1142,14 @@ def truncate_time_series_ends(var_dict: dict, meta_dict: dict):
     meta_dict['segment_end_indices'] = [ind - e1 for ind in meta_dict['segment_end_indices']]
 
     return var_dict
+
+
+def get_time_resolution(time_data):
+    """
+    Get resolution of time dimension in format "HH:MM:SS"
+    """
+    dt = pd.Timedelta(((time_data[2] - time_data[0]) / 2))
+    return str(dt).split(' ')[1]  # Remove day component of Timedelta that is before the HH:MM:SS part
 
 
 def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
@@ -1267,7 +1283,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     if flag_vb_pg == 1:
         var_dict['PCGDAP05'] = vb_pg.raw.VBPercentGood.transpose()
 
-    # var_dict['ELTMEP01'] = var_dict['time']  # todo remove
+    # var_dict['ELTMEP01'] = var_dict['time']
     var_dict['TEMPPR01'] = vel.temperature
     var_dict['PTCHGP01'] = vel.pitch
     var_dict['ROLLGP01'] = vel.roll
@@ -1288,6 +1304,8 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     var_dict['instrument_serial_number'] = meta_dict['serial_number']
     var_dict['instrument_model'] = meta_dict['instrument_model']
     var_dict['geographic_area'] = meta_dict['geographic_area']
+    var_dict['instrument_depth'] = meta_dict['instrument_depth']
+    var_dict['water_depth'] = meta_dict['water_depth']
 
     # ------------------------Adjust velocity data-------------------------
 
@@ -1410,8 +1428,10 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     # ----------------------Global attributes----------------------
 
     # Add select meta_dict items as global attributes
-    pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'processing_level', 'model',
-                      'segment_start_indices', 'segment_end_indices', 'recovery_lat', 'recovery_lon']
+    # remove serial number and geographic area duplication between vars and global attrs
+    pass_dict_keys = ['cut_lead_ensembles', 'cut_trail_ensembles', 'model',  # 'processing_level',
+                      'segment_start_indices', 'segment_end_indices', 'recovery_lat', 'recovery_lon',
+                      'serial_number', 'geographic_area', 'water_depth', 'instrument_depth']
 
     # accepted_netcdf_dtypes = [str, int, float, list, tuple, np.ndarray]
 
@@ -1424,10 +1444,9 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
             warnings.warn(f'Metadata item {key} with value {meta_dict[key]} not supported by netCDF')
 
     # Rest of attributes not from metadata file:
-
+    out.attrs['standard_name_vocabulary'] = 'CF Standard Name Table v29'
+    out.attrs['Conventions'] = 'COARDS, CF-1.7, ACDD-1.3'
     out.attrs['deployment_type'] = 'Sub Surface'
-    out.attrs['time_coverage_duration'] = vel.dday[-1] - vel.dday[0]
-    out.attrs['time_coverage_duration_units'] = "days"
     # ^calculated from start and end times; in days: add time_coverage_duration_units?
     out.attrs['cdm_data_type'] = "station"
     out.attrs['number_of_beams'] = data.NBeams
@@ -1438,11 +1457,11 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['cell_size'] = data.CellSize
     out.attrs['ping_type'] = data.pingtype
     out.attrs['transmit_pulse_length_cm'] = vel.FL['Pulse']
-    out.attrs['instrument_type'] = "adcp"
+    out.attrs['instrument_type'] = "ADCP"
     out.attrs['manufacturer'] = meta_dict['manufacturer']
     out.attrs['source'] = "Python code: GitHub: pycurrents_ADCP_processing"
     now = datetime.datetime.now()
-    out.attrs['date_modified'] = now.strftime("%Y-%m-%d %H:%M:%S")
+    out.attrs['date_created'] = now.strftime("%Y-%m-%d %H:%M:%S")  # renamed date_modified
     out.attrs['_FillValue'] = _FillValue  # str(fill_value)
     out.attrs['featureType'] = "profileTimeSeries"
     out.attrs['firmware_version'] = str(vel.FL.FWV) + '.' + str(vel.FL.FWR)  # firmwareVersion
@@ -1462,14 +1481,19 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     tpp_hun = '{0:0>2}'.format(fixed_leader.FL['TPP_hun'])
     out.attrs['time_ping'] = '{}:{}.{}'.format(tpp_min, tpp_sec, tpp_hun)
     out.attrs['false_target_reject_values'] = '{} counts'.format(fixed_leader.FL['WA'])  # falseTargetThresh
-    out.attrs['data_type'] = "adcp"
+    # out.attrs['data_type'] = "adcp"
     # out.attrs['pred_accuracy'] = 1  # velocityResolution * 1000
-    out.attrs['creator_type'] = "person"
+    # out.attrs['creator_type'] = "person"
     out.attrs['n_codereps'] = vel.FL.NCodeReps
     out.attrs['xmit_lag'] = vel.FL.TransLag
     out.attrs['xmit_length'] = fixed_leader.FL['Pulse']
     out.attrs['time_coverage_start'] = utils.numpy_datetime_to_str_utc(var_dict['time'][0])
     out.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(var_dict['time'][-1])
+    # out.attrs['time_coverage_duration'] = vel.dday[-1] - vel.dday[0]
+    # New format:
+    out.attrs['time_coverage_duration'] = str(pd.Timedelta(vel.dday[-1] - vel.dday[0], unit='day')).split('.')[0]
+    # out.attrs['time_coverage_duration_units'] = "days"
+    out.attrs['time_coverage_resolution'] = get_time_resolution(out.time.data)
 
     # geospatial lat, lon, and vertical min/max calculations
     out.attrs['geospatial_lat_min'] = meta_dict['latitude']

@@ -17,7 +17,7 @@
   units: m s-1
   long_name: eastward_sea_water_velocity
   ancillary_variables: LCEWAP01_QC
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: u
   comment: Ancillary variable contains quality flags
   flag_meanings: >
@@ -40,7 +40,7 @@
   units: m s-1
   long_name: northward_sea_water_velocity
   ancillary_variables: LCNSAP01_QC
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: v
   comment: Ancillary variable contains quality flags
   flag_meanings: >
@@ -63,7 +63,7 @@
   units: m s-1
   long_name: upward_sea_water_velocity
   ancillary_variables: LRZAAP01_QC
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: w
   comment: Ancillary variable contains quality flags
   flag_meanings: >
@@ -84,7 +84,7 @@
   dtype: float32
   units: m s-1
   long_name: error_velocity_in_sea_water
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: e
   legacy_GF3_code: SDN:GF3::ERRV
   sdn_parameter_name: >
@@ -142,7 +142,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_echo_intensity_beam_1
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: AGC
   legacy_GF3_code: SDN:GF3::BEAM_01
   sdn_parameter_name: >
@@ -156,7 +156,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_echo_intensity_beam_2
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: AGC
   legacy_GF3_code: SDN:GF3::BEAM_02
   sdn_parameter_name: >
@@ -170,7 +170,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_echo_intensity_beam_3
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: AGC
   legacy_GF3_code: SDN:GF3::BEAM_03
   sdn_parameter_name: >
@@ -184,7 +184,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_echo_intensity_beam_4
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: AGC
   legacy_GF3_code: SDN:GF3::BEAM_04
   sdn_parameter_name: >
@@ -198,7 +198,7 @@
   dtype: float32
   units: percent
   long_name: percent_good_beam_1
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: PGd
   legacy_GF3_code: SDN:GF3::PGDP_01
   sdn_parameter_name: >
@@ -211,7 +211,7 @@
   dtype: float32
   units: percent
   long_name: percent_good_beam_2
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: PGd
   legacy_GF3_code: SDN:GF3::PGDP_02
   sdn_parameter_name: >
@@ -224,7 +224,7 @@
   dtype: float32
   units: percent
   long_name: percent_good_beam_3
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: PGd
   legacy_GF3_code: SDN:GF3::PGDP_02
   sdn_parameter_name: >
@@ -237,7 +237,7 @@
   dtype: float32
   units: percent
   long_name: percent_good_beam_4
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: PGd
   legacy_GF3_code: SDN:GF3::PGDP_02
   sdn_parameter_name: >
@@ -250,7 +250,7 @@
   dtype: float32
   units: degree
   long_name: pitch
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::PTCH
   sdn_parameter_name: Orientation (pitch) of measurement platform by inclinometer
   sdn_uom_urn: SDN:P06::UAAA
@@ -261,7 +261,7 @@
   dtype: float32
   units: degree
   long_name: roll
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::PTCH
   sdn_parameter_name: Orientation (roll angle) of measurement platform by inclinometer (second sensor)
   sdn_uom_urn: SDN:P06::UAAA
@@ -274,7 +274,7 @@
   positive: up
   long_name: height of sea surface
   generic_name: height
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::HGHT
   sdn_uom_urn: SDN:P06::ULAA
   sdn_uom_name: Metres
@@ -284,7 +284,7 @@
   units: degree_C
   long_name: ADCP transducer temperature  # Temperature was abbreviated to Temp., change title case to lowercase
   generic_name: temp
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::te90
   sdn_parameter_name: Temperature of the water body
   sdn_uom_urn: SDN:P06::UPAA
@@ -297,7 +297,7 @@
   positive: down
   long_name: instrument depth
   generic_name: depth
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::DEPH
   sdn_parameter_name: Depth below surface of the water body
   sdn_uom_urn: SDN:P06::ULAA
@@ -352,7 +352,7 @@
   dtype: float32
   units: degree
   long_name: heading
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::PTCH
   sdn_parameter_name: > # "heading" was in curly instead of round brackets for some reason
     Orientation (horizontal relative to true north) of measurement device (heading)
@@ -364,7 +364,7 @@
   dtype: float32
   units: dbar
   long_name: pressure
-  sensor_type: adcp
+#  sensor_type: adcp
   ancillary_variables: PRESPR01_QC
   comment: Quality flag indicates negative pressure values in the time series
   flag_meanings: >
@@ -398,7 +398,7 @@
   dtype: float32
   units: m s-1
   long_name: speed of sound
-  sensor_type: adcp
+#  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::SVEL
   sdn_parameter_name: >
     Sound velocity in the water body by computation from temperature and
@@ -421,7 +421,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_correlation_magnitude_beam_1
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: CM
   legacy_GF3_code: SDN:GF3::CMAG_01
   sdn_parameter_name: >
@@ -433,7 +433,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_correlation_magnitude_beam_2
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: CM
   legacy_GF3_code: SDN:GF3::CMAG_02
   sdn_parameter_name: >
@@ -445,7 +445,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_correlation_magnitude_beam_3
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: CM
   legacy_GF3_code: SDN:GF3::CMAG_03
   sdn_parameter_name: >
@@ -457,7 +457,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_correlation_magnitude_beam_4
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: CM
   legacy_GF3_code: SDN:GF3::CMAG_04
   sdn_parameter_name: >
@@ -465,13 +465,25 @@
     moored acoustic doppler current profiler (ADCP) beam 4
   standard_name: beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water
 
+- id: instrument_depth
+  dtype: float32
+  units: m
+  long_name: Instrument Depth
+  standard_name: instrument_depth
+
+- id: water_depth
+  dtype: float32
+  units: m
+  long_name: Water Depth
+  standard_name: sea_floor_depth_below_sea_surface
+
 # Sentinel V variables
 - id: LRZUVP01
   dtype: float32
   units: m s-1
   long_name: upward_sea_water_velocity_by_vertical_beam
   ancillary_variables: LRZUVP01_QC
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: vv
   comment: Quality flag resulting from cleaning of the beginning and end of the dataset
   flag_meanings: >
@@ -499,7 +511,7 @@
   dtype: float32
   units: counts
   long_name: ADCP_echo_intensity_beam_5
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: AGC
   sdn_parameter_name: >
     Echo intensity from the water body by moored acoustic doppler current
@@ -512,7 +524,7 @@
   dtype: float32
   units: percent
   long_name: percent_good_beam_5
-  sensor_type: adcp
+#  sensor_type: adcp
   generic_name: PGd
   sdn_parameter_name: >
     Acceptable proportion of signal returns by moored acoustic doppler

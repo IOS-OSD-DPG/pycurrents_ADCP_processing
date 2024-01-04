@@ -78,7 +78,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     # print(time_increment_ratio)
 
     if np.round(time_increment_ratio, decimals=1) < 1:
-        if np.round(time_increment_ratio, decimals=1) == 1/1.5:
+        if np.round(time_increment_ratio, decimals=1) == 1 / 1.5:
             index_increment_adcp = 2
             index_increment_ctd = 3
         else:
@@ -230,7 +230,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
 
     # Apply depth corrections to new pressure
     # Calculate depth difference between ADCP and SBE; positive if ADCP deeper than SBE
-    depth_diff = nc_adcp.instrument_depth - nc_ctd.instrument_depth.data  # meters
+    depth_diff = nc_adcp.instrument_depth.data - nc_ctd.instrument_depth.data  # meters
     print(depth_diff)
     pres_adcp_from_ctd = pres_adcp_from_ctd + np.round(depth_diff, decimals=1)
 
@@ -349,7 +349,7 @@ def flag_below_seafloor(d):
     #             break
 
     instrument_depth_2d = np.zeros((len(d.distance.data), len(d.time.data)), 'float32')
-    instrument_depth_2d[:, :] = d.instrument_depth
+    instrument_depth_2d[:, :] = d.instrument_depth.data
     distance_2d = np.vstack((d.distance.data,) * len(d.time.data)).transpose()
     bin_depths = instrument_depth_2d + distance_2d  # bin depth > instrument depth
 
@@ -368,7 +368,7 @@ def flag_below_seafloor(d):
     #             v_QC[:bad_bin_list[t_i], t_i] = 2  # probably_good_value flag=2, or good_value flag=1
 
     for v_QC in vels_QC:
-        v_QC[bin_depths > d.water_depth] = 4  # bad_value flag=4
+        v_QC[bin_depths > d.water_depth.data] = 4  # bad_value flag=4
 
     d.attrs['processing_history'] = d.processing_history + " Level 2 processing was performed on the data."
     d.attrs['processing_history'] = d.processing_history + " Bins below the ocean floor depth were flagged as" \
@@ -376,7 +376,7 @@ def flag_below_seafloor(d):
     d.attrs['processing_history'] = d.processing_history + "The remaining bins were flagged as " \
                                                            "probably_good_value."
 
-    #return bad_bin_list
+    # return bad_bin_list
     return
 
 
@@ -434,7 +434,7 @@ def flag_by_backsc(d: xr.Dataset):
 
     diffs = np.diff(amp_beam_avg, axis=0)
     diffs[0, :] = 0  # to remove misleading increases often observed from the first to second bin
-    zeros = np.zeros(len(d.time.data)) #to stack on top of diffs, because the y dim of diffs < y dim of d.distance
+    zeros = np.zeros(len(d.time.data))  # to stack on top of diffs, because the y dim of diffs < y dim of d.distance
     diffs = np.vstack((zeros, diffs))
 
     # Flag the qc variables
@@ -472,7 +472,7 @@ def flag_by_backsc(d: xr.Dataset):
     d.attrs['processing_history'] = d.processing_history + " The remaining bins were flagged as " \
                                                            "probably_good_value."
 
-    #return susp_bin_list
+    # return susp_bin_list
     return
 
 
@@ -500,7 +500,7 @@ def plot_pres_compare(d: xr.Dataset, dest_dir):
     ax.legend(loc='lower left')
     ax.set_title('{}-{} {} at {} m depth: Static VS CTD-derived pressure'.format(
         d.attrs['station'], d.attrs['deployment_number'], d.attrs['serial_number'],
-        d.attrs['instrument_depth']))
+        d.instrument_depth.data))
 
     # Create L2_Python_plots subfolder if not made already
     plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
@@ -515,7 +515,7 @@ def plot_pres_compare(d: xr.Dataset, dest_dir):
     return os.path.abspath(fig_name)
 
 
-def plot_backscatter_qc(d:xr.Dataset, dest_dir):
+def plot_backscatter_qc(d: xr.Dataset, dest_dir):
     """
     Calculate depths from bin distances from instrument
     Inputs:
@@ -567,13 +567,13 @@ def plot_backscatter_qc(d:xr.Dataset, dest_dir):
                 break
 
         for i in range(2, len(amp_mean_all)):
-            if amp_mean_all[i] > amp_mean_all[i-1]:
+            if amp_mean_all[i] > amp_mean_all[i - 1]:
                 mean_susp_bin = i
                 break
     else:
         for i in range(len(d.distance.data)):
-            bin_depth = d.instrument_depth + d.distance.data[i]
-            if bin_depth > d.water_depth:
+            bin_depth = d.instrument_depth.data + d.distance.data[i]
+            if bin_depth > d.water_depth.data:
                 mean_bad_bin = i
 
     # Plot flagged average backscatter (QC):
@@ -583,7 +583,7 @@ def plot_backscatter_qc(d:xr.Dataset, dest_dir):
     beam_no = 1
     for dat, col in zip(amp, colours):
         if mean_bad_bin != 0:
-            #Median bad bin is not zero  # plot bad_data
+            # Median bad bin is not zero  # plot bad_data
             f1 = ax.plot(dat[mean_bad_bin - 1:], depths[mean_bad_bin - 1:], linewidth=1, marker='o', markersize=2,
                          color='r')
             if mean_susp_bin != 0:
@@ -641,7 +641,7 @@ def plot_backscatter_qc(d:xr.Dataset, dest_dir):
     fig.suptitle('{}-{} {} at {} m depth: L2 QC'.format(d.attrs['station'],
                                                         d.attrs['deployment_number'],
                                                         d.attrs['serial_number'],
-                                                        d.attrs['instrument_depth']), fontweight='semibold')
+                                                        d.instrument_depth.data), fontweight='semibold')
 
     # Create L2_Python_plots subfolder if not already existing
     plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
@@ -656,7 +656,7 @@ def plot_backscatter_qc(d:xr.Dataset, dest_dir):
     return os.path.abspath(fig_name)
 
 
-def bad_2_nan(d:xr.Dataset):
+def bad_2_nan(d: xr.Dataset):
     """
     Apply flags to velocity data.
     Inputs:
@@ -685,7 +685,7 @@ def bad_2_nan(d:xr.Dataset):
     return
 
 
-def reset_vel_minmaxes(d:xr.Dataset):
+def reset_vel_minmaxes(d: xr.Dataset):
     """
     Function for re-calculating data_min and data_max variable attributes
     Inputs:
@@ -802,6 +802,9 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
 
     # Set bad velocity data to nans
     bad_2_nan(d=nc_adcp)
+
+    # Update processing_level
+    nc_adcp.attrs['processing_level'] = '2'
 
     files_to_return = [plot_diagn, plot_backsc]
     if flag_static_pres == 1:

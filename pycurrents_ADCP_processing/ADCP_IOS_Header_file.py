@@ -242,19 +242,22 @@ def write_location(nc):
     lat_string = decimalDegrees2DMS(lat, "Latitude")  # call decimal degree conversion function
     lon = nc.attrs["longitude"]
     lon_string = decimalDegrees2DMS(lon, "Longitude")  # call decimal degree conversion function
-    water_depth = nc.attrs["water_depth"]
+    water_depth = nc.water_depth.data
     if hasattr(nc, 'magnetic_declination'):
-        mag_declination = nc.attrs["magnetic_declination"]
-    if hasattr(nc, 'magnetic_variation'):
-        mag_declination = nc.attrs["magnetic_variation"]
+        mag_declination = str(nc.attrs["magnetic_declination"])
+    elif hasattr(nc, 'magnetic_variation'):
+        mag_declination = str(nc.attrs["magnetic_variation"])
+    else:
+        ValueError('Magnetic variation missing from file !')
+        return
 
     print("*LOCATION")
     print("    " + '{:20}'.format('GEOGRAPHIC AREA') + ": " + geo_area)
     print("    " + '{:20}'.format('STATION') + ": " + station)
     print("    " + '{:20}'.format('LATITUDE') + ": " + lat_string + "  ! (deg min)")
     print("    " + '{:20}'.format('LONGITUDE') + ": " + lon_string + "  ! (deg min)")
-    print("    " + '{:20}'.format('WATER DEPTH') + ": " + str(water_depth))
-    print("    " + '{:20}'.format('MAGNETIC DECLINATION') + ": " + str(mag_declination))
+    print("    " + '{:20}'.format('WATER DEPTH') + ": " + water_depth)
+    print("    " + '{:20}'.format('MAGNETIC DECLINATION') + ": " + mag_declination)
     print()
 
 
@@ -302,7 +305,7 @@ def write_instrument(nc):
     elif hasattr(nc, 'instrument_serial_number'):
         serial_number = nc.attrs["instrument_serial_number"]
     # serial_number = nc.attrs["serial_number"]  nc.attrs["instrument_serial_number"]
-    depth = str(nc.attrs["instrument_depth"])
+    depth = str(nc.instrument_depth.data)
     orientation = nc.attrs["orientation"]
 
     print("*INSTRUMENT")
@@ -454,7 +457,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     # define function to write raw info
     process_1 = "ADCP2NC "
     process_1_ver = '1'  # str(nc.attrs["pred_accuracy"])
-    date_time_1 = nc.attrs["date_modified"]
+    date_time_1 = nc.attrs["date_created"]
     leading_ens_cut, trailing_ens_cut = parse_processing_history(nc.attrs['processing_history'])
     Recs_in_1 = str(leading_ens_cut + trailing_ens_cut + nc.coords["time"].size)
     Recs_out_1 = str(nc.coords["time"].size)
