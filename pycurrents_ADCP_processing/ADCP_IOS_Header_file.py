@@ -242,7 +242,7 @@ def write_location(nc):
     lat_string = decimalDegrees2DMS(lat, "Latitude")  # call decimal degree conversion function
     lon = nc.attrs["longitude"]
     lon_string = decimalDegrees2DMS(lon, "Longitude")  # call decimal degree conversion function
-    water_depth = nc.water_depth.data
+    water_depth = str(nc.water_depth.data)
     if hasattr(nc, 'magnetic_declination'):
         mag_declination = str(nc.attrs["magnetic_declination"])
     elif hasattr(nc, 'magnetic_variation'):
