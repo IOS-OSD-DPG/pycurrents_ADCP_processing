@@ -391,8 +391,8 @@ def write_raw(nc):
     print("    " + '{:20}'.format('TIME INCREMENT') + ": " + time_increment_string + "  ! (day hr min sec ms)")
     print("    " + '{:20}'.format('NUMBER OF RECORDS') + ": " + number_records)
     print("    $REMARKS")
-    print("        " + "The data and following metadata were extracted from the raw ADCP binary file using")
-    print("        " + "a Python script adapted from Jody Klymak to perform the processing and netCDF file output")
+    print("        " + "The following metadata were extracted from the raw ADCP binary file using")
+    print("        " + "Python to perform the processing and netCDF file output")
     print()
     print("        " + '{:29}'.format('name:') + name)
     print("        " + '{:29}'.format('sourceprog:') + sourceprog)
@@ -451,7 +451,7 @@ def write_raw(nc):
     print()
 
 
-def check_sentence_length(sentence: str):
+def check_sentence_length(sentence: str, num_leading_spaces: int):
     """
     Lines in IOS Shell files must not exceed MAX_LINE_LENGTH=100 characters.
     """
@@ -460,7 +460,7 @@ def check_sentence_length(sentence: str):
     if not sentence.endswith('.'):
         sentence = sentence + '.'
 
-    leading_spaces = ' ' * 10
+    leading_spaces = ' ' * num_leading_spaces
 
     if len(leading_spaces + sentence) > MAX_LINE_LENGTH:
         words = sentence.split()
@@ -535,7 +535,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     print("        -" + process_1 + " processing: " + date_time_1)
     for i in range(n):
         sentence = nc.history.split(". ")[i]
-        lines = check_sentence_length(sentence)  # make sure line length not exceeded
+        lines = check_sentence_length(sentence, num_leading_spaces=9)  # make sure line length not exceeded
         for k in range(len(lines)):
             print(lines[k])
     # print("         " + '{:100}'.format(nc.history.split(". ")[i]))
