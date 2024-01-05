@@ -15,6 +15,8 @@ from pycurrents_ADCP_processing.utils import parse_processing_history
 
 ## File Section+_updated
 
+MAX_LINE_LENGTH = 100  # characters
+
 
 def convert_timedelta(duration):
     # define function to find out time increment
@@ -390,7 +392,6 @@ def write_raw(nc):
     print("    " + '{:20}'.format('NUMBER OF RECORDS') + ": " + number_records)
     print("    $REMARKS")
     print("        " + "The data and following metadata were extracted from the raw ADCP binary file using")
-    #print("        " + "R script provided by Emily Chisholm to perform the processing and netCDF file output")
     print("        " + "a Python script adapted from Jody Klymak to perform the processing and netCDF file output")
     print()
     print("        " + '{:29}'.format('name:') + name)
@@ -450,6 +451,40 @@ def write_raw(nc):
     print()
 
 
+def check_sentence_length(sentence: str):
+    """
+    Lines in IOS Shell files must not exceed MAX_LINE_LENGTH=100 characters.
+    """
+    # Last sentence in history will end with '.' but all preceding sentences won't
+    # because split('. ') removed the period
+    if not sentence.endswith('.'):
+        sentence = sentence + '.'
+
+    leading_spaces = ' ' * 10
+
+    if len(leading_spaces + sentence) > MAX_LINE_LENGTH:
+        words = sentence.split()
+        new_line = leading_spaces
+        lines = []
+        j = 0
+        max_j = len(words)
+        while len(new_line) <= MAX_LINE_LENGTH:
+            if j == max_j or len(new_line + words[j]) > MAX_LINE_LENGTH:
+                # trim trailing space
+                new_line = new_line[:-1] if new_line.endswith(' ') else new_line
+                lines.append(new_line)
+                new_line = leading_spaces
+                if j == max_j:
+                    break
+            else:
+                new_line += words[j] + ' '
+                j += 1
+    else:
+        lines = [leading_spaces + sentence]
+
+    return lines
+
+
 def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     # define function to write raw info
     process_1 = "ADCP2NC "
@@ -465,7 +500,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     Recs_in_2 = Recs_out_1
     Recs_out_2 = Recs_out_1
 
-    # Add note about L2 processing steps if applicable todo make sure line length not exceeded
+    # Add note about L2 processing steps if applicable
     flag = 0
     if not hasattr(nc, 'history'):
         nc.attrs['history'] = ''
@@ -484,6 +519,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
         nc.attrs['history'] += f'The ADCP dataset was missing (good quality) pressure sensor data,' \
                                f' so pressure sensor data from {ctd_pressure_file} was merged with the ADCP dataset.'
 
+    # Number of sentences
     n = len(nc.history.split(". "))  # n = len(nc.processing_history.split(". "))
 
     print("*HISTORY")
@@ -497,12 +533,11 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     print("    $END")
     print("    $REMARKS")
     print("        -" + process_1 + " processing: " + date_time_1)
-    for i in range(0, n):
-        if i < n - 1:
-            print("         " + nc.history.split(". ")[i] + ".")
-            # print("         " + nc.processing_history.split(". ")[i] + ".")
-        else:
-            print("         " + nc.history.split(". ")[i])
+    for i in range(n):
+        sentence = nc.history.split(". ")[i]
+        lines = check_sentence_length(sentence)  # make sure line length not exceeded
+        for k in range(len(lines)):
+            print(lines[k])
     # print("         " + '{:100}'.format(nc.history.split(". ")[i]))
     # adding more processing content, check with Hana
     print("        -" + process_2 + " processing: " + date_time_2)
@@ -518,7 +553,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
 
 
 def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
-    #Start
+    # Start
     in_f_name = f.split("/")[-1]
     # Create subdir for new netCDF file if one doesn't exist yet
     newnc_dir = './{}/'.format(dest_dir)
@@ -532,7 +567,7 @@ def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
     now = datetime.now()
     # dd/mm/YY H:M:S
     dt_string = now.strftime("%Y/%m/%d %H:%M:%S.%f")[0:-4]
-    IOS_string = '*IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON' # ?? check with Germaine on the dates
+    IOS_string = '*IOS HEADER VERSION 2.0      2020/03/01 2020/04/15 PYTHON'  # ?? check with Germaine on the dates
 
     orig_stdout = sys.stdout
     file_handle = open(f_output, 'wt')
@@ -540,7 +575,7 @@ def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
         sys.stdout = file_handle
         print("*" + dt_string)
         print(IOS_string)
-        print() # print("\n") pring("\n" * 40)
+        print()  # print("\n") pring("\n" * 40)
         write_file(nc=nc_file)
         write_admin(nc=nc_file)
         write_location(nc=nc_file)
@@ -549,7 +584,7 @@ def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
         write_raw(nc=nc_file)
         write_history(nc=nc_file, f_name=in_f_name, ds_is_segment=ds_is_segment,
                       ctd_pressure_file=ctd_pressure_file)
-        sys.stdout.flush() #Recommended by Tom
+        sys.stdout.flush()  # Recommended by Tom
     finally:
         sys.stdout = orig_stdout
     return os.path.abspath(f_output)
