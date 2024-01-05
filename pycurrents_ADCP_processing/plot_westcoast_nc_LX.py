@@ -1791,6 +1791,7 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
     Plot them: https://gitlab.com/krassovski/Tools/-/blob/master/Signal/series/adcp_report.m?ref_type=heads
     -> rot_pcolor_plot()
     """
+    instrument_depth = int(np.round(instrument_depth))
 
     fs = sampling_freq(time_lim)
 
@@ -2108,6 +2109,8 @@ def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deploym
             a.set_ylim(min(a_ylim[0], y_lim[0]), max(a_ylim[1], y_lim[1]))
         return
 
+    instrument_depth = int(np.round(instrument_depth))
+
     # Major tidal constituents
     major_constit = ['M2', 'K1', 'N2', 'S2', 'O1', 'P1', 'Q1', 'K2']
     bin_dict = {}
@@ -2329,10 +2332,13 @@ def get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata: xr.Dataset, 
     return single_bin_inds
 
 
-def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=None,
-                           time_range=None, bin_range=None, single_bin_inds=None,
-                           single_bin_depths=None, colourmap_lim=None,
-                           override_resample=False):
+def create_westcoast_plots(
+        ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None, bin_range=None, single_bin_inds=None,
+        single_bin_depths=None, colourmap_lim=None, override_resample=False,
+        do_all_plots=False, do_diagnostic=False, do_pressure=False, do_ne=False, do_ac=False, do_quiver=False,
+        do_single_rotary_spectra=False, do_tidal=False, do_profile_rotary_spectra=False, do_filter_ne=False,
+        do_filter_ac=False,
+):
     """
     Inputs:
         - ncfile: file name of netCDF ADCP file
@@ -2368,7 +2374,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         - list of absolute file names of output files
     """
     # Initialize list to hold the full names of all files produced by this function
-    fout_name_list = []
+    output_file_list = []
 
     ncdata = xr.open_dataset(ncfile)
 
@@ -2402,7 +2408,7 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     if ncsize * byte2MB > threshold and not override_resample:
         ncname_resampled = resample_adcp_manual(ncfile, ncdata, dest_dir)
         # Add path to file list
-        fout_name_list.append(ncname_resampled)
+        output_file_list.append(ncname_resampled)
         # Re-open dataset
         ncdata = xr.open_dataset(ncname_resampled)
         resampled = '30min'
@@ -2410,22 +2416,31 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
         resampled = None
 
     # Make diagnostic plots
-    fname_diagnostic = plots_diagnostic(ncdata, dest_dir, level0, time_range, bin_range,
-                                        resampled)
+    if do_diagnostic or do_all_plots:
+        fname_diagnostic = plots_diagnostic(ncdata, dest_dir, level0, time_range, bin_range,
+                                            resampled)
+        output_file_list.append(fname_diagnostic)
+
     # Limit data if limits are not input by user
     time_lim, bin_depths_lim, ns_lim, ew_lim, time_range_idx, bin_range_idx = limit_data(
         ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, time_range, bin_range)
 
     # Plot pressure PRESPR01 vs time
-    fname_pres = plot_adcp_pressure(ncdata, dest_dir, resampled)
+    if do_pressure or do_all_plots:
+        fname_pres = plot_adcp_pressure(ncdata, dest_dir, resampled)
+        output_file_list.append(fname_pres)
 
     # North/East velocity plots
-    fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
-                              level0, 'raw', colourmap_lim, resampled)
+    if do_ne or do_all_plots:
+        fname_ne = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                                  level0, 'raw', colourmap_lim, resampled)
+        output_file_list.append(fname_ne)
 
     # Along/Cross-shelf velocity plots
-    fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
-                              'raw', along_angle, colourmap_lim, resampled)
+    if do_ac or do_all_plots:
+        fname_ac = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_lim, ew_lim,
+                                  'raw', along_angle, colourmap_lim, resampled)
+        output_file_list.append(fname_ac)
 
     # Single-bin plots
     single_bin_inds = get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata,
@@ -2434,87 +2449,88 @@ def create_westcoast_plots(ncfile, dest_dir, filter_type="Godin", along_angle=No
     # Feather/quiver plots
 
     # Returns a list of names not a single name; apply to non-filtered data
-    fnames_quiver = quiver_plot(dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
-                                ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
-                                time_lim, bin_depths_lim,
-                                ns_lim, ew_lim, single_bin_inds, resampled)
+    if do_quiver or do_all_plots:
+        fnames_quiver = quiver_plot(dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
+                                    ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
+                                    time_lim, bin_depths_lim,
+                                    ns_lim, ew_lim, single_bin_inds, resampled)
+        output_file_list += fnames_quiver
 
     # Rotary spectra
-
-    # Initialize a list to hold the names of all output files
-    fnames_rot_spec = []
-    # Iterate through the bins
-    for bin_idx in single_bin_inds:
-        # Only proceed if the bin index is in range
-        if bin_idx < len(bin_depths_lim):
-            fnames_rot_spec.append(
-                make_plot_rotary_spectra(
-                    dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
-                    ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
-                    bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
-                    ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
-                    resampled=resampled, axis=-1
+    if do_single_rotary_spectra or do_all_plots:
+        # Initialize a list to hold the names of all output files
+        fnames_rot_spec = []
+        # Iterate through the bins
+        for bin_idx in single_bin_inds:
+            # Only proceed if the bin index is in range
+            if bin_idx < len(bin_depths_lim):
+                fnames_rot_spec.append(
+                    make_plot_rotary_spectra(
+                        dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
+                        ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
+                        bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+                        ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
+                        resampled=resampled, axis=-1
+                    )
                 )
-            )
-        else:
-            print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
-                  f'length {len(bin_depths_lim)}')
+            else:
+                print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
+                      f'length {len(bin_depths_lim)}')
+
+        output_file_list += fnames_rot_spec
 
     # Profile plots of tidal ellipses
-    try:
-        fname_tidal_ellipse = make_plot_tidal_ellipses(
-            dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
-            ncdata.instrument_serial_number.data, ncdata.instrument_depth.data, ncdata.latitude.data,
-            time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
-        )
-    except ValueError as e:
-        warnings.warn(f'Tidal analysis failed with error: {e}')
+    if do_tidal or do_all_plots:
+        try:
+            fname_tidal_ellipse = make_plot_tidal_ellipses(
+                dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
+                ncdata.instrument_serial_number.data, ncdata.instrument_depth.data, ncdata.latitude.data,
+                time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
+            )
+            output_file_list.append(fname_tidal_ellipse)
+        except ValueError as e:
+            warnings.warn(f'Tidal analysis failed with error: {e}')
 
     # pcolor (pseudocolour) depth profile plot of rotary spectra
-    fnames_depth_prof = make_depth_prof_rot_spec(
-        dest_dir, ncdata.filename, station=ncdata.station, deployment_number=ncdata.deployment_number,
-        serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
-        bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
-    )
+    if do_profile_rotary_spectra or do_all_plots:
+        fnames_depth_prof = make_depth_prof_rot_spec(
+            dest_dir, ncdata.filename, station=ncdata.station, deployment_number=ncdata.deployment_number,
+            serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
+            bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
+        )
+        output_file_list.append(fnames_depth_prof)
 
     # Redo part of process with tidal-filtered data
+    if do_filter_ne or do_filter_ac or do_all_plots:
+        if filter_type == "Godin":
+            ew_filt, ns_filt = filter_godin(ncdata)
+        elif filter_type.endswith("h"):
+            ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=int(filter_type[:-1]))
+        else:
+            ValueError("filter_type value not understood !")
 
-    if filter_type == "Godin":
-        ew_filt, ns_filt = filter_godin(ncdata)
-    elif filter_type.endswith("h"):
-        ew_filt, ns_filt = filter_XXh(ncdata, num_hrs=int(filter_type[:-1]))
-    else:
-        ValueError("filter_type value not understood !")
+        # Limit data
+        time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, time_range_idx, bin_range_idx = limit_data(
+            ncdata, ew_filt, ns_filt, time_range, bin_range)
 
-    # Limit data
-    time_lim, bin_depths_lim, ns_filt_lim, ew_filt_lim, time_range_idx, bin_range_idx = limit_data(
-        ncdata, ew_filt, ns_filt, time_range, bin_range)
+        # Northward and eastward velocity colormesh plots
+        if do_filter_ne or do_all_plots:
+            fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
+                                           ew_filt_lim, level0, filter_type, colourmap_lim, resampled)
+            output_file_list.append(fname_ne_filt)
 
-    # Northward and eastward velocity colormesh plots
-    fname_ne_filt = make_pcolor_ne(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
-                                   ew_filt_lim, level0, filter_type, colourmap_lim, resampled)
+        # Along-shore/cross-shore
+        if do_filter_ac or do_all_plots:
+            fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
+                                           ew_filt_lim, filter_type, along_angle, colourmap_lim,
+                                           resampled)
+            output_file_list.append(fname_ac_filt)
 
-    # Along-shore/cross-shore
-    fname_ac_filt = make_pcolor_ac(ncdata, dest_dir, time_lim, bin_depths_lim, ns_filt_lim,
-                                   ew_filt_lim, filter_type, along_angle, colourmap_lim,
-                                   resampled)
-
-    # # Compare filtered data with raw data
-    # fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
-    #                                      filter_type, direction, resampled)
+        # # Compare filtered data with raw data
+        # fname_binplot = binplot_compare_filt(ncdata, dest_dir, time_lim, ew_lim, ew_filt_lim,
+        #                                      filter_type, direction, resampled)
 
     # Close netCDF file
     ncdata.close()
 
-    # Assemble all file names of the plots produced
-    fout_name_list += [fname_diagnostic, fname_pres, fname_ne, fname_ac, fname_ne_filt,
-                       fname_ac_filt]
-    fout_name_list += fnames_quiver
-    fout_name_list += fnames_rot_spec
-    try:
-        fout_name_list.append(fname_tidal_ellipse)
-    except NameError:
-        pass
-    fout_name_list += fnames_depth_prof
-
-    return fout_name_list
+    return output_file_list
