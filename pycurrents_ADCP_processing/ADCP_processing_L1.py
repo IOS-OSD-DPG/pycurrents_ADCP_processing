@@ -1472,6 +1472,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['sensor_source'] = '{0:08b}'.format(vel.FL['EZ'])  # sensorSource
     out.attrs['sensors_avail'] = '{0:08b}'.format(vel.FL['SA'])  # sensors_avail
     out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper()  # netCDF4 file format doesn't support bool
+    out.attrs['bin_mapping'] = str(vel.trans['binmap']).upper()
     out.attrs['valid_correlation_range'] = vel.FL['LowCorrThresh']  # lowCorrThresh
     out.attrs['min_percent_good'] = fixed_leader.FL['PGMin']
     out.attrs['blank'] = '{} m'.format(fixed_leader.FL['Blank'] / 100)  # convert cm to m

@@ -298,12 +298,9 @@ def write_deployment_recovery(nc):
 
 def write_instrument(nc):
     # define function to write instrument info
-    data_type = nc.attrs["data_type"].upper()
+    # data_type = nc.attrs["instrument_type_type"].upper()
     model = nc.attrs["instrument_subtype"] + "-" + nc.attrs["instrument_type"]
-    if hasattr(nc, 'serial_number'):
-        serial_number = nc.attrs["serial_number"]
-    elif hasattr(nc, 'instrument_serial_number'):
-        serial_number = nc.attrs["instrument_serial_number"]
+    serial_number = nc.instrument_serial_number.data
     # serial_number = nc.attrs["serial_number"]  nc.attrs["instrument_serial_number"]
     depth = str(nc.instrument_depth.data)
     orientation = nc.attrs["orientation"]
@@ -361,9 +358,9 @@ def write_raw(nc):
     time_between_ping_groups = str(nc.attrs['time_ping'])
     coord = "00011111"  # need check and confirm?
     coord_sys = nc.attrs["coord_system"]
-    use_pitchroll = "yes"  # need check and confirm?
-    use_3beam = "yes"  # need check and confirm?
-    bin_mapping = "yes"  # need check and confirm?
+    use_pitchroll = "yes" if hasattr(nc, 'PTCHGP01') and hasattr(nc, 'ROLLGP01') else "no"  # need check and confirm?
+    use_3beam = "yes" if nc.attrs['three_beam_used'] == 'TRUE' else "no"
+    bin_mapping = "yes" if nc.attrs['bin_mapping'] == 'TRUE' else "no"
     xducer_misalign = "0"  # need check and confirm?
     if hasattr(nc, 'magnetic_declination'):
         magnetic_var = str(nc.attrs["magnetic_declination"])
