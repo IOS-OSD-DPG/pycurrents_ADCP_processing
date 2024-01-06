@@ -781,10 +781,12 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
         if type(meta_dict['segment_start_indices']) == str and ',' in meta_dict['segment_start_indices']:
             # Multiple segments
             meta_dict['segment_start_indices'] = [
-                matlab_index_to_python(int(ind)) for ind in meta_dict['segment_start_indices'].split(',')
+                matlab_index_to_python(int(ind))
+                for ind in meta_dict['segment_start_indices'].replace('"', '').split(',')
             ]
             meta_dict['segment_end_indices'] = [
-                matlab_index_to_python(int(ind)) for ind in meta_dict['segment_end_indices'].split(',')
+                matlab_index_to_python(int(ind))
+                for ind in meta_dict['segment_end_indices'].replace('"', '').split(',')
             ]
         elif type(meta_dict['segment_start_indices']) == int:
             # Replaces numbers of ensembles to cut
