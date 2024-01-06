@@ -2311,7 +2311,7 @@ def default_single_bins(ncdata: xr.Dataset, time_range_idx: tuple, bin_range_idx
 
 
 def get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata: xr.Dataset, time_range_idx,
-                        bin_range_idx, bin_depths_lim):
+                        bin_range_idx, bin_depths_lim) -> list:
     """
     Get indices of bins to make rotary spectra and quiver/feather plots of
     """
@@ -2332,10 +2332,63 @@ def get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata: xr.Dataset, 
     return single_bin_inds
 
 
+def plot_single_bin_velocity(
+        time: np.ndarray, U: np.ndarray, V: np.ndarray, depth: np.ndarray, dest_dir, data_filename, station,
+        deployment_number, serial_number, instrument_depth, bin_index=None, resampled=None, level0=False,
+        filter_type='raw'
+):
+    """
+    Plot with 2 horizontal subplots containing n and e velocities
+    """
+    if bin_index is None:  # default plot bin nearest the ADCP
+        bin_number = 0
+    elif bin_index > len(U[0, :]):
+        warnings.warn(
+            f'Bin index {bin_index} out of range of velocity with dims {U.shape}'
+        )
+        bin_number = len(U[0, :]) - 1
+
+    bin_depth = depth[bin_number]
+
+    vlim = np.nanmax([np.nanmax(abs(V[bin_number, :])), np.nanmax(abs(U[bin_number, :]))])
+
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
+    ax[0].plot(time, V[bin_number, :])
+    ax[1].plot(time, U[bin_number, :])
+    plt.suptitle(f'{station}-{deployment_number} {serial_number} Bin {bin_number} ({bin_depth} m) Velocities')
+    velocity_names = ['North', 'East']
+    if level0:
+        velocity_names = [f'Magnetic {x}' for x in velocity_names]
+
+    for i, vel_name in zip([0, 1], velocity_names):
+        ax[i].set_ylabel('Velocity [m s$^{-1}$]')
+        ax[i].set_title(vel_name)
+        ax[i].set_ylim((-vlim, vlim))
+        ax[i].tick_params(axis='both', direction='in', top=True, right=True)
+
+    plot_name = (f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_'
+                 f'NE_bin{bin_number}_{filter_type}.png')
+
+    if resampled is not None:
+        plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+    # Create L1_Python_plots or L2_Python_plots subfolder if not made already
+    plot_dir = get_plot_dir(data_filename, dest_dir)
+    if not os.path.exists(plot_dir):
+        os.makedirs(plot_dir)
+
+    plot_name = os.path.join(plot_dir, plot_name)
+    plt.savefig(plot_name)
+    plt.close(fig)
+
+    return plot_name
+
+
 def create_westcoast_plots(
-        ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None, bin_range=None, single_bin_inds=None,
-        single_bin_depths=None, colourmap_lim=None, override_resample=False,
-        do_all_plots=False, do_diagnostic=False, do_pressure=False, do_ne=False, do_ac=False, do_quiver=False,
+        ncfile, dest_dir, filter_type="Godin", along_angle=None, time_range=None, bin_range=None,
+        single_bin_inds=None, single_bin_depths=None, colourmap_lim=None, override_resample=False,
+        do_all_plots=False, do_diagnostic=False, do_pressure=False, do_single_bin_ne=False,
+        do_ne=False, do_ac=False, do_quiver=False,
         do_single_rotary_spectra=False, do_tidal=False, do_profile_rotary_spectra=False, do_filter_ne=False,
         do_filter_ac=False,
 ):
@@ -2445,6 +2498,15 @@ def create_westcoast_plots(
     # Single-bin plots
     single_bin_inds = get_single_bin_inds(single_bin_inds, single_bin_depths, ncdata,
                                           time_range_idx, bin_range_idx, bin_depths_lim)
+
+    if do_single_bin_ne or do_all_plots:
+        fname_single_ne = plot_single_bin_velocity(
+            time_lim, U=ew_lim, V=ns_lim, depth=bin_depths_lim, dest_dir=dest_dir, data_filename=ncdata.filename,
+            station=ncdata.station, deployment_number=ncdata.deployment_number,
+            serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
+            bin_index=single_bin_inds[0], resampled=resampled, level0=level0, filter_type='raw'
+        )
+        output_file_list.append(fname_single_ne)
 
     # Feather/quiver plots
 
