@@ -2341,21 +2341,21 @@ def plot_single_bin_velocity(
     Plot with 2 horizontal subplots containing n and e velocities
     """
     if bin_index is None:  # default plot bin nearest the ADCP
-        bin_number = 0
+        bin_index = 0
     elif bin_index > len(U[0, :]):
         warnings.warn(
             f'Bin index {bin_index} out of range of velocity with dims {U.shape}'
         )
-        bin_number = len(U[0, :]) - 1
+        bin_index = len(U[0, :]) - 1
 
-    bin_depth = depth[bin_number]
+    bin_depth = depth[bin_index]
 
-    vlim = np.nanmax([np.nanmax(abs(V[bin_number, :])), np.nanmax(abs(U[bin_number, :]))])
+    vlim = np.nanmax([np.nanmax(abs(V[bin_index, :])), np.nanmax(abs(U[bin_index, :]))])
 
     fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-    ax[0].plot(time, V[bin_number, :])
-    ax[1].plot(time, U[bin_number, :])
-    plt.suptitle(f'{station}-{deployment_number} {serial_number} Bin {bin_number} ({bin_depth} m) Velocities')
+    ax[0].plot(time, V[bin_index, :])
+    ax[1].plot(time, U[bin_index, :])
+    plt.suptitle(f'{station}-{deployment_number} {serial_number} Bin {bin_index + 1} ({bin_depth} m) Velocities')
     velocity_names = ['North', 'East']
     if level0:
         velocity_names = [f'Magnetic {x}' for x in velocity_names]
@@ -2367,7 +2367,7 @@ def plot_single_bin_velocity(
         ax[i].tick_params(axis='both', direction='in', top=True, right=True)
 
     plot_name = (f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_'
-                 f'NE_bin{bin_number}_{filter_type}.png')
+                 f'NE_bin{bin_index}_{filter_type}.png')
 
     if resampled is not None:
         plot_name.replace('.png', f'_{resampled}_resampled.png')
