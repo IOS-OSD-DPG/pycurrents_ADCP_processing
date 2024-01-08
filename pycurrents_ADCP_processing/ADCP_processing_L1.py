@@ -886,13 +886,15 @@ def get_segment_start_end_idx_depth_DEPREC(
 
 
 def get_segment_instrument_depths(
-        start_indices, end_indices, time_series_depth: np.ndarray
+        start_indices, end_indices, time_series_depth: np.ndarray, start_instrument_depth: float
 ):
     """
     Compute instrument depth from the average time series depth PPSAADCP for each segment
     """
     instrument_depths = np.zeros(len(start_indices))
-    for i in range(len(start_indices)):
+    instrument_depths[0] = start_instrument_depth
+
+    for i in range(1, len(start_indices)):
         instrument_depths[i] = np.round(
             np.nanmean(time_series_depth[start_indices[i]: end_indices[i]]),
             1
@@ -914,7 +916,7 @@ def make_dataset_from_subset(
         if key == 'filename':
             var_dict[key] = ([], new_filename)
         elif key == 'latitude' and type(recovery_lat) == float:
-            print(recovery_lat, recovery_lon)
+            # print(recovery_lat, recovery_lon)
             var_dict[key] = ([], recovery_lat)
         elif key == 'longitude' and type(recovery_lon) == float:
             var_dict[key] = ([], recovery_lon)
@@ -1024,12 +1026,15 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
     :param dest_dir: destination directory for output files
     :param verbose: print out progress statements if True; default False
     """
-    segment_instr_depths = get_segment_instrument_depths(segment_starts, segment_ends,
-                                                         input_ds.PPSAADCP.data)
+    # Use the input instrument_depth for the first segment
+    segment_instr_depths = get_segment_instrument_depths(
+        segment_starts, segment_ends, time_series_depth=input_ds.PPSAADCP.data,
+        start_instrument_depth=input_ds.instrument_depth.data
+    )
 
     num_segments = len(segment_instr_depths)
 
-    # Join times of splits if there were more than one mooring strike
+    # Join times of splits if there were more than one mooring strike for writing to processing_history
     time_of_split = ' & '.join(
         [utils.numpy_datetime_to_str_utc(t) for t in input_ds.time.data[np.array(segment_ends[:-1]) + 1]]
     )
@@ -1051,7 +1056,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
         # Need to subtract 1 from en_idx because +1 is added in
         # get_user_segment_start_end_idx_depth() for inclusive ranges
         # but ranges are not called here
-        out_segment_name = '{}_{}_{}_{}m.adcp.L1.nc'.format(
+        out_segment_name = '{}_{}_{}_{}m_L1.adcp.nc'.format(
             input_ds.station.lower(),
             utils.numpy_datetime_to_str_utc(input_ds.time.data[st_idx])[:10].replace('-', ''),
             utils.numpy_datetime_to_str_utc(input_ds.time.data[en_idx])[:10].replace('-', ''),
