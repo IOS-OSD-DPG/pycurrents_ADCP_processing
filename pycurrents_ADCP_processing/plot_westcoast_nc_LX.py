@@ -2270,13 +2270,31 @@ def default_single_bins(ncdata: xr.Dataset, time_range_idx: tuple, bin_range_idx
         max_time_avg_pg = np.nanmax(time_avg_pg, axis=0)
 
         if ncdata.orientation == 'up':
-            shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # size of number of bins
+            try:
+                shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # size of number of bins
+            except IndexError:
+                warnings.warn(f'Threshold of {goodness_thresh}% not exceeded by time-mean max percent-good data; '
+                              f'shallow bin choice defaulting to third-shallowest bin for single bin plots')
+                shallow = len(max_time_avg_pg) - 4
             deep = 0
         else:
-            shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][0]  # First good bin
-            deep = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # Last good bin
+            try:
+                shallow = np.where(max_time_avg_pg >= goodness_thresh)[0][0]  # First good bin
+                deep = np.where(max_time_avg_pg >= goodness_thresh)[0][-1]  # Last good bin
+            except IndexError:
+                warnings.warn(f'Threshold of {goodness_thresh}% not exceeded by time-mean max percent-good data; '
+                              f'bin choices defaulting to shallowest bin and deepest bin above water depth for '
+                              f'single bin plots')
+                shallow = 0
+                if ncdata.DISTTRAN.data[-1] > ncdata.water_depth.data:
+                    # Bin depths exceed water depth
+                    deep = np.where(ncdata.DISTTRAN.data > ncdata.water_depth.data)[0][-1]
+                else:
+                    # Bin depths do not exceed water depth
+                    deep = len(max_time_avg_pg) - 1
 
     elif ncdata.orientation == 'up':
+        # Does not have percent good data
         # Use beam- and time-averaged backscatter if percent good data are not available
         if hasattr(ncdata, 'TNIHCE05'):
             amp_beam_avg = np.nanmean([ncdata.TNIHCE01.data[:, :],
@@ -2299,6 +2317,7 @@ def default_single_bins(ncdata: xr.Dataset, time_range_idx: tuple, bin_range_idx
         shallow = np.where(diffs > diff_increase_threshold)[0][0]
 
     else:
+        # Does not have percent good data
         # Orientation == 'down'
         bin_depths = ncdata.instrument_depth.data + ncdata.distance.data
         # Find deepest bin above the sea floor
