@@ -75,8 +75,8 @@ def correct_true_north(measured_east, measured_north, meta_dict: dict):
     return east_true, north_true
 
 
-def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
-                     time_csv) -> np.ndarray:
+def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year: int,
+                     time_csv=None) -> np.ndarray:
     """
     Includes exception handling for bad times
     time_var: vel.dday; time variable with units in days since the beginning
@@ -93,36 +93,54 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year,
     try:
         # convert time variable to elapsed time since 1970-01-01T00:00:00Z
         t_s = np.array(
-            pd.to_datetime(time_var, unit='D', origin=data_origin,
-                           utc=True).strftime('%Y-%m-%d %H:%M:%S'),
-            dtype='datetime64[s]')
+            pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
+            dtype='datetime64[s]'
+        )
         # # DTUT8601 variable: time strings
         # t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin,
         #                             utc=True).strftime(
         #     '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
-        print('Using user-created time range')
+        warnings.warn('OutOfBoundsDateTime exception triggered by raw time data', UserWarning)
         t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[s]')
         # t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
-        with open(time_csv) as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter=',')
-            # Skip headers
-            next(csv_reader, None)
-            for count, row in enumerate(csv_reader):
-                if row[0] == '':
-                    pass
-                else:
-                    t_s[count] = np.datetime64(
-                        pd.to_datetime(row[0], utc=True).strftime(
-                            '%Y-%m-%d %H:%M:%S'))
-                    # t_DTUT8601[count] = pd.to_datetime(
-                    #     row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
+        if type(time_csv) is str:
+            with open(time_csv) as csv_file:
+                csv_reader = csv.reader(csv_file, delimiter=',')
+                # Skip headers
+                next(csv_reader, None)
+                for count, row in enumerate(csv_reader):
+                    if row[0] == '':
+                        pass
+                    else:
+                        t_s[count] = np.datetime64(
+                            pd.to_datetime(row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
+                        )
+                        # t_DTUT8601[count] = pd.to_datetime(
+                        #     row[0], utc=True).strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            warnings.warn(f'User did not provide valid time_csv with value {time_csv}; '
+                          f'attempting to generate replacement time data. To generate time data yourself, '
+                          f'see /pycurrents_ADCP_processing/generate_time_range.py.', UserWarning)
 
-        warnings.warn('OutOfBoundsDateTime exception triggered by raw time data; '
-                      'used user-generated time range as time data', UserWarning)
+            # Median is robust to outliers
+            # Round frequency to nearest second
+            median_period = pd.Timedelta(np.nanmedian(np.diff(time_var))).round('s').total_seconds()
+            # List of accepted units here (use secondly):
+            # https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases
+            median_period = f'{int(np.round(median_period))}S'  # convert to string
+
+            # Assume the first timestamp is correct
+            date_range = pd.date_range(
+                start=pd.to_datetime(time_var[0], unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
+                periods=len(time_var),
+                freq=median_period
+            )
+
+            t_s = np.array([np.datetime64(t) for t in date_range])
 
         meta_dict['processing_history'] += (' OutOfBoundsDateTime exception triggered by raw time data; '
-                                            'used user-generated time range as time data.')
+                                            'generated time range with Python to use as time data.')
 
     # Set times out of range to NaNs
     # Get timedelta object with value of one year long
