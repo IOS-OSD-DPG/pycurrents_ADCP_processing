@@ -2367,8 +2367,8 @@ def plot_single_bin_velocity(
 
     bin_depth = np.round(depth[bin_index], 2)
 
-    vlim = np.nanmax([np.nanmax(abs(V[bin_index, :])), np.nanmax(abs(U[bin_index, :]))])
-    vlim = vlim + (0.1 * vlim)  # add buffer
+    # vlim = np.nanmax([np.nanmax(abs(V[bin_index, :])), np.nanmax(abs(U[bin_index, :]))])
+    # vlim = vlim + (0.1 * vlim)  # add buffer
 
     fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
     ax[0].plot(time, V[bin_index, :])
@@ -2377,6 +2377,9 @@ def plot_single_bin_velocity(
     velocity_names = ['North', 'East']
     if level0:
         velocity_names = [f'Magnetic {x}' for x in velocity_names]
+
+    # Make y axis limits the same
+    vlim = np.nanmax(abs(np.array([*ax[0].get_ylim(), *ax[1].get_ylim()])))
 
     for i, vel_name in zip([0, 1], velocity_names):
         ax[i].set_ylabel('Velocity [m s$^{-1}$]')
