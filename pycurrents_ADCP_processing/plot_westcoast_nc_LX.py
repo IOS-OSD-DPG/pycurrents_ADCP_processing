@@ -404,20 +404,18 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
         os.makedirs(plot_dir)
 
     # Create centred figure title
-    if resampled is None:
-        fig.suptitle('{}-{} {} at {} m depth'.format(nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-                                                     np.round(nc.instrument_depth.data, 1)), fontweight='semibold')
-        fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic.png'.format(
-            nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
-            int(np.round(nc.instrument_depth.data, 0)))
-    else:
-        fig.suptitle('{}-{} {} at {} m depth, {} subsampled'.format(
-            nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-            np.round(nc.instrument_depth.data, 1), resampled),
-            fontweight='semibold')
-        fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic_{}_subsamp.png'.format(
-            nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
-            int(np.round(nc.instrument_depth.data, 0)), resampled)
+    suptitle = '{}-{} {} at {} m depth'.format(
+        nc.station, nc.deployment_number, nc.instrument_serial_number.data, str(np.round(nc.instrument_depth.data, 1))
+    )
+    fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic.png'.format(
+        nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
+        str(int(np.round(nc.instrument_depth.data, 0)))
+    )
+    if resampled is not None:
+        suptitle = suptitle.replace('depth', f'depth, {resampled} subsampled')
+        fig_name = fig_name.replace('.png', f'_{resampled}_subsamp.png')
+
+    fig.suptitle(suptitle, fontweight='semibold')
 
     fig.savefig(fig_name)
     plt.close()
