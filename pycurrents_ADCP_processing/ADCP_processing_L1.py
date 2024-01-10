@@ -823,14 +823,14 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
 
     if flag_start > 0:
         if 'cut_lead_ensembles' in meta_dict.keys() and meta_dict['cut_lead_ensembles'] is not None:
-            meta_dict['segment_start_indices'] = [meta_dict['cut_lead_ensembles']]
+            meta_dict['segment_start_indices'] = [int(meta_dict['cut_lead_ensembles'])]
         else:
             meta_dict['segment_start_indices'] = [0]
 
     if flag_end > 0:
         if 'cut_trail_ensembles' in meta_dict.keys() and meta_dict['cut_trail_ensembles'] is not None:
             meta_dict['segment_end_indices'] = [
-                matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']) - meta_dict['cut_trail_ensembles'])
+                matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']) - int(meta_dict['cut_trail_ensembles']))
             ]
         else:
             meta_dict['segment_end_indices'] = [matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']))]
