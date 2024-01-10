@@ -132,7 +132,9 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
 
             # Assume the first timestamp is correct
             date_range = pd.date_range(
-                start=pd.to_datetime(time_var[0], unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
+                start=pd.to_datetime(
+                    time_var[0], unit='D', origin=data_origin, utc=True
+                ).strftime('%Y-%m-%d %H:%M:%S'),
                 periods=len(time_var),
                 freq=median_period
             )
@@ -795,6 +797,7 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
         meta_dict['beam_pattern'] = 'concave'
 
     # Convert segment indices from string/int to list and from matlab start at 1 to python start at 0
+    flag = 0
     if 'segment_start_indices' in meta_dict.keys():
         if type(meta_dict['segment_start_indices']) == str and ',' in meta_dict['segment_start_indices']:
             # Multiple segments
@@ -811,14 +814,21 @@ def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
             meta_dict['segment_start_indices'] = [matlab_index_to_python(meta_dict['segment_start_indices'])]
             meta_dict['segment_end_indices'] = [matlab_index_to_python(meta_dict['segment_end_indices'])]
         elif meta_dict['segment_start_indices'] is None:
-            # No ensembles to cut
-            meta_dict['segment_start_indices'] = [0]
-            meta_dict['segment_end_indices'] = [matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']))]
+            flag += 1
     else:
-        meta_dict['segment_start_indices'] = [meta_dict['cut_lead_ensembles']]
-        meta_dict['segment_end_indices'] = [
-            matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']) - meta_dict['cut_trail_ensembles'])
-        ]
+        flag += 1
+
+    if flag > 0:
+        if 'cut_lead_ensembles' in meta_dict.keys() and meta_dict['cut_lead_ensembles'] is not None:
+            meta_dict['segment_start_indices'] = [meta_dict['cut_lead_ensembles']]
+        else:
+            meta_dict['segment_start_indices'] = [0]
+        if 'cut_trail_ensembles' in meta_dict.keys() and meta_dict['cut_trail_ensembles'] is not None:
+            meta_dict['segment_end_indices'] = [
+                matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']) - meta_dict['cut_trail_ensembles'])
+            ]
+        else:
+            meta_dict['segment_end_indices'] = [matlab_index_to_python(len(fixed_leader['raw']['FixedLeader']))]
 
     return meta_dict
 
