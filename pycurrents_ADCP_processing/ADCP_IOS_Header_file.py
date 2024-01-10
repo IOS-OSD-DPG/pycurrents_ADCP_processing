@@ -533,11 +533,12 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     print("    $END")
     print("    $REMARKS")
     print("        -" + process_1 + " processing: " + date_time_1)
-    for i in range(n):
-        sentence = nc.history.split(". ")[i]
-        lines = check_sentence_length(sentence, num_leading_spaces=9)  # make sure line length not exceeded
-        for k in range(len(lines)):
-            print(lines[k])
+    if nc.attrs['history'] != '':
+        for i in range(n):
+            sentence = nc.history.split(". ")[i]
+            lines = check_sentence_length(sentence, num_leading_spaces=9)  # make sure line length not exceeded
+            for k in range(len(lines)):
+                print(lines[k])
     # print("         " + '{:100}'.format(nc.history.split(". ")[i]))
     # adding more processing content, check with Hana
     print("        -" + process_2 + " processing: " + date_time_2)
