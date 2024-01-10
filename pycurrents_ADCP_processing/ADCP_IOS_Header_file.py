@@ -391,8 +391,13 @@ def write_raw(nc):
     print("    " + '{:20}'.format('TIME INCREMENT') + ": " + time_increment_string + "  ! (day hr min sec ms)")
     print("    " + '{:20}'.format('NUMBER OF RECORDS') + ": " + number_records)
     print("    $REMARKS")
-    print("        " + "The following metadata were extracted from the raw ADCP binary file using")
-    print("        " + "Python to perform the processing and netCDF file output")
+    lines = check_sentence_length(sentence='The following metadata were extracted from the raw ADCP binary file using '
+                                           'Python to perform the processing and netCDF file output',
+                                  num_leading_spaces=8)
+    for ln in lines:
+        print(ln)
+    # print("        " + "The following metadata were extracted from the raw ADCP binary file using")
+    # print("        " + "Python to perform the processing and netCDF file output")
     print()
     print("        " + '{:29}'.format('name:') + name)
     print("        " + '{:29}'.format('sourceprog:') + sourceprog)
