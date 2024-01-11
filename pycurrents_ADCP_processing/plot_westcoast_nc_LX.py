@@ -48,7 +48,7 @@ import ttide
 from scipy.interpolate import interp1d
 from matplotlib.colors import LogNorm
 import matplotlib
-from pycurrents_ADCP_processing.utils import parse_processing_history
+# from pycurrents_ADCP_processing.utils import parse_processing_history
 import warnings
 
 
@@ -443,13 +443,15 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
         bin_depths = ncdata.instrument_depth.data + ncdata.distance.data
     # print(bin_depths)
 
+    # REVISION Jan 2024: bad leading and trailing ensembles are deleted from dataset, so don't need this step
     # data.time should be limited to the data.time with no NA values; bins must be limited
     if time_range is None:
-        if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
-            leading_ens_cut, trailing_ens_cut = parse_processing_history(
-                ncdata.attrs['processing_history']
-            )
-            time_first_last = (leading_ens_cut, len(ew_data[0]) - trailing_ens_cut)
+        # if 'L1' in ncdata.filename.data.tolist() or 'L2' in ncdata.filename.data.tolist():
+        #     leading_ens_cut, trailing_ens_cut = parse_processing_history(
+        #         ncdata.attrs['processing_history']
+        #     )
+        #     time_first_last = (leading_ens_cut, len(ew_data[0]) - trailing_ens_cut)
+        time_first_last = (0, len(ew_data[0]))
     else:
         time_first_last = time_range
 
