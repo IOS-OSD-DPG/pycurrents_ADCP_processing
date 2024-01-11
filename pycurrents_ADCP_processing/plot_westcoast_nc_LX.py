@@ -224,11 +224,11 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_spl
         int(np.round(nc.instrument_depth.data)))
 
     if is_pre_split:
-        png_name.replace('.png', '_pre-split.png')
+        png_name = png_name.replace('.png', '_pre-split.png')
 
     if resampled is not None:
         plot_title += ' subsampled'
-        png_name.replace('.png', '_subsamp.png')
+        png_name = png_name.replace('.png', '_subsamp.png')
 
     plt.title(plot_title)
 
@@ -677,7 +677,7 @@ def make_pcolor_speed(dest_dir: str, station: str, deployment_number: str, instr
 
     plot_name = f'{station}-{deployment_number}_{instrument_depth}m_spd_dir.png'
     if resampled:
-        plot_name.replace('.png', f'_{resampled}_resampled.png')
+        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
 
     plot_name = os.path.join(dest_dir, plot_name)
     fig.savefig(plot_name)
@@ -1257,7 +1257,7 @@ def quiver_plot(dest_dir: str, data_filename,
 
         plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_quiver_plotCOUNTER.png'
         if resampled:
-            plot_name.replace('.png', f'_{resampled}_resampled.png')
+            plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
 
         # Create L1_Python_plots or L2_Python_plots subfolder if not made already
         plot_dir = get_plot_dir(data_filename, dest_dir)
@@ -2208,7 +2208,7 @@ def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deploym
     # Save the figure
     plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_tidal_ellipses.png'
     if resampled:
-        plot_name.replace('.png', f'_{resampled}_resampled.png')
+        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(data_filename, dest_dir)
@@ -2393,7 +2393,7 @@ def plot_single_bin_velocity(
                  f'NE_bin{bin_index}_{filter_type}.png')
 
     if resampled is not None:
-        plot_name.replace('.png', f'_{resampled}_resampled.png')
+        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(data_filename, dest_dir)
