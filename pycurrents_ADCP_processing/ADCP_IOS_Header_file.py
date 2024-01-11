@@ -236,6 +236,11 @@ def decimalDegrees2DMS(value, lon_or_lat):
     return notation
 
 
+def format_datetime(date_time: str):
+    """Change format from YYYY-mm-dd HH:MM:SS UTC to YYYY/mm/dd HH:MM:SS. Does not affect "Unknown" times"""
+    return date_time.replace('-', '/').replace(' UTC', '')
+
+
 def write_location(nc):
     # Function to define geographic location
     geo_area = str(nc.geographic_area.values)
@@ -268,13 +273,13 @@ def write_deployment_recovery(nc):
     mission_deployment = nc.attrs["deployment_cruise_number"]
     deployment_type = nc.attrs["deployment_type"]
     if type(nc.attrs["anchor_drop_time"]) == str:
-        anchor_drop_time = nc.attrs["anchor_drop_time"]
+        anchor_drop_time = format_datetime(nc.attrs["anchor_drop_time"])
     else:
         anchor_drop_time = nc.attrs["anchor_drop_time"][:-4]
     remark = nc.attrs["anchor_type"]
     mission_recovery = nc.attrs["return_cruise_number"]
     if type(nc.attrs["anchor_release_time"]) == str:
-        anchor_release_time = nc.attrs["anchor_release_time"]
+        anchor_release_time = format_datetime(nc.attrs["anchor_release_time"])
     else:
         anchor_release_time = nc.attrs["anchor_release_time"][:-4]
 
@@ -494,7 +499,7 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
     # define function to write raw info
     process_1 = "ADCP2NC "
     process_1_ver = '1'  # str(nc.attrs["pred_accuracy"])
-    date_time_1 = nc.attrs["date_created"]
+    date_time_1 = format_datetime(nc.attrs["date_created"])
     leading_ens_cut, trailing_ens_cut = parse_processing_history(nc.attrs['processing_history'])
     Recs_in_1 = str(leading_ens_cut + trailing_ens_cut + nc.coords["time"].size)
     Recs_out_1 = str(nc.coords["time"].size)
