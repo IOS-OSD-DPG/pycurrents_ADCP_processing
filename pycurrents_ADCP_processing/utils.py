@@ -90,6 +90,13 @@ def parse_processing_history(processing_history: str):
         elif part.startswith('Trailing') and part.endswith('ensembles from after recovery discarded'):
             # Assume part has format: "Trailing 16 ensembles from after recovery discarded"
             trailing_ens_cut = int(part.split()[1])  # Split by space " "
+        elif part.startswith('From the original time series with length'):
+            # dsout.attrs['processing_history'] += (f" From the original time series with length {len(ds.time.data)},"
+            #                                       f" the segment start index = {segment_start_idx} and the"
+            #                                       f" segment end index = {segment_end_idx}.")
+            len_original_time_series = int(part.split()[7].replace(',', ''))
+            leading_ens_cut = int(part.split()[13]) - 1  # Convert start index to num leading ensembles cut
+            trailing_ens_cut = len_original_time_series - int(part.split()[-1].replace('.', ''))
 
     return leading_ens_cut, trailing_ens_cut
 
@@ -105,7 +112,7 @@ def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance:
     :param sensor_depth: mean of PPSAADCP
     :param distance: distance of each bin from the ADCP; dimension of the netCDF file
     """
-    print(orientation, sensor_depth, distance, sep='\n')
+    # print(orientation, sensor_depth, distance, sep='\n')
     if orientation == 'up':
         geospatial_vertical_min = float(sensor_depth) - np.nanmax(distance)
         geospatial_vertical_max = float(sensor_depth) - np.nanmin(distance)

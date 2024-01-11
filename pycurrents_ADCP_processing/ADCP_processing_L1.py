@@ -755,6 +755,10 @@ def matlab_index_to_python(ind):
     return ind - 1
 
 
+def python_index_to_matlab(ind):
+    return ind + 1
+
+
 def update_meta_dict_L1(meta_dict: dict, data: rdiraw.FileBBWHOS,
                         fixed_leader: rdiraw.Bunch) -> dict:
     """
@@ -1027,6 +1031,15 @@ def make_dataset_from_subset(
     # Update processing_history
     dsout.attrs['processing_history'] += (f" Dataset split into {num_segments} segments due to a mooring "
                                           f"strike(s) at {time_of_strike}.")
+
+    # Convert start and end idx back to within the context of the original dataset length
+    # leading_ens_cut, trailing_ens_cut = utils.parse_processing_history(dsout.attrs['processing_history'])
+    segment_start_idx = python_index_to_matlab(start_idx)
+    segment_end_idx = python_index_to_matlab(end_idx)
+
+    dsout.attrs['processing_history'] += (f" From the original time series with length {len(ds.time.data)},"
+                                          f" the segment start index = {segment_start_idx} and the"
+                                          f" segment end index = {segment_end_idx}.")
 
     if type(recovery_lat) == float:
         dsout.attrs['geospatial_lat_min'] = recovery_lat
@@ -1386,7 +1399,9 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
 
     # -----------Truncate time series variables before computing derived variables-----------
 
-    var_dict = truncate_time_series_ends(var_dict, meta_dict)
+    # Skip this step if dataset will be segmented later
+    if len(meta_dict['segment_start_indices']) <= 1:
+        var_dict = truncate_time_series_ends(var_dict, meta_dict)
 
     # --------------------------------Additional flagging--------------------------------
 
