@@ -105,12 +105,13 @@ def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance:
     :param sensor_depth: mean of PPSAADCP
     :param distance: distance of each bin from the ADCP; dimension of the netCDF file
     """
+    print(orientation, sensor_depth, distance, sep='\n')
     if orientation == 'up':
-        geospatial_vertical_min = sensor_depth - np.nanmax(distance)
-        geospatial_vertical_max = sensor_depth - np.nanmin(distance)
+        geospatial_vertical_min = float(sensor_depth) - np.nanmax(distance)
+        geospatial_vertical_max = float(sensor_depth) - np.nanmin(distance)
     elif orientation == 'down':
-        geospatial_vertical_min = sensor_depth + np.nanmin(distance)
-        geospatial_vertical_max = sensor_depth + np.nanmax(distance)
+        geospatial_vertical_min = float(sensor_depth) + np.nanmin(distance)
+        geospatial_vertical_max = float(sensor_depth) + np.nanmax(distance)
     else:
         ValueError(f'Orientation value {orientation} invalid')
 
