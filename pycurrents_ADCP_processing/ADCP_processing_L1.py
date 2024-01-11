@@ -1007,7 +1007,7 @@ def make_dataset_from_subset(
     ns_to_days = 1. / (60 * 60 * 24 * 1e9)  # nanoseconds to days
 
     geospatial_vertical_min, geospatial_vertical_max = utils.geospatial_vertical_extrema(
-        dsout.orientation, dsout.instrument_depth, dsout.distance.data
+        dsout.orientation, dsout.instrument_depth.data, dsout.distance.data
     )
 
     # duration must be in decimal days format

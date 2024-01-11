@@ -114,4 +114,7 @@ def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance:
     else:
         ValueError(f'Orientation value {orientation} invalid')
 
-    return geospatial_vertical_min, geospatial_vertical_max
+    # adcp float instrument_depth.data tends to acquire many decimal places for some reason
+    num_decimals = len(str(distance[0]).split('.')[1])
+
+    return np.round(geospatial_vertical_min, num_decimals), np.round(geospatial_vertical_max, num_decimals)
