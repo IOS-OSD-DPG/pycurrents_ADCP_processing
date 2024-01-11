@@ -968,7 +968,10 @@ def make_dataset_from_subset(
             )
             var_dict[key] = (['distance'], DISTTRAN)
         else:
-            var_dict[key] = ([], ds[key].data)
+            if ds[key].data.dtype == np.dtype('float32'):
+                var_dict[key] = ([], np.round(float(ds[key].data), 1))
+            else:
+                var_dict[key] = ([], str(ds[key].data))
 
     dsout = xr.Dataset(
         coords={'time': ds.time.data[start_idx:end_idx],
@@ -1001,33 +1004,23 @@ def make_dataset_from_subset(
     for key, value in ds.attrs.items():
         dsout.attrs[key] = value
 
-    GLOBAL_ATTRS_TO_UPDATE = [
-        'instrument_depth', 'processing_history',
-        'time_coverage_duration', 'time_coverage_start', 'source',
-        'time_coverage_end', 'geospatial_vertical_min',
-        'geospatial_vertical_max', 'date_modified',
-        'geospatial_lat_min', 'geospatial_lat_max',
-        'geospatial_lon_min', 'geospatial_lon_max'
-    ]
-
     ns_to_days = 1. / (60 * 60 * 24 * 1e9)  # nanoseconds to days
 
     geospatial_vertical_min, geospatial_vertical_max = utils.geospatial_vertical_extrema(
         dsout.orientation, dsout.instrument_depth, dsout.distance.data
     )
 
-    dsout.attrs['instrument_depth'] = instrument_depth
-
     # duration must be in decimal days format
-    dsout.attrs['time_coverage_duration'] = float(
-        dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
+    dsout.attrs['time_coverage_duration'] = get_time_duration(
+        float(dsout.time.data[-1] - dsout.time.data[0]) * ns_to_days
+    )
     # dsout.attrs['source'] = 'https://github.com/IOS-OSD-DPG/pycurrents_ADCP_processing'
     # string format
     dsout.attrs['time_coverage_start'] = utils.numpy_datetime_to_str_utc(dsout.time.data[0])
     dsout.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(dsout.time.data[-1])
     dsout.attrs['geospatial_vertical_min'] = geospatial_vertical_min
     dsout.attrs['geospatial_vertical_max'] = geospatial_vertical_max
-    dsout.attrs['date_modified'] = datetime.datetime.now(datetime.timezone.utc).strftime(
+    dsout.attrs['date_created'] = datetime.datetime.now(datetime.timezone.utc).strftime(
         '%Y-%m-%d %H:%M:%S UTC'
     )
 
@@ -1190,6 +1183,11 @@ def get_time_resolution(time_data):
     """
     dt = pd.Timedelta(((time_data[2] - time_data[0]) / 2))
     return str(dt).split(' ')[1]  # Remove day component of Timedelta that is before the HH:MM:SS part
+
+
+def get_time_duration(days: float):
+    """Get time duration in format "123 days, HH:MM:SS" """
+    return str(pd.Timedelta(days, unit='day')).split('.')[0]
 
 
 def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
@@ -1532,7 +1530,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     out.attrs['time_coverage_end'] = utils.numpy_datetime_to_str_utc(var_dict['time'][-1])
     # out.attrs['time_coverage_duration'] = vel.dday[-1] - vel.dday[0]
     # New format:
-    out.attrs['time_coverage_duration'] = str(pd.Timedelta(vel.dday[-1] - vel.dday[0], unit='day')).split('.')[0]
+    out.attrs['time_coverage_duration'] = get_time_duration(vel.dday[-1] - vel.dday[0])
     # out.attrs['time_coverage_duration_units'] = "days"
     out.attrs['time_coverage_resolution'] = get_time_resolution(out.time.data)
 
