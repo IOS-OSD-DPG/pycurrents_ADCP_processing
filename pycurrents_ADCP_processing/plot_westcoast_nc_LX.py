@@ -298,6 +298,8 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     # Make plot and first subplot
     fig = plt.figure(figsize=(11, 8.5))
     ax = fig.add_subplot(1, 3, 1)
+    # Modify legend location in backscatter and velocity subplots to not overlap with places of greater variation
+    legend_loc = 'lower left' if nc.orientation == 'up' else 'upper left'
 
     beam_no = 1
     for dat, col in zip(amp, colours):
@@ -305,7 +307,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
                      markersize=2, color=col)
         beam_no += 1
     ax.set_ylim(depths[-1], depths[0])
-    ax.legend(loc='lower left')
+    ax.legend(loc=legend_loc)
     ax.set_xlabel('Counts')
     ax.set_ylabel('Depth (m)')  # Set y axis label for this subplot only out of the 3
     ax.grid()
@@ -355,7 +357,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
         f2 = ax.plot(vels[i], depths, label=names[i], linewidth=1, marker='o', markersize=2,
                      color=colours[i])
     ax.set_ylim(depths[-1], depths[0])  # set vertical limits
-    ax.legend(loc='lower left')
+    ax.legend(loc=legend_loc)
     ax.set_xlabel('Velocity (m/s)')
     ax.grid()
     ax.tick_params(axis='both', direction='in', top=True, right=True)
