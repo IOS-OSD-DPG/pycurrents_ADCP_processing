@@ -2390,7 +2390,7 @@ def plot_single_bin_velocity(
         ax[i].tick_params(axis='both', direction='in', top=True, right=True)
 
     plot_name = (f'{station}-{deployment_number}_{serial_number}_{int(np.round(instrument_depth))}m_'
-                 f'NE_bin_{bin_depth}m_{filter_type}.png')
+                 f'NE_bin_{int(np.round(bin_depth))}m_{filter_type}.png')
 
     if resampled is not None:
         plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
@@ -2523,11 +2523,15 @@ def create_westcoast_plots(
                                           time_range_idx, bin_range_idx, bin_depths_lim)
 
     if do_single_bin_ne or do_all_plots:
+        # Default to choosing the bin closest to the instrument
+        # single_bin_inds = [shallow, middle, deep] for both down and up facing
+        vel_bin_idx = single_bin_inds[0] if ncdata.orientation == 'down' else single_bin_inds[-1]
+
         fname_single_ne = plot_single_bin_velocity(
             time_lim, U=ew_lim, V=ns_lim, depth=bin_depths_lim, dest_dir=dest_dir, data_filename=ncdata.filename,
             station=ncdata.station, deployment_number=ncdata.deployment_number,
             serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
-            bin_index=single_bin_inds[0], resampled=resampled, level0=level0, filter_type='raw'
+            bin_index=vel_bin_idx, resampled=resampled, level0=level0, filter_type='raw'
         )
         output_file_list.append(fname_single_ne)
 
