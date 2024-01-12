@@ -971,6 +971,8 @@ def make_dataset_from_subset(
                 meta_dict=None
             )
             var_dict[key] = (['distance'], DISTTRAN)
+        elif key == 'instrument_depth':
+            var_dict[key] = ([], instrument_depth)  # Update new instrument depth
         else:
             if ds[key].data.dtype == np.dtype('float32'):
                 var_dict[key] = ([], np.round(float(ds[key].data), 1))
