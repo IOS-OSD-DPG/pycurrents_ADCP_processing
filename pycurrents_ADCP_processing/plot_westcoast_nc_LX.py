@@ -2390,7 +2390,7 @@ def plot_single_bin_velocity(
         ax[i].tick_params(axis='both', direction='in', top=True, right=True)
 
     plot_name = (f'{station}-{deployment_number}_{serial_number}_{int(np.round(instrument_depth))}m_'
-                 f'NE_bin{bin_index}_{filter_type}.png')
+                 f'NE_bin_{bin_depth}m_{filter_type}.png')
 
     if resampled is not None:
         plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
