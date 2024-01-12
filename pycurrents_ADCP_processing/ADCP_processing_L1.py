@@ -984,8 +984,14 @@ def make_dataset_from_subset(
                 'distance': ds.distance.data}, data_vars=var_dict
     )
 
-    # Add attributes and encoding back to the variables
-    for var in dsout.keys():
+    # Add attributes and encoding back to the coordinates and variables
+    for coord in dsout.coords.keys():
+        for encoding, encoding_val in ds[coord].encoding.items():
+            dsout[coord].encoding[encoding] = encoding_val
+        for attr, attr_val in ds[coord].attrs.items():
+            dsout[coord].attrs[attr] = attr_val
+
+    for var in dsout.data_vars.keys():
         # try:
         #     dsout[var].encoding['_FillValue'] = ds[var].encoding['_FillValue']
         # except KeyError:
