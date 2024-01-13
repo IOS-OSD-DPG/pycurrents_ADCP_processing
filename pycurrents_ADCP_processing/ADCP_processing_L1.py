@@ -1570,6 +1570,8 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
         out.attrs['orientation'], sensor_dep, out.distance.data
     )
 
+    print(out)  # for testing
+
     # -----------------Split dataset by pressure changes if any--------------
 
     # User inputs indices or datetimes
