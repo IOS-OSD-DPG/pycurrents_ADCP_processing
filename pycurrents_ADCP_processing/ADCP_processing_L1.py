@@ -1203,12 +1203,15 @@ def get_time_resolution(time_data):
     Get resolution of time dimension in format "HH:MM:SS"
     """
     dt = pd.Timedelta(((time_data[2] - time_data[0]) / 2))
-    return str(dt).split(' ')[1]  # Remove day component of Timedelta that is before the HH:MM:SS part
+    # return dt[-8:]
+    return str(dt).split(' ')[2]  # Remove day component of Timedelta that is before the HH:MM:SS part
 
 
 def get_time_duration(days: float):
     """Get time duration in format "123 days, HH:MM:SS" """
-    return str(pd.Timedelta(days, unit='day')).split('.')[0]
+    duration = str(pd.Timedelta(days, unit='day')).split('.')[0]
+    # Second step to add comma after "days"
+    return duration.replace('days ', 'days, ')
 
 
 def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
@@ -1317,7 +1320,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     # Distance dimension
     var_dict['distance'] = np.round(vel.dep.data, decimals=2)
 
-    # Amplitude
+    # Amplitude todo set all these to float32?
     var_dict['TNIHCE01'] = amp.amp1.transpose()
     var_dict['TNIHCE02'] = amp.amp2.transpose()
     var_dict['TNIHCE03'] = amp.amp3.transpose()
@@ -1466,15 +1469,17 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
 
     for key in variable_order:
         if key in var_dict.keys():
+            # Convert dimensional vars to float32 to avoid
+            # xarray.Dataset.to_netcdf() ValueError: cannot convert float NaN to integer
             if len(np.shape(var_dict[key])) == 0:
                 out[key] = ((), var_dict[key])
             elif len(np.shape(var_dict[key])) == 1:
                 if len(var_dict[key]) == len(var_dict['distance']):
-                    out[key] = (('distance'), var_dict[key])
+                    out[key] = (('distance'), np.float32(var_dict[key]))
                 elif len(var_dict[key]) == len(var_dict['time']):
-                    out[key] = (('time'), var_dict[key])
+                    out[key] = (('time'), np.float32(var_dict[key]))
             elif len(np.shape(var_dict[key])) == 2:
-                out[key] = (('distance', 'time'), var_dict[key])
+                out[key] = (('distance', 'time'), np.float32(var_dict[key]))
             else:
                 warnings.warn(f'Shape of variable {key} not compatible', UserWarning)
 
