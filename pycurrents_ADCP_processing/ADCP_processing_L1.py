@@ -55,7 +55,7 @@ def mean_orientation(o: list):
                    'orientations in data subset')
 
 
-def correct_true_north(measured_east, measured_north, meta_dict: dict):
+def correct_true_north(measured_east, measured_north, meta_dict: dict, num_decimals: int = 3):
     # change angle to negative of itself
     # Di Wan's magnetic declination correction code: Takes 0 DEG from E-W axis
     # mag_decl: magnetic declination value; float type
@@ -66,8 +66,8 @@ def correct_true_north(measured_east, measured_north, meta_dict: dict):
     north_true = measured_east * np.sin(angle_rad) + measured_north * np.cos(angle_rad)
 
     # Round to the input number of decimal places
-    east_true = np.round(east_true, decimals=3)
-    north_true = np.round(north_true, decimals=3)
+    east_true = np.round(east_true, decimals=num_decimals)
+    north_true = np.round(north_true, decimals=num_decimals)
 
     meta_dict['processing_history'] += (" Average magnetic declination applied to eastward and northward "
                                         "velocities; declination = {}.").format(meta_dict['magnetic_variation'])
@@ -1396,17 +1396,18 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
         meta_dict['coord_system'] = 'enu'
 
     # Correct magnetic declination in velocities and round to the input number of decimal places
-    LCEWAP01, LCNSAP01 = correct_true_north(vel1, vel2, meta_dict)
+    vel_num_decimals = 3
+    LCEWAP01, LCNSAP01 = correct_true_north(vel1, vel2, meta_dict, vel_num_decimals)
 
     if verbose:
         print('Applied magnetic declination to north and east velocities')
 
     var_dict['LCEWAP01'] = LCEWAP01.transpose()
     var_dict['LCNSAP01'] = LCNSAP01.transpose()
-    var_dict['LRZAAP01'] = vel3.transpose()
-    var_dict['LERRAP01'] = vel4.transpose()
+    var_dict['LRZAAP01'] = np.round(vel3.transpose(), vel_num_decimals)
+    var_dict['LERRAP01'] = np.round(vel4.transpose(), vel_num_decimals)
     if flag_vb == 1:
-        var_dict['LRZUVP01'] = vb_vel.vbvel.data.transpose()
+        var_dict['LRZUVP01'] = np.round(vb_vel.vbvel.data.transpose(), vel_num_decimals)
 
     # -----------Truncate time series variables before computing derived variables-----------
 
