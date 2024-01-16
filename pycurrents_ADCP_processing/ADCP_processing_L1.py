@@ -1352,7 +1352,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     var_dict['HEADCM01'] = vel.heading
 
     # Convert SoundSpeed from int16 to float32
-    var_dict['SVELCV01'] = np.float32(vel.VL['SoundSpeed'])
+    var_dict['SVELCV01'] = vel.VL['SoundSpeed']
 
     # Convert pressure
     var_dict['PRESPR01'] = assign_pres(vel_var=vel, meta_dict=meta_dict)
@@ -1375,7 +1375,7 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
     # fill_value for pycurrents
     vel.vel.data[vel.vel.data == vel.vel.fill_value] = _FillValue
 
-    if meta_dict['model'] == 'sv' and flag_vb == 0:
+    if meta_dict['model'] == 'sv' and flag_vb == 1:
         vb_vel.vbvel.data[vb_vel.vbvel.data == vb_vel.vbvel.fill_value] = _FillValue
 
     # Rotate into earth if not in enu already; this makes the netCDF bigger
