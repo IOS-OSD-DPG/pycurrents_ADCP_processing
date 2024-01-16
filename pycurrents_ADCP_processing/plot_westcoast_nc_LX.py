@@ -194,6 +194,27 @@ def get_plot_dir(filename, dest_dir):
     return plot_dir
 
 
+def review_plot_naming(plot_title, png_name, serial_number, is_pre_split=False, resampled=None):
+    """Final plot title and png name amendments, which are done for most plots"""
+
+    if serial_number == 'Unknown':
+        if plot_title is not None:
+            plot_title = plot_title.replace('Unknown ', '')
+        png_name = png_name.replace('Unknown_', '')
+
+    if is_pre_split:
+        if plot_title is not None:
+            plot_title += ', pre-split'
+        png_name = png_name.replace('.png', '_pre-split.png')
+
+    if resampled is not None:
+        if plot_title is not None:
+            plot_title += f', {resampled} subsampled'
+        png_name = png_name.replace('.png', f'_{resampled}_subsamp.png')
+
+    return plot_title, png_name
+
+
 def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_split=False):
     """Plot pressure, PRESPR01, vs time
     :param nc: xarray dataset object from xarray.open_dataset(ncpath)
@@ -223,12 +244,9 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_spl
         nc.station, nc.deployment_number, nc.instrument_serial_number.data,
         int(np.round(nc.instrument_depth.data)))
 
-    if is_pre_split:
-        png_name = png_name.replace('.png', '_pre-split.png')
-
-    if resampled is not None:
-        plot_title += ' subsampled'
-        png_name = png_name.replace('.png', '_subsamp.png')
+    plot_title, png_name = review_plot_naming(
+        plot_title, png_name, nc.instrument_serial_number.data, is_pre_split, resampled
+    )
 
     plt.title(plot_title)
 
@@ -413,9 +431,10 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
         nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
         str(int(np.round(nc.instrument_depth.data, 0)))
     )
-    if resampled is not None:
-        suptitle = suptitle.replace('depth', f'depth, {resampled} subsampled')
-        fig_name = fig_name.replace('.png', f'_{resampled}_subsamp.png')
+
+    suptitle, fig_name = review_plot_naming(
+        suptitle, fig_name, nc.instrument_serial_number.data, is_pre_split=False, resampled=resampled
+    )
 
     fig.suptitle(suptitle, fontweight='semibold')
 
@@ -1258,8 +1277,10 @@ def quiver_plot(dest_dir: str, data_filename,
         plt.tight_layout()  # Make sure labels don't overlap
 
         plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_quiver_plotCOUNTER.png'
-        if resampled:
-            plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+        _, plot_name = review_plot_naming(
+            plot_title=None, png_name=plot_name, serial_number=serial_number, is_pre_split=False, resampled=resampled
+        )
 
         # Create L1_Python_plots or L2_Python_plots subfolder if not made already
         plot_dir = get_plot_dir(data_filename, dest_dir)
@@ -1678,10 +1699,13 @@ def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deploym
     # Save the figure
     plot_name = (f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m'
                  f'_rotary_spectra_bin_{int(np.round(bin_depth))}m.png')
+
     if do_tidal_annotation:
         plot_name = plot_name.replace('.png', '_ttide.png')
-    if resampled:
-        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+    _, plot_name = review_plot_naming(
+        plot_title=None, png_name=plot_name, serial_number=serial_number, is_pre_split=False, resampled=resampled
+    )
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(data_filename, dest_dir)
@@ -1768,8 +1792,10 @@ def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_
         plot_name = plot_name.replace('.png', '_neg_cw.png')
     else:
         plot_name = plot_name.replace('.png', '_pos_ccw.png')
-    if resampled:
-        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+    _, plot_name = review_plot_naming(
+        plot_title=None, png_name=plot_name, serial_number=serial_number, is_pre_split=False, resampled=resampled
+    )
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(data_filename, dest_dir)
@@ -2209,8 +2235,10 @@ def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deploym
 
     # Save the figure
     plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_tidal_ellipses.png'
-    if resampled:
-        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+
+    _, plot_name = review_plot_naming(
+        plot_title=None, png_name=plot_name, serial_number=serial_number, is_pre_split=False, resampled=resampled
+    )
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(data_filename, dest_dir)
@@ -2394,8 +2422,9 @@ def plot_single_bin_velocity(
     plot_name = (f'{station}-{deployment_number}_{serial_number}_{int(np.round(instrument_depth))}m_'
                  f'NE_bin_{int(np.round(bin_depth))}m_{filter_type}.png')
 
-    if resampled is not None:
-        plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
+    _, plot_name = review_plot_naming(
+        plot_title=None, png_name=plot_name, serial_number=serial_number, is_pre_split=False, resampled=resampled
+    )
 
     # Create L1_Python_plots or L2_Python_plots subfolder if not made already
     plot_dir = get_plot_dir(data_filename, dest_dir)

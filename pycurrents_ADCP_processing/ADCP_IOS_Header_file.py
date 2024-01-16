@@ -310,7 +310,7 @@ def write_instrument(nc):
     # define function to write instrument info
     # data_type = nc.attrs["instrument_type_type"].upper()
     model = nc.attrs["instrument_subtype"] + "-" + nc.attrs["instrument_type"]
-    serial_number = str(nc.instrument_serial_number.data)
+    serial_number = str(nc.instrument_serial_number.data) if nc.instrument_serial_number.data != 'Unknown' else ''
     # serial_number = nc.attrs["serial_number"]  nc.attrs["instrument_serial_number"]
     depth = str(nc.instrument_depth.data)
     orientation = nc.attrs["orientation"]

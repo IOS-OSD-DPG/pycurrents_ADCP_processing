@@ -734,12 +734,16 @@ def create_meta_dict_L1(adcp_meta: str) -> dict:
     else:
         ValueError(f'meta_dict["instrumentSubtype"] not understood: {meta_dict["instrumentSubtype"]}')
 
-    # Add leading zero to serial numbers that have 3 digits
-    if len(str(meta_dict['serial_number'])) == 3:
+    # Edit the serial number if needed
+    if meta_dict['serial_number'] is None:
+        meta_dict['serial_number'] = 'Unknown'
+    elif len(str(meta_dict['serial_number'])) == 3:
+        # Add leading zero to serial numbers that have 3 digits
         meta_dict['serial_number'] = '0' + str(meta_dict['serial_number'])
 
     # Overwrite serial number to include the model: upper returns uppercase
-    meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
+    if meta_dict['serial_number'] != 'Unknown':
+        meta_dict['serial_number'] = meta_dict['model'].upper() + meta_dict['serial_number']
 
     # Begin writing processing history, which will be added as a global attribute to the output netCDF file
     meta_dict['processing_history'] = "Metadata read in from CSV file."
