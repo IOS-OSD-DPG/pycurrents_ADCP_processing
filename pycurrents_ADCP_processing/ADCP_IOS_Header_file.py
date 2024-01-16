@@ -118,7 +118,10 @@ def write_file(nc):
                 elif channel == 'LRZUVP01':
                     name_to_use = "Upward...Velocity_By_Vertical_Beam"
                 else:
-                    name_to_use = nc[channel].long_name.title()
+                    try:
+                        name_to_use = nc[channel].long_name.title()
+                    except AttributeError as e:
+                        print(f'{channel} has no long_name attribute: {e}')
 
                 channel_dict[channel] = {
                     'channel_num': str(channel_num),
