@@ -226,7 +226,7 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_spl
 
     fig = plt.figure(dpi=400)
 
-    plt.plot(nc.time.data, nc.PRESPR01.data)
+    plt.plot(nc.time.data, nc.PRESPR01.data, linewidth=.8)
 
     plt.gca().invert_yaxis()
 
@@ -2403,8 +2403,8 @@ def plot_single_bin_velocity(
     # vlim = vlim + (0.1 * vlim)  # add buffer
 
     fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True)
-    ax[0].plot(time, V[bin_index, :])
-    ax[1].plot(time, U[bin_index, :])
+    ax[0].plot(time, V[bin_index, :], linewidth=.8)
+    ax[1].plot(time, U[bin_index, :], linewidth=.8)
     plt.suptitle(f'{station}-{deployment_number} {serial_number} Bin {bin_index + 1} ({bin_depth} m) Velocities')
     velocity_names = ['North', 'East']
     if level0:
