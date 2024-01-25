@@ -40,6 +40,7 @@ on the [IOS Water Properties website](https://www.waterproperties.ca/).
 * Rotary spectra for selected bins
 * Depth profile of rotary spectrum
 * Depth profile of tidal ellipses
+* Single bin North/East velocity plots
 
 Reference: [New tools for ADCP processing.](https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40993127.pdf) 
 Canadian Technical Report of Hydrography and Ocean Sciences 336.
