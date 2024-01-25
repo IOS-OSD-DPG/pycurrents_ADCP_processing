@@ -50,7 +50,7 @@ from matplotlib.colors import LogNorm
 import matplotlib
 # from pycurrents_ADCP_processing.utils import parse_processing_history
 import warnings
-from utils import round_to_int
+from pycurrents_ADCP_processing.utils import round_to_int
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
