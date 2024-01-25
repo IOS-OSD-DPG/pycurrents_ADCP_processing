@@ -128,7 +128,7 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
             median_period = pd.Timedelta(np.nanmedian(np.diff(time_var))).round('s').total_seconds()
             # List of accepted units here (use secondly):
             # https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases
-            median_period = f'{int(np.round(median_period))}S'  # convert to string
+            median_period = f'{utils.round_to_int(median_period)}S'  # convert to string
 
             # Assume the first timestamp is correct
             date_range = pd.date_range(
@@ -1111,7 +1111,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
             input_ds.station.lower(),
             utils.numpy_datetime_to_str_utc(input_ds.time.data[st_idx])[:10].replace('-', ''),
             utils.numpy_datetime_to_str_utc(input_ds.time.data[en_idx])[:10].replace('-', ''),
-            f'000{int(np.round(segment_instr_depths[i]))}'[-4:]
+            f'000{utils.round_to_int(segment_instr_depths[i])}'[-4:]
         )
 
         # File name
