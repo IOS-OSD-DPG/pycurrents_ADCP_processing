@@ -575,23 +575,21 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
     ax.set_ylabel('Depth [m]', fontsize=14)
 
-    if filter_type == '30h':
-        ax.set_title(
-            'ADCP ({}North, 30h average) {}-{} {}m{}'.format(
-                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str), fontsize=14)
+    if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
+        filter_type_title = '{} average'.format(filter_type)
     elif filter_type == 'Godin':
-        ax.set_title(
-            'ADCP ({}North, Godin Filtered) {}-{} {}m{}'.format(
-                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str), fontsize=14)
+        filter_type_title = 'Godin filtered'
     elif filter_type == 'raw':
-        ax.set_title(
-            'ADCP ({}North, raw) {}-{} {}m{}'.format(
-                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str), fontsize=14)
+        filter_type_title = filter_type
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
+
+    ax.set_title(
+        'ADCP ({}North, {}) {}-{} {}m{}'.format(
+            magnetic, filter_type_title, nc.attrs['station'], nc.attrs['deployment_number'],
+            instrument_depth, resampled_str
+        ), fontsize=14
+    )
 
     ax.invert_yaxis()
 
@@ -603,19 +601,14 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
-    if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
-        ax2.set_title('ADCP ({}East, {} average) {}-{} {}m{}'.format(
-            magnetic, filter_type, nc.attrs['station'], nc.attrs['deployment_number'],
-            instrument_depth, resampled_str), fontsize=14)
-    elif filter_type == 'Godin':
-        ax2.set_title('ADCP ({}East, Godin Filtered) {}-{} {}m{}'.format(
-            magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-            instrument_depth, resampled_str), fontsize=14)
-    elif filter_type == 'raw':
-        ax2.set_title(
-            'ADCP ({}East, raw) {}-{} {}m{}'.format(
-                magnetic, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str), fontsize=14)
+
+    ax2.set_title(
+        'ADCP ({}East, {}) {}-{} {}m{}'.format(
+            magnetic, filter_type_title, nc.attrs['station'], nc.attrs['deployment_number'],
+            instrument_depth, resampled_str
+        ),
+        fontsize=14
+    )
 
     ax2.invert_yaxis()
 
@@ -626,15 +619,15 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
         os.makedirs(plot_dir)
 
     if level0:
-        plot_name = plot_dir + '{}-{}_{}_{}m-magn_NE_{}{}.png'.format(
-            nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
-            int(np.round(instrument_depth)), filter_type, resampled_4fname
-        )
+        vel_type = 'magn_NE'
     else:
-        plot_name = plot_dir + '{}-{}_{}_{}m-NE_{}{}.png'.format(
-            nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
-            int(np.round(instrument_depth)), filter_type, resampled_4fname
-        )
+        vel_type = 'NE'
+
+    # Have to round instrument depth twice due to behaviour of the float
+    plot_name = plot_dir + '{}-{}_{}_{}m_{}_{}{}.png'.format(
+        nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
+        int(np.round(np.round(instrument_depth, 1))), vel_type, filter_type, resampled_4fname
+    )
     fig.savefig(plot_name)
     plt.close()
 
@@ -781,7 +774,7 @@ def make_pcolor_ac(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
         vminvmax = colourmap_lim
 
     fig = plt.figure(figsize=(13.75, 10))
-    ax1 = fig.add_subplot(2, 1, 1)
+    ax1 = fig.add_subplot(2, 1, 1)  # along-shore subplot
 
     f1 = ax1.pcolormesh(time_lim, bin_depths_lim, AS[:, :], cmap='RdBu_r', vmin=vminvmax[0],
                         vmax=vminvmax[1], shading='auto')
@@ -789,30 +782,27 @@ def make_pcolor_ac(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax1.set_ylabel('Depth [m]', fontsize=14)
-    if 'h' in filter_type:
-        # XXh-type filter (e.g., 30h rolling mean, etc)
-        ax1.set_title(
-            'ADCP (along, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
-                filter_type, along_angle, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str),
-            fontsize=14)
+
+    if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
+        filter_type_title = '{} average'.format(filter_type)
     elif filter_type == 'Godin':
-        ax1.set_title(
-            'ADCP (along, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
-                along_angle, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str),
-            fontsize=14)
+        filter_type_title = 'Godin filtered'
     elif filter_type == 'raw':
-        ax1.set_title('ADCP (along, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
-            along_angle, nc.attrs['station'], nc.attrs['deployment_number'],
-            instrument_depth, resampled_str),
-            fontsize=14)
+        filter_type_title = filter_type
     else:
         ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
 
+    ax1.set_title(
+        'ADCP (along, {}) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
+            filter_type_title, along_angle, nc.attrs['station'], nc.attrs['deployment_number'],
+            instrument_depth, resampled_str
+        ),
+        fontsize=14
+    )
+
     ax1.invert_yaxis()
 
-    ax2 = fig.add_subplot(2, 1, 2)
+    ax2 = fig.add_subplot(2, 1, 2)  # cross-shore subplot
 
     f2 = ax2.pcolormesh(time_lim, bin_depths_lim, CS[:, :], cmap='RdBu_r', vmin=vminvmax[0],
                         vmax=vminvmax[1], shading='auto')
@@ -820,26 +810,14 @@ def make_pcolor_ac(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     cbar.set_label('Velocity [m s$^{-1}$]', fontsize=14)
 
     ax2.set_ylabel('Depth [m]', fontsize=14)
-    if 'h' in filter_type:  # xxh-average; e.g. '30h', '35h'
-        ax2.set_title(
-            'ADCP (cross, {} average) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
-                filter_type, cross_angle, nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str),
-            fontsize=14)
-    elif filter_type == 'Godin':
-        ax2.set_title(
-            'ADCP (cross, Godin Filtered) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
-                str(cross_angle), nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str),
-            fontsize=14)
-    elif filter_type == 'raw':
-        ax2.set_title(
-            'ADCP (cross, raw) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
-                str(cross_angle), nc.attrs['station'], nc.attrs['deployment_number'],
-                instrument_depth, resampled_str),
-            fontsize=14)
-    else:
-        ValueError('Not a recognized data type; choose one of \'raw\', \'30h\' or \'Godin\'')
+
+    ax2.set_title(
+        'ADCP (cross, {}) {}$^\circ$ (CCW from E) {}-{} {}m{}'.format(
+            filter_type_title, str(cross_angle), nc.attrs['station'], nc.attrs['deployment_number'],
+            instrument_depth, resampled_str
+        ),
+        fontsize=14
+    )
 
     ax2.invert_yaxis()
 
@@ -848,9 +826,10 @@ def make_pcolor_ac(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    plot_name = '{}-{}_{}_{}m-AC_{}{}.png'.format(
+    # have to round instrument depth twice due to behaviour of float
+    plot_name = '{}-{}_{}_{}m_AC_{}{}.png'.format(
         nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
-        int(np.round(instrument_depth)), filter_type, resampled_4fname
+        int(np.round(np.round(instrument_depth, 1))), filter_type, resampled_4fname
     )
     fig.savefig(plot_dir + plot_name)
     plt.close()
