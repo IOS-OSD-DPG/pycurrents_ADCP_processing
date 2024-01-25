@@ -50,6 +50,7 @@ from matplotlib.colors import LogNorm
 import matplotlib
 # from pycurrents_ADCP_processing.utils import parse_processing_history
 import warnings
+from utils import round_to_int
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -242,7 +243,7 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_spl
 
     png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
         nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-        int(np.round(nc.instrument_depth.data)))
+        round_to_int(nc.instrument_depth.data))
 
     plot_title, png_name = review_plot_naming(
         plot_title, png_name, nc.instrument_serial_number.data, is_pre_split, resampled
@@ -429,7 +430,7 @@ def plots_diagnostic(nc: xr.Dataset, dest_dir, level0=False, time_range=None, bi
     )
     fig_name = plot_dir + '{}-{}_{}_{}m_diagnostic.png'.format(
         nc.station, str(nc.deployment_number), nc.instrument_serial_number.data,
-        str(int(np.round(nc.instrument_depth.data, 0)))
+        round_to_int(nc.instrument_depth.data)
     )
 
     suptitle, fig_name = review_plot_naming(
@@ -626,7 +627,7 @@ def make_pcolor_ne(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim,
     # Have to round instrument depth twice due to behaviour of the float
     plot_name = plot_dir + '{}-{}_{}_{}m_{}_{}{}.png'.format(
         nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
-        int(np.round(np.round(instrument_depth, 1))), vel_type, filter_type, resampled_4fname
+        round_to_int(instrument_depth), vel_type, filter_type, resampled_4fname
     )
     fig.savefig(plot_name)
     plt.close()
@@ -691,7 +692,7 @@ def make_pcolor_speed(dest_dir: str, station: str, deployment_number: str, instr
     ax2_title = f'ADCP current direction (CCW from East) {station}-{deployment_number} {instrument_depth}m'
     ax2.set_title(ax2_title)
 
-    plot_name = f'{station}-{deployment_number}_{instrument_depth}m_spd_dir.png'
+    plot_name = f'{station}-{deployment_number}_{round_to_int(instrument_depth)}m_spd_dir.png'
     if resampled:
         plot_name = plot_name.replace('.png', f'_{resampled}_resampled.png')
 
@@ -829,7 +830,7 @@ def make_pcolor_ac(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     # have to round instrument depth twice due to behaviour of float
     plot_name = '{}-{}_{}_{}m_AC_{}{}.png'.format(
         nc.attrs['station'], nc.attrs['deployment_number'], nc.instrument_serial_number.data,
-        int(np.round(np.round(instrument_depth, 1))), filter_type, resampled_4fname
+        round_to_int(instrument_depth), filter_type, resampled_4fname
     )
     fig.savefig(plot_dir + plot_name)
     plt.close()
@@ -848,7 +849,7 @@ def num_ens_per_hr(nc: xr.Dataset):
     min2sec = 60
     sec2nsec = 1e9
     hr2nsec = hr2min * min2sec * sec2nsec
-    return int(np.round(hr2nsec / time_incr, decimals=0))
+    return round_to_int(hr2nsec / time_incr)
 
 
 def filter_godin(nc: xr.Dataset):
@@ -998,14 +999,14 @@ def binplot_compare_filt(nc: xr.Dataset, dest_dir, time, dat_raw, dat_filt, filt
             'ADCP {}-{} {} bin {} at {}m'.format(nc.attrs['station'], nc.attrs['deployment_number'],
                                                  vel_code, bin_index + 1, bin_depth), fontsize=14)
         plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
-            str(np.round(nc.instrument_depth.data))) + '-{}_bin{}_compare_{}.png'.format(
+            round_to_int(nc.instrument_depth.data)) + '-{}_bin{}_compare_{}.png'.format(
             vel_code, bin_index + 1, filter_type)
     else:
         ax1.set_title('ADCP {}-{} {} bin {} at {}m, {} subsampled'.format(
             nc.attrs['station'], nc.attrs['deployment_number'], vel_code, bin_index + 1, bin_depth,
             resampled), fontsize=14)
         plot_name = nc.attrs['station'] + '-' + nc.attrs['deployment_number'] + '_{}m'.format(
-            str(np.round(nc.instrument_depth.data))) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
+            round_to_int(nc.instrument_depth.data)) + '-{}_bin{}_compare_{}_{}_subsamp.png'.format(
             vel_code, bin_index + 1, filter_type, resampled)
 
     fig.savefig(plot_dir + plot_name)
@@ -1177,7 +1178,7 @@ def quiver_plot(dest_dir: str, data_filename,
     :return: Absolute file path of the figure(s) this function creates
     """
 
-    instrument_depth = int(np.round(instrument_depth))
+    instrument_depth = round_to_int(instrument_depth)
 
     # Apply the bin indices
     ew_lim = ew_lim[single_bin_inds, :]
@@ -1632,7 +1633,7 @@ def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deploym
 
     """
 
-    instrument_depth = int(np.round(instrument_depth))
+    instrument_depth = round_to_int(instrument_depth)
 
     # Cycles per hour to cycles per day
     cph_to_cpd = 24
@@ -1681,7 +1682,7 @@ def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deploym
 
     # Save the figure
     plot_name = (f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m'
-                 f'_rotary_spectra_bin_{int(np.round(bin_depth))}m.png')
+                 f'_rotary_spectra_bin_{round_to_int(bin_depth)}m.png')
 
     if do_tidal_annotation:
         plot_name = plot_name.replace('.png', '_ttide.png')
@@ -1770,7 +1771,8 @@ def pcolor_rot_component(dest_dir: str, data_filename, station: str, deployment_
     plt.tight_layout()
 
     # Save the figure
-    plot_name = f'{station}-{deployment_number}_{serial_number}_{instrument_depth}m_depth_prof_rot_spec.png'
+    plot_name = (f'{station}-{deployment_number}_{serial_number}_{round_to_int(instrument_depth)}m'
+                 f'_depth_prof_rot_spec.png')
     if neg_or_pos == 'neg':
         plot_name = plot_name.replace('.png', '_neg_cw.png')
     else:
@@ -1802,7 +1804,7 @@ def make_depth_prof_rot_spec(dest_dir: str, data_filename, station: str, deploym
     Plot them: https://gitlab.com/krassovski/Tools/-/blob/master/Signal/series/adcp_report.m?ref_type=heads
     -> rot_pcolor_plot()
     """
-    instrument_depth = int(np.round(instrument_depth))
+    instrument_depth = round_to_int(instrument_depth)
 
     fs = sampling_freq(time_lim)
 
@@ -2120,7 +2122,7 @@ def make_plot_tidal_ellipses(dest_dir: str, data_filename, station: str, deploym
             a.set_ylim(min(a_ylim[0], y_lim[0]), max(a_ylim[1], y_lim[1]))
         return
 
-    instrument_depth = int(np.round(instrument_depth))
+    instrument_depth = round_to_int(instrument_depth)
 
     # Major tidal constituents
     major_constit = ['M2', 'K1', 'N2', 'S2', 'O1', 'P1', 'Q1', 'K2']
@@ -2402,8 +2404,8 @@ def plot_single_bin_velocity(
         ax[i].set_ylim((-vlim, vlim))
         ax[i].tick_params(axis='both', direction='in', top=True, right=True)
 
-    plot_name = (f'{station}-{deployment_number}_{serial_number}_{int(np.round(instrument_depth))}m_'
-                 f'NE_bin_{int(np.round(bin_depth))}m_{filter_type}.png')
+    plot_name = (f'{station}-{deployment_number}_{serial_number}_{round_to_int(instrument_depth)}m_'
+                 f'NE_bin_{round_to_int(bin_depth)}m_{filter_type}.png')
 
     _, plot_name = review_plot_naming(
         plot_title=None, png_name=plot_name, serial_number=serial_number, is_pre_split=False, resampled=resampled

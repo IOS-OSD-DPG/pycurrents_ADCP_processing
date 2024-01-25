@@ -126,3 +126,10 @@ def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance:
     num_decimals = len(str(distance[0]).split('.')[1])
 
     return np.round(geospatial_vertical_min, num_decimals), np.round(geospatial_vertical_max, num_decimals)
+
+
+def round_to_int(x):
+    """
+    Use instead of numpy.round(), which uses "banker's rounding" which rounds 1.5 and 2.5 to 2 !!
+    """
+    return int(np.ceil(x)) if x % 1 >= .5 else int(np.floor(x))
