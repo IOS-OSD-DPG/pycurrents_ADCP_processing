@@ -1005,11 +1005,9 @@ def make_dataset_from_subset(
         for attr, attr_val in ds[var].attrs.items():
             # Recalculate data min and max
             if attr == 'data_min':
-                dsout[var].attrs[attr] = np.nanmin(
-                    dsout[var].data)
+                dsout[var].attrs[attr] = np.nanmin(dsout[var].data)
             elif attr == 'data_max':
-                dsout[var].attrs[attr] = np.nanmax(
-                    dsout[var].data)
+                dsout[var].attrs[attr] = np.nanmax(dsout[var].data)
             # Update sensor depth for each segment
             elif attr == 'sensor_depth':
                 dsout[var].attrs[attr] = instrument_depth
@@ -1100,6 +1098,9 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
 
     # Iterate through all the segments and create a netCDF file from each
     for st_idx, en_idx, i in zip(segment_starts, segment_ends, range(num_segments)):
+        if verbose:
+            print(f'Segment {i + 1}: index {st_idx} to {en_idx}')
+
         # Generate as many file names as there are segments of data
         # only use the "date" part of the datetime and not the time portion
         # format the depth to 4 string characters by adding zeros if necessary
@@ -1580,7 +1581,8 @@ def nc_create_L1(in_file, file_meta, dest_dir, time_file=None, verbose=False):
         out.attrs['orientation'], sensor_dep, out.distance.data
     )
 
-    print(out)  # for testing
+    if verbose:
+        print(out)  # for testing
 
     # -----------------Split dataset by pressure changes if any--------------
 
