@@ -128,8 +128,11 @@ def geospatial_vertical_extrema(orientation: str, sensor_depth: float, distance:
     return np.round(geospatial_vertical_min, num_decimals), np.round(geospatial_vertical_max, num_decimals)
 
 
-def round_to_int(x):
+def round_to_int(x: float):
     """
     Use instead of numpy.round(), which uses "banker's rounding" which rounds 1.5 and 2.5 to 2 !!
     """
-    return int(np.ceil(x)) if x % 1 >= .5 else int(np.floor(x))
+    if not np.isnan(x):
+        return int(np.ceil(x)) if x % 1 >= .5 else int(np.floor(x))
+    else:
+        return np.nan
