@@ -931,26 +931,49 @@ def get_segment_instrument_depths(
 ):
     """
     Compute instrument depth from the average time series depth PPSAADCP for each segment
+    start_instrument_depth is the depth provided by the user in the metadata csv file
     """
+    # Compute new instrument_depth including an offset amount
+    depth_correction = np.round(
+        np.nanmean(time_series_depth[start_indices[0]: end_indices[0]]) - start_instrument_depth,
+        1
+    )
+
     instrument_depths = np.zeros(len(start_indices))
     instrument_depths[0] = start_instrument_depth
 
     for i in range(1, len(start_indices)):
         instrument_depths[i] = np.round(
-            np.nanmean(time_series_depth[start_indices[i]: end_indices[i]]),
+            np.nanmean(time_series_depth[start_indices[i]: end_indices[i]]) - depth_correction,
             1
         )
-    return instrument_depths
+
+    # Check for any repeating depth values
+    if len(np.unique([utils.round_to_int(x) for x in instrument_depths])) < len(instrument_depths):
+        warnings.warn(f'Segment depths round to same int value: depths = {instrument_depths}')
+
+    return instrument_depths, depth_correction
 
 
 def make_dataset_from_subset(
         ds: xr.Dataset, start_idx: int, end_idx: int,
-        instrument_depth: float, new_filename: str, num_segments: int,
+        instrument_depth: float, depth_correction: float, num_segments: int,
         time_of_strike: str, recovery_lat=None, recovery_lon=None
 ):
     """
     Create an xarray dataset to contain data from a single segment
     """
+
+    # Need to subtract 1 from en_idx because +1 is added in
+    # get_user_segment_start_end_idx_depth() for inclusive ranges
+    # but ranges are not called here
+    new_filename = '{}_{}_{}_{}m_L1.adcp.nc'.format(
+        ds.station.lower(),
+        utils.numpy_datetime_to_str_utc(ds.time.data[start_idx])[:10].replace('-', ''),
+        utils.numpy_datetime_to_str_utc(ds.time.data[end_idx])[:10].replace('-', ''),
+        f'000{utils.round_to_int(instrument_depth)}'[-4:]
+    )
+
     # Add variables
     var_dict = {}
     for key in ds.data_vars.keys():
@@ -1040,7 +1063,11 @@ def make_dataset_from_subset(
 
     # Update processing_history
     dsout.attrs['processing_history'] += (f" Dataset split into {num_segments} segments due to a mooring "
-                                          f"strike(s) at {time_of_strike}.")
+                                          f"strike(s) at {time_of_strike}. New instrument depth calculated "
+                                          f"as the sum of the mean instrument depth for this segment and an "
+                                          f"offset of {depth_correction}m, where the offset is the "
+                                          f"difference between the mean instrument depth for segment 1 and "
+                                          f"the instrument depth input by the user.")
 
     # Convert start and end idx back to within the context of the original dataset length
     # leading_ens_cut, trailing_ens_cut = utils.parse_processing_history(dsout.attrs['processing_history'])
@@ -1060,7 +1087,7 @@ def make_dataset_from_subset(
         dsout.attrs['geospatial_lon_max'] = recovery_lon
         dsout.attrs['processing_history'] += ' Longitude updated with coordinates from recovery cruise.'
 
-    return dsout
+    return dsout, new_filename
 
 
 def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_ends: list,
@@ -1076,7 +1103,7 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
     :param verbose: print out progress statements if True; default False
     """
     # Use the input instrument_depth for the first segment
-    segment_instr_depths = get_segment_instrument_depths(
+    segment_instr_depths, depth_correction = get_segment_instrument_depths(
         segment_starts, segment_ends, time_series_depth=input_ds.PPSAADCP.data,
         start_instrument_depth=input_ds.instrument_depth.data
     )
@@ -1105,33 +1132,18 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
         # only use the "date" part of the datetime and not the time portion
         # format the depth to 4 string characters by adding zeros if necessary
 
-        # Need to subtract 1 from en_idx because +1 is added in
-        # get_user_segment_start_end_idx_depth() for inclusive ranges
-        # but ranges are not called here
-        out_segment_name = '{}_{}_{}_{}m_L1.adcp.nc'.format(
-            input_ds.station.lower(),
-            utils.numpy_datetime_to_str_utc(input_ds.time.data[st_idx])[:10].replace('-', ''),
-            utils.numpy_datetime_to_str_utc(input_ds.time.data[en_idx])[:10].replace('-', ''),
-            f'000{utils.round_to_int(segment_instr_depths[i])}'[-4:]
-        )
-
-        # File name
-        absolute_segment_name = os.path.join(dest_dir, out_segment_name)
-
-        netcdf_filenames.append(absolute_segment_name)
-
         # split the dataset by creating subsets from the original
         # Only apply the recovery lat and lon to the last segment of data
         if i < len(segment_instr_depths) - 1:
-            ds_segment = make_dataset_from_subset(
-                input_ds, st_idx, en_idx, segment_instr_depths[i],
-                out_segment_name, num_segments, time_of_strike=time_of_split
+            ds_segment, out_segment_name = make_dataset_from_subset(
+                input_ds, st_idx, en_idx, segment_instr_depths[i], depth_correction,
+                num_segments, time_of_strike=time_of_split
             )
         else:
             # The last segment of data where i == len(segment_instr_depths) - 1
-            ds_segment = make_dataset_from_subset(
-                input_ds, st_idx, en_idx, segment_instr_depths[i],
-                out_segment_name, num_segments, time_of_strike=time_of_split,
+            ds_segment, out_segment_name = make_dataset_from_subset(
+                input_ds, st_idx, en_idx, segment_instr_depths[i], depth_correction,
+                num_segments, time_of_strike=time_of_split,
                 recovery_lat=recovery_lat, recovery_lon=recovery_lon
             )
 
@@ -1140,6 +1152,11 @@ def split_ds_by_pressure(input_ds: xr.Dataset, segment_starts: list, segment_end
 
         # print(ds_segment.attrs)
         # print(ds_segment)
+
+        # File name
+        absolute_segment_name = os.path.join(dest_dir, out_segment_name)
+
+        netcdf_filenames.append(absolute_segment_name)
 
         # Export the dataset object as a new netCDF file
         ds_segment.to_netcdf(absolute_segment_name, mode='w', format='NETCDF4')
