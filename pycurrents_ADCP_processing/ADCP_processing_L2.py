@@ -11,7 +11,7 @@ import pandas as pd
 # import gsw
 # from datetime import datetime, timezone
 from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
-from utils import vb_flag
+from utils import vb_flag, round_to_int, calculate_depths
 
 
 def date2ns(date):
@@ -532,7 +532,7 @@ def plot_backscatter_qc(d: xr.Dataset, dest_dir):
     """
 
     # Calculate bin depths
-    depths = pwl.calculate_depths(d)
+    depths = calculate_depths(d)
 
     # Calculate average backscatter (amplitude intensity) over time for each beam
     amp_mean_b1 = np.nanmean(d.TNIHCE01.data, axis=1)

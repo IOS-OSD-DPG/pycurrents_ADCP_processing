@@ -158,3 +158,19 @@ def vb_flag(dataset: xr.Dataset):
             return 1
         else:
             return 0
+
+
+def calculate_depths(dataset: xr.Dataset):
+    """
+    Calculate ADCP bin depths in the water column
+    Inputs:
+        - dataset: dataset-type object created by reading in a netCDF ADCP
+                   file with the xarray package
+    Outputs:
+        - numpy array of ADCP bin depths
+    """
+    # depths = np.mean(ncdata.PRESPR01[0,:]) - ncdata.distance  #What Di used
+    if dataset.orientation == 'up':
+        return dataset.instrument_depth.data - dataset.distance.data
+    else:
+        return dataset.instrument_depth.data + dataset.distance.data

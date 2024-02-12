@@ -50,7 +50,7 @@ from matplotlib.colors import LogNorm
 import matplotlib
 # from pycurrents_ADCP_processing.utils import parse_processing_history
 import warnings
-from pycurrents_ADCP_processing.utils import round_to_int, vb_flag
+from pycurrents_ADCP_processing.utils import round_to_int, vb_flag, calculate_depths
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -134,22 +134,6 @@ def fpcdir(x, y):
         theta = -theta  # change rotation angle to be CCW from North
 
         return theta
-
-
-def calculate_depths(dataset: xr.Dataset):
-    """
-    Calculate ADCP bin depths in the water column
-    Inputs:
-        - dataset: dataset-type object created by reading in a netCDF ADCP
-                   file with the xarray package
-    Outputs:
-        - numpy array of ADCP bin depths
-    """
-    # depths = np.mean(ncdata.PRESPR01[0,:]) - ncdata.distance  #What Di used
-    if dataset.orientation == 'up':
-        return dataset.instrument_depth.data - dataset.distance.data
-    else:
-        return dataset.instrument_depth.data + dataset.distance.data
 
 
 def get_plot_dir(filename, dest_dir):
