@@ -8,10 +8,10 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import warnings
 import pandas as pd
-import gsw
-from datetime import datetime, timezone
+# import gsw
+# from datetime import datetime, timezone
 from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
-from utils import numpy_datetime_to_str_utc
+from utils import vb_flag
 
 
 def date2ns(date):
@@ -78,6 +78,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     # print(time_increment_ratio)
 
     if np.round(time_increment_ratio, decimals=1) < 1:
+        # time_increment_ctd > time_increment_adcp
         if np.round(time_increment_ratio, decimals=1) == 1 / 1.5:
             index_increment_adcp = 2
             index_increment_ctd = 3
@@ -86,6 +87,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
             index_increment_adcp = 1
             index_increment_ctd = int(np.round(1 / time_increment_ratio, decimals=0))
     else:
+        # time_increment_ctd < time_increment_adcp
         if np.round(time_increment_ratio, decimals=1) == 1.5:
             # To account for time ratios of 1.5 (e.g. adcp every 15 min, ctd every 10 min)
             # time_increment_ratio = int(np.round(2 * time_increment_ratio, decimals=0))
@@ -294,7 +296,7 @@ def flag_by_pres(d, use_prexmcat=False):
     bin_pres = pres_2d - dist_2d
 
     # Flag velocity data
-    flag_vb = pwl.vb_flag(d)
+    flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
@@ -354,7 +356,7 @@ def flag_below_seafloor(d):
     bin_depths = instrument_depth_2d + distance_2d  # bin depth > instrument depth
 
     # Flag velocity data
-    flag_vb = pwl.vb_flag(d)
+    flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
@@ -400,7 +402,7 @@ def flag_by_backsc(d: xr.Dataset):
 
     # Take beam-averaged backscatter, excluding data from before deployment and after recovery
     # Beam-averaged backscatter is shorter than time series
-    flag_vb = pwl.vb_flag(d)
+    flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         # Include amplitude intensity from vertical 5th beam
         amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, :],
@@ -539,7 +541,7 @@ def plot_backscatter_qc(d: xr.Dataset, dest_dir):
     amp_mean_b4 = np.nanmean(d.TNIHCE04.data, axis=1)
 
     # Check if vertical beam data present in Sentinel V file
-    flag_vb = pwl.vb_flag(d)
+    flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         amp_mean_b5 = np.nanmean(d.TNIHCE05.data, axis=1)
         # Make lists of mean amplitude and corresponding plotting colours
@@ -673,7 +675,7 @@ def bad_2_nan(d: xr.Dataset):
     d.LCNSAP01.data[d.LCNSAP01_QC.data == 4] = np.nan
     d.LRZAAP01.data[d.LRZAAP01_QC.data == 4] = np.nan
 
-    flag_vb = pwl.vb_flag(d)
+    flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         d.LRZUVP01.data[d.LRZUVP01_QC == 4] = np.nan
 
@@ -694,7 +696,7 @@ def reset_vel_minmaxes(d: xr.Dataset):
         None
     """
 
-    flag_vb = pwl.vb_flag(d)
+    flag_vb = vb_flag(d)
     if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
         var_list = [d.LCEWAP01, d.LCNSAP01, d.LRZAAP01, d.LRZUVP01, d.LERRAP01, d.LCEWAP01_QC, d.LCNSAP01_QC,
                     d.LRZAAP01_QC, d.LRZUVP01_QC]

@@ -50,7 +50,7 @@ from matplotlib.colors import LogNorm
 import matplotlib
 # from pycurrents_ADCP_processing.utils import parse_processing_history
 import warnings
-from pycurrents_ADCP_processing.utils import round_to_int
+from pycurrents_ADCP_processing.utils import round_to_int, vb_flag
 
 
 def resolve_to_alongcross(u_true, v_true, along_angle):
@@ -150,27 +150,6 @@ def calculate_depths(dataset: xr.Dataset):
         return dataset.instrument_depth.data - dataset.distance.data
     else:
         return dataset.instrument_depth.data + dataset.distance.data
-
-
-def vb_flag(dataset: xr.Dataset):
-    """
-    Create flag for missing vertical beam data in files from Sentinel V ADCPs
-    flag = 0 if Sentinel V file has vertical beam data, or file not from Sentinel V
-    flag = 1 if Sentinel V file does not have vertical beam data
-    Inputs:
-        - dataset: dataset-type object created by reading in a netCDF ADCP file
-                   with the xarray package
-    Outputs:
-        - value of flag
-    """
-    try:
-        x = dataset.TNIHCE05.data
-        return 0
-    except AttributeError:
-        if dataset.instrument_subtype == 'Sentinel V':
-            return 1
-        else:
-            return 0
 
 
 def get_plot_dir(filename, dest_dir):

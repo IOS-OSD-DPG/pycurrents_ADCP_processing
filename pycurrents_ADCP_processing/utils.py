@@ -1,6 +1,7 @@
 from shapely.geometry import Polygon, Point
 import json
 import numpy as np
+import xarray as xr
 
 
 # general utility functions common to multiple classes
@@ -136,3 +137,24 @@ def round_to_int(x: float):
         return int(np.ceil(x)) if x % 1 >= .5 else int(np.floor(x))
     else:
         return np.nan
+
+
+def vb_flag(dataset: xr.Dataset):
+    """
+    Create flag for missing vertical beam data in files from Sentinel V ADCPs
+    flag = 0 if Sentinel V file has vertical beam data, or file not from Sentinel V
+    flag = 1 if Sentinel V file does not have vertical beam data
+    Inputs:
+        - dataset: dataset-type object created by reading in a netCDF ADCP file
+                   with the xarray package
+    Outputs:
+        - value of flag
+    """
+    try:
+        x = dataset.TNIHCE05.data
+        return 0
+    except AttributeError:
+        if dataset.instrument_subtype == 'Sentinel V':
+            return 1
+        else:
+            return 0
