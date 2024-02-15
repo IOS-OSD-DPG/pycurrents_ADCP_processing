@@ -834,7 +834,7 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
     nc_adcp.to_netcdf(L2_filename, mode='w', format='NETCDF4')
 
     files_to_return = [L2_filename, plot_backsc]  # [plot_diagn,
-    if f_ctd is not None:
+    if use_prexmcat:
         files_to_return.append(plot_pres_comp)  # Plot of static and sensor pressure comparison
 
     return files_to_return
