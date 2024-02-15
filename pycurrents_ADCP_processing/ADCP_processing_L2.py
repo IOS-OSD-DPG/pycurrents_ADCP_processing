@@ -785,17 +785,23 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
         )
 
     use_prexmcat = False
+
     if f_ctd is not None:
         nc_sbe = xr.open_dataset(f_ctd)
 
-        # Calculate ADCP pressure from CTD pressure
-        nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
+        # Check if nc_sbe has pressure data
+        if hasattr(nc_sbe, 'PRESPR01'):
 
-        # Plot static and CTD-derived pressures
-        plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
+            # Calculate ADCP pressure from CTD pressure
+            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
 
-        # Flag bad bins by negative pressure values
-        use_prexmcat = True
+            # Plot static and CTD-derived pressures
+            plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
+
+            # Update flag
+            use_prexmcat = True
+        else:
+            warnings.warn(f'{f_ctd} does not have PRESPR01 pressure variable', UserWarning)
 
     # orientation-specific flagging
     if nc_adcp.orientation == 'up':
