@@ -11,7 +11,7 @@ import pandas as pd
 # import gsw
 # from datetime import datetime, timezone
 # from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
-from utils import vb_flag, round_to_int, calculate_depths
+from pycurrents_ADCP_processing.utils import vb_flag, round_to_int, calculate_depths
 
 
 def date2ns(date):
