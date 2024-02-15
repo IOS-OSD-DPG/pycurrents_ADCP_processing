@@ -10,7 +10,7 @@ import warnings
 import pandas as pd
 # import gsw
 # from datetime import datetime, timezone
-from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
+# from pycurrents_ADCP_processing import plot_westcoast_nc_LX as pwl
 from utils import vb_flag, round_to_int, calculate_depths
 
 
@@ -19,7 +19,7 @@ def date2ns(date):
     return pd.to_datetime(date).value
 
 
-def add_attrs_prexmcat(dataset, name_ctd):
+def add_attrs_prexmcat(dataset: xr.Dataset, name_ctd, ctd_instrument_depth: float, ctd_serial_number):
     """
     Adds attributes to CTD pressure variable. dataset should already include the PREXMCAT variable
     Inputs:
@@ -34,9 +34,9 @@ def add_attrs_prexmcat(dataset, name_ctd):
     var.attrs['units'] = dataset.PRESPR01.units
     var.attrs['_FillValue'] = dataset.PRESPR01.encoding['_FillValue']
     var.attrs['long_name'] = 'pressure'
-    var.attrs['sensor_type'] = 'ctd'
-    var.attrs['sensor_depth'] = dataset.PRESPR01.sensor_depth
-    var.attrs['serial_number'] = dataset.serial_number
+    var.attrs['sensor_type'] = 'CTD'
+    var.attrs['sensor_depth'] = ctd_instrument_depth
+    var.attrs['serial_number'] = ctd_serial_number
     # var.attrs['sdn_parameter_name'] = 'Pressure (spatial co-ordinate) exerted by the water body by profiling ' \
     #                                  'pressure sensor and corrected to read zero at sea level'
     var.attrs['ctd_file_used_for_pressure'] = os.path.basename(name_ctd)
@@ -77,30 +77,29 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     time_increment_ratio = time_increment_adcp / time_increment_ctd
     # print(time_increment_ratio)
 
-    if np.round(time_increment_ratio, decimals=1) < 1:
+    # Find the increment for the adcp data compared to the ctd data
+    if np.round(time_increment_ratio, decimals=1) == 1 / 1.5:
+        index_increment_adcp = 2
+        index_increment_ctd = 3
+    elif np.round(time_increment_ratio, decimals=1) < 1:
         # time_increment_ctd > time_increment_adcp
-        if np.round(time_increment_ratio, decimals=1) == 1 / 1.5:
-            index_increment_adcp = 2
-            index_increment_ctd = 3
-        else:
-            # time_increment_ratio = int(np.round(1 / time_increment_ratio, decimals=0))
-            index_increment_adcp = 1
-            index_increment_ctd = int(np.round(1 / time_increment_ratio, decimals=0))
+        # time_increment_ratio = int(np.round(1 / time_increment_ratio, decimals=0))
+        index_increment_adcp = 1
+        index_increment_ctd = int(np.round(1 / time_increment_ratio, decimals=0))
+    elif np.round(time_increment_ratio, decimals=1) == 1.5:
+        # To account for time ratios of 1.5 (e.g. adcp every 15 min, ctd every 10 min)
+        # time_increment_ratio = int(np.round(2 * time_increment_ratio, decimals=0))
+        index_increment_adcp = 3
+        index_increment_ctd = 2
     else:
-        # time_increment_ctd < time_increment_adcp
-        if np.round(time_increment_ratio, decimals=1) == 1.5:
-            # To account for time ratios of 1.5 (e.g. adcp every 15 min, ctd every 10 min)
-            # time_increment_ratio = int(np.round(2 * time_increment_ratio, decimals=0))
-            index_increment_adcp = 3
-            index_increment_ctd = 2
-        else:
-            # time_increment_ratio = int(np.round(time_increment_ratio, decimals=0))
-            index_increment_adcp = int(np.round(time_increment_ratio, decimals=0))
-            index_increment_ctd = 1
+        # time_increment_ctd < time_increment_adcp general case
+        # time_increment_ratio = int(np.round(time_increment_ratio, decimals=0))
+        index_increment_adcp = int(np.round(time_increment_ratio, decimals=0))
+        index_increment_ctd = 1
 
     print('Index increment for adcp =', index_increment_adcp)
     print('Index increment for ctd =', index_increment_ctd)
-    max_increment = index_increment_adcp if index_increment_adcp > index_increment_ctd else index_increment_ctd
+    max_increment = np.max([index_increment_adcp, index_increment_ctd])  # longest increment
 
     # Try finding index of start time of one time in the other time range from [0] up to [time_increment_ratio]
     # and index of end time of one time in the other time range from [-1] up to [-time_increment_ratio]
@@ -113,15 +112,14 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
 
     # Due to differences in sampling time intervals between instruments, may need to take later start time
     # and earlier end time, in order to match up times as closely as possible
-    earliest_start_index = -9
-    latest_end_index = -9
+    earliest_start_index = np.nan
+    latest_end_index = np.nan
 
     # Step 1
 
     # Find index of first time, either in the ctd time range or in the adcp time range
     # Test if CTD time starts before the ADCP time
     if date2ns(nc_ctd.time.data[0]) < date2ns(nc_adcp.time.data[0]):
-        # adcp start time is in ctd time range
         print("CTD start-time earlier than ADCP start-time !")
 
         for start_index in range(max_increment):
@@ -138,7 +136,6 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
                 earliest_start_index = start_index  # in CTD time
                 break
     else:
-        # adcp start time before first ctd time
         print("ADCP start-time earlier than CTD start-time !")
 
         for start_index in range(max_increment):
@@ -164,7 +161,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
                 # Find the index of the last adcp time measurement in the ctd time range within 4 min
                 if np.abs(date2ns(nc_ctd.time.data[t_i]) - date2ns(
                         nc_adcp.time.data[-end_index])) < 4 * min2nano:
-                    end_index_in_CTD = t_i
+                    end_index_in_CTD = t_i + 1
                     break
             # Break out of loop if start_index_in_CTD is found
             # Otherwise try the next time in the adcp time range
@@ -173,20 +170,26 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
                 break
     else:
         # adcp end time is after last ctd time
-        print("SBE end-time earlier than ADCP end-time !")
+        print("CTD end-time earlier than ADCP end-time !")
 
         for end_index in range(1, max_increment + 1):
             print(end_index)
             for t_j in range(len(nc_adcp.time.data)):
                 if np.abs(date2ns(nc_adcp.time.data[t_j]) - date2ns(
                         nc_ctd.time.data[-end_index])) < 4 * min2nano:
-                    end_index_in_ADCP = t_j
+                    end_index_in_ADCP = t_j + 1
                     break
             # Break out of loop if start_index_in_CTD is found
             # Otherwise try the next time in the adcp time range
             if end_index_in_ADCP != -9:
                 latest_end_index = -end_index  # in ADCP time
                 break
+
+    # Correction to latest_end_index to account for python indexing
+    if latest_end_index == -1:
+        latest_end_index = None
+    elif latest_end_index < -1:
+        latest_end_index += 1
 
     print('start_index_in_CTD:', start_index_in_CTD, sep=' ')
     print('end_index_in_CTD:', end_index_in_CTD, sep=' ')
@@ -196,8 +199,9 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     print('earliest_start_index:', earliest_start_index, sep=' ')
     print('latest_end_index:', latest_end_index, sep=' ')
 
-    if earliest_start_index == -9 or latest_end_index == -9:
-        IndexError('Invalid earliest start index or latest end index')
+    for idx in [earliest_start_index, latest_end_index]:
+        if idx is not None and not np.isnan(idx):
+            IndexError('Invalid earliest start index or latest end index')
 
     # Step 2
 
@@ -206,9 +210,12 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
         print('Start adcp time is in ctd time range')
         if end_index_in_CTD != -9:
             print('End adcp time is in ctd time range')
+            # pres_adcp_from_ctd[earliest_start_index:latest_end_index
+            #                    :index_increment_ctd] = nc_ctd.PRESPR01.data[
+            #                                            start_index_in_ADCP:end_index_in_ADCP:index_increment_adcp]
             pres_adcp_from_ctd[earliest_start_index:latest_end_index
                                :index_increment_ctd] = nc_ctd.PRESPR01.data[
-                                                       start_index_in_ADCP:end_index_in_ADCP:index_increment_adcp]
+                                                       start_index_in_CTD:end_index_in_CTD:index_increment_adcp]
         else:
             print('End adcp time is after ctd time range')
             pres_adcp_from_ctd[earliest_start_index:end_index_in_ADCP
@@ -239,11 +246,16 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     out_adcp_dataset = nc_adcp.assign(PREXMCAT=(('time'), pres_adcp_from_ctd))
     print('Created new xarray dataset object containing CTD-derived pressure')
 
-    add_attrs_prexmcat(out_adcp_dataset, name_ctd=str(nc_ctd.filename.data))
+    add_attrs_prexmcat(
+        out_adcp_dataset, name_ctd=str(nc_ctd.filename.data),
+        ctd_instrument_depth=np.round(nc_ctd.instrument_depth.data, 1),
+        ctd_serial_number=str(nc_ctd.instrument_serial_number.data)
+    )
     print('Added attributes to PREXMCAT')
 
-    out_adcp_dataset.attrs['processing_history'] += f' CTD pressure data from file {str(nc_ctd.filename.data)} ' \
-                                                    f'merged with input ADCP dataset.'
+    out_adcp_dataset.attrs['processing_history'] += (f' Moored CTD pressure data from file '
+                                                     f'{str(nc_ctd.filename.data)} added to ADCP dataset under '
+                                                     f'variable name PREXMCAT.')
 
     return out_adcp_dataset
 
@@ -297,7 +309,7 @@ def flag_by_pres(d, use_prexmcat=False):
 
     # Flag velocity data
     flag_vb = vb_flag(d)
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data]
@@ -311,8 +323,7 @@ def flag_by_pres(d, use_prexmcat=False):
     for v_QC in vels_QC:
         v_QC[bin_pres < 0] = 4
 
-    d.attrs['processing_history'] = d.processing_history + " Level 2 processing was performed on the data."
-    d.attrs['processing_history'] = d.processing_history + " Bins with negative pressure (i.e. were located above" \
+    d.attrs['processing_history'] = d.processing_history + " Bins with negative pressure (i.e., were located above" \
                                                            " sea level) were flagged as bad_value" \
                                                            " timestep by timestep."
 
@@ -357,7 +368,7 @@ def flag_below_seafloor(d):
 
     # Flag velocity data
     flag_vb = vb_flag(d)
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data]
@@ -372,11 +383,12 @@ def flag_below_seafloor(d):
     for v_QC in vels_QC:
         v_QC[bin_depths > d.water_depth.data] = 4  # bad_value flag=4
 
-    d.attrs['processing_history'] = d.processing_history + " Level 2 processing was performed on the data."
     d.attrs['processing_history'] = d.processing_history + " Bins below the ocean floor depth were flagged as" \
                                                            " bad_value timestep by timestep."
-    d.attrs['processing_history'] = d.processing_history + "The remaining bins were flagged as " \
-                                                           "probably_good_value."
+
+    # # Commented out 2024-02-12
+    # d.attrs['processing_history'] = d.processing_history + "The remaining bins were flagged as " \
+    #                                                        "probably_good_value."
 
     # return bad_bin_list
     return
@@ -403,7 +415,7 @@ def flag_by_backsc(d: xr.Dataset):
     # Take beam-averaged backscatter, excluding data from before deployment and after recovery
     # Beam-averaged backscatter is shorter than time series
     flag_vb = vb_flag(d)
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         # Include amplitude intensity from vertical 5th beam
         amp_beam_avg = np.nanmean([d.TNIHCE01.data[:, :],
                                    d.TNIHCE02.data[:, :],
@@ -440,7 +452,7 @@ def flag_by_backsc(d: xr.Dataset):
     diffs = np.vstack((zeros, diffs))
 
     # Flag the qc variables
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data, d.LRZUVP01_QC.data]
     else:
         vels_QC = [d.LCEWAP01_QC.data, d.LCNSAP01_QC.data, d.LCNSAP01_QC.data]
@@ -464,15 +476,16 @@ def flag_by_backsc(d: xr.Dataset):
 
     for v_QC in vels_QC:
         v_QC[np.logical_and(diffs > 0, v_QC != 4)] = 3  # probably_bad_value
-        v_QC[np.logical_and(diffs <= 0, v_QC != 4)] = 1  # probably_good_value flag=2, or good_value flag=1
+        # v_QC[np.logical_and(diffs <= 0, v_QC != 4)] = 1  # probably_good_value flag=2, or good_value flag=1
 
     print('Velocity qc variables updated')
 
     d.attrs['processing_history'] = d.processing_history + " Bins where beam-averaged backscatter increases were" \
                                                            " flagged as probably_bad_value timestep by timestep."
 
-    d.attrs['processing_history'] = d.processing_history + " The remaining bins were flagged as " \
-                                                           "probably_good_value."
+    # # Commented out 2024-02-12
+    # d.attrs['processing_history'] = d.processing_history + " The remaining bins were flagged as " \
+    #                                                        "probably_good_value."
 
     # return susp_bin_list
     return
@@ -496,21 +509,27 @@ def plot_pres_compare(d: xr.Dataset, dest_dir):
                  label='PREXMCAT (CTD-derived)')
     f2 = ax.plot(d.time.data, d.PRESPR01.data, linewidth=1, color='k',
                  label='PRESPR01 (static)')
-    ax.set_ylim(bottom=0, top=np.ceil(np.nanmax([d.PREXMCAT.data, d.PRESPR01.data]) / 10.) * 10.)
+    # Set inverse y axis
+    ax.set_ylim(bottom=np.ceil(np.nanmax([d.PREXMCAT.data, d.PRESPR01.data]) / 10.) * 10., top=0)
     ax.set_xlabel('Time (UTC)')
     ax.set_ylabel('Pressure (dbar)')
-    ax.legend(loc='lower left')
-    ax.set_title('{}-{} {} at {} m depth: Static VS CTD-derived pressure'.format(
-        d.attrs['station'], d.attrs['deployment_number'], d.attrs['serial_number'],
-        d.instrument_depth.data))
+    ax.legend(loc='upper left')
+    ax.set_title(
+        '{}-{} {} at {} m depth: Static VS CTD-derived pressure'.format(
+            d.attrs['station'], d.attrs['deployment_number'], d.instrument_serial_number.data,
+            str(np.round(d.instrument_depth.data, 1))
+        )
+    )
 
     # Create L2_Python_plots subfolder if not made already
     plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    fig_name = plot_dir + '{}-{}_{}_CTD_pressure_compare.png'.format(
-        d.station.lower(), str(d.deployment_number), d.serial_number)
+    fig_name = plot_dir + '{}-{}_{}_{}m_CTD_pressure_compare.png'.format(
+        d.station, str(d.deployment_number), d.instrument_serial_number.data,
+        round_to_int(d.instrument_depth.data)
+    )
     fig.savefig(fig_name)
     plt.close()
 
@@ -542,14 +561,14 @@ def plot_backscatter_qc(d: xr.Dataset, dest_dir):
 
     # Check if vertical beam data present in Sentinel V file
     flag_vb = vb_flag(d)
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    colours = ['b', 'g', 'c', 'm']
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         amp_mean_b5 = np.nanmean(d.TNIHCE05.data, axis=1)
         # Make lists of mean amplitude and corresponding plotting colours
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4, amp_mean_b5]
-        colours = ['b', 'g', 'c', 'm', 'y']
+        colours.append('y')
     else:
         amp = [amp_mean_b1, amp_mean_b2, amp_mean_b3, amp_mean_b4]
-        colours = ['b', 'g', 'c', 'm']
 
     amp_mean_all = np.nanmean(amp, axis=0)
 
@@ -617,18 +636,23 @@ def plot_backscatter_qc(d: xr.Dataset, dest_dir):
     if mean_bad_bin != 0:
         x_pos = np.max(amp_mean_b1)
         y_pos = np.nanmean(depths[mean_bad_bin:])
-        ax.text(x=x_pos, y=y_pos, s='Flag=4',
-                horizontalalignment='right', verticalalignment='center', fontsize=10)
+        ax.text(
+            x=x_pos, y=y_pos, s='Flag=4', horizontalalignment='right',
+            verticalalignment='center', fontsize=10
+        )
+
     if mean_susp_bin != 0:
         x_pos = np.nanmean(amp_mean_b1)
+
         if mean_bad_bin != 0:
             y_pos = np.nanmean(depths[mean_susp_bin - 1:mean_bad_bin])
-            ax.text(x=x_pos, y=y_pos,
-                    s='Flag=3', horizontalalignment='right', verticalalignment='center', fontsize=10)
         else:
             y_pos = np.nanmean(depths[mean_susp_bin - 1:])
-            ax.text(x=x_pos, y=y_pos,
-                    s='Flag=3', horizontalalignment='right', verticalalignment='center', fontsize=10)
+
+        ax.text(
+            x=x_pos, y=y_pos, s='Flag=3', horizontalalignment='right',
+            verticalalignment='center', fontsize=10
+        )
 
     ax.set_ylim(depths[-1], depths[0])
     ax.legend(loc='lower left')
@@ -640,18 +664,24 @@ def plot_backscatter_qc(d: xr.Dataset, dest_dir):
     if d.orientation == 'up':
         plt.gca().invert_yaxis()
 
-    fig.suptitle('{}-{} {} at {} m depth: L2 QC'.format(d.attrs['station'],
-                                                        d.attrs['deployment_number'],
-                                                        d.attrs['serial_number'],
-                                                        d.instrument_depth.data), fontweight='semibold')
+    fig.suptitle(
+        '{}-{} {} at {} m depth: L2 QC'.format(
+            d.attrs['station'], d.attrs['deployment_number'],
+            d.instrument_serial_number.data,
+            str(np.round(d.instrument_depth.data, 1))
+        ),
+        fontweight='semibold'
+    )
 
     # Create L2_Python_plots subfolder if not already existing
     plot_dir = './{}/L2_Python_plots/'.format(dest_dir)
     if not os.path.exists(plot_dir):
         os.makedirs(plot_dir)
 
-    fig_name = plot_dir + '{}-{}_{}_nc_L2.png'.format(
-        d.station.lower(), str(d.deployment_number), d.serial_number)
+    fig_name = plot_dir + '{}-{}_{}_{}m_nc_L2.png'.format(
+        d.station, str(d.deployment_number), d.instrument_serial_number.data,
+        round_to_int(d.instrument_depth.data)
+    )
     fig.savefig(fig_name)
     plt.close()
 
@@ -676,7 +706,7 @@ def bad_2_nan(d: xr.Dataset):
     d.LRZAAP01.data[d.LRZAAP01_QC.data == 4] = np.nan
 
     flag_vb = vb_flag(d)
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         d.LRZUVP01.data[d.LRZUVP01_QC == 4] = np.nan
 
     d.attrs['processing_history'] = d.processing_history + " Velocity data that were flagged as bad_data were set" \
@@ -697,7 +727,7 @@ def reset_vel_minmaxes(d: xr.Dataset):
     """
 
     flag_vb = vb_flag(d)
-    if d.instrumentSubtype == 'Sentinel V' and flag_vb == 0:
+    if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
         var_list = [d.LCEWAP01, d.LCNSAP01, d.LRZAAP01, d.LRZUVP01, d.LERRAP01, d.LCEWAP01_QC, d.LCNSAP01_QC,
                     d.LRZAAP01_QC, d.LRZUVP01_QC]
     else:
@@ -740,76 +770,65 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
     # # Change value of filename variable to include "L2" instead of "L1"
     # nc_adcp = nc_adcp.assign(filename=((), nc_out_name[:-3]))
 
-    # Produce pre-processing plots
-    plot_diagn = pwl.plots_diagnostic(nc_adcp, dest_dir)
+    # # Produce pre-processing plots
+    # plot_diagn = pwl.plots_diagnostic(nc_adcp, dest_dir)
 
     flag_static_pres = 0
+
+    nc_adcp.attrs['processing_history'] += ' Level 2 processing begun.'
+
+    if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
+        flag_static_pres += 1
+        warnings.warn(
+            'Pressure was calculated from static instrument depth in L1',
+            UserWarning
+        )
+
+    use_prexmcat = False
+    if f_ctd is not None:
+        nc_sbe = xr.open_dataset(f_ctd)
+
+        # Calculate ADCP pressure from CTD pressure
+        nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
+
+        # Plot static and CTD-derived pressures
+        plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
+
+        # Flag bad bins by negative pressure values
+        use_prexmcat = True
+
+    # orientation-specific flagging
     if nc_adcp.orientation == 'up':
-        # Identify bins through time series where their pressure is negative
-        if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
-            flag_static_pres += 1
-            warnings.warn(
-                'Pressure was calculated from static instrument depth in L1',
-                UserWarning)
-
-        if f_ctd is not None:
-            nc_sbe = xr.open_dataset(f_ctd)
-
-            # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
-
-            # Plot static and CTD-derived pressures
-            plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
-
-            # Flag bad bins by negative pressure values
-            flag_by_pres(d=nc_adcp, use_prexmcat=True)
-        else:
-            # Flag bad bins by negative pressure values
-            flag_by_pres(d=nc_adcp)
+        # Flag bad bins by negative pressure values for upward-facing ADCPs
+        flag_by_pres(d=nc_adcp, use_prexmcat=use_prexmcat)
 
         # Identify bins through time series where their backscatter
         # increases, get list of their indices
         flag_by_backsc(d=nc_adcp)
-
-        # Make QC plots showing time-averaged negative pressure and
-        # backscatter increases
-        plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
     else:
         # orientation == 'down'
-        if np.nanmin(nc_adcp.PRESPR01.data) == np.nanmax(nc_adcp.PRESPR01.data):
-            flag_static_pres += 1
-            warnings.warn(
-                'Pressure was calculated from static instrument depth in L1',
-                UserWarning)
-
-        if f_ctd is not None:
-            nc_sbe = xr.open_dataset(f_ctd)
-
-            # Calculate ADCP pressure from CTD pressure
-            nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
-
-            # Plot static and CTD-derived pressures
-            plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
-
-            # Flag bad bins by negative pressure values
-            flag_by_pres(d=nc_adcp, use_prexmcat=True)
-
         # Identify bins through time series that are below the depth
         # of the ocean floor
         flag_below_seafloor(d=nc_adcp)
 
-        # Make QC plots showing time-averaged flagged bins that are below
-        # ocean floor depth
-        plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
+    # Make QC plots showing time-averaged negative pressure and
+    # backscatter increases for up facing, or for time-averaged
+    # flagged bins that are below ocean floor depth for down-facing
+    plot_backsc = plot_backscatter_qc(d=nc_adcp, dest_dir=dest_dir)
 
-    # Set bad velocity data to nans
-    bad_2_nan(d=nc_adcp)
+    # # Set bad velocity data to nans - Commented out 2024-02-12
+    # bad_2_nan(d=nc_adcp)
 
     # Update processing_level
     nc_adcp.attrs['processing_level'] = '2'
+    nc_adcp.attrs['processing_history'] += ' L2 processing completed.'
 
-    files_to_return = [plot_diagn, plot_backsc]
-    if flag_static_pres == 1:
+    # Export the processed L2 ADCP dataset
+    L2_filename = os.path.join(dest_dir, os.path.basename(f_adcp).replace('_L1.adcp.nc', '_L2.adcp.nc'))
+    nc_adcp.to_netcdf(L2_filename, mode='w', format='NETCDF4')
+
+    files_to_return = [L2_filename, plot_backsc]  # [plot_diagn,
+    if f_ctd is not None:
         files_to_return.append(plot_pres_comp)  # Plot of static and sensor pressure comparison
 
     return files_to_return
