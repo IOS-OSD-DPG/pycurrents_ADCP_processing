@@ -117,6 +117,8 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
 
     # Step 1
 
+    max_minutes_diff = 4
+
     # Find index of first time, either in the ctd time range or in the adcp time range
     # Test if CTD time starts before the ADCP time
     if date2ns(nc_ctd.time.data[0]) < date2ns(nc_adcp.time.data[0]):
@@ -127,7 +129,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
             for t_i in range(len(nc_ctd.time.data)):
                 # Find the index of the first adcp time measurement in the ctd time range within 4 min
                 if np.abs(date2ns(nc_ctd.time.data[t_i]) - date2ns(
-                        nc_adcp.time.data[start_index])) < 4 * min2nano:
+                        nc_adcp.time.data[start_index])) < max_minutes_diff * min2nano:
                     start_index_in_CTD = t_i
                     break
             # Break out of loop if start_index_in_CTD is found
@@ -143,7 +145,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
             for t_j in range(len(nc_adcp.time.data)):
                 # Find the index of the first ctd time measurement in the adcp time range within 4 min
                 if np.abs(date2ns(nc_adcp.time.data[t_j]) - date2ns(
-                        nc_ctd.time.data[start_index])) < 4 * min2nano:
+                        nc_ctd.time.data[start_index])) < max_minutes_diff * min2nano:
                     start_index_in_ADCP = t_j
                     break
             # Break out of loop if start_index_in_CTD is found
@@ -160,7 +162,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
             for t_i in range(len(nc_ctd.time.data)):
                 # Find the index of the last adcp time measurement in the ctd time range within 4 min
                 if np.abs(date2ns(nc_ctd.time.data[t_i]) - date2ns(
-                        nc_adcp.time.data[-end_index])) < 4 * min2nano:
+                        nc_adcp.time.data[-end_index])) < max_minutes_diff * min2nano:
                     end_index_in_CTD = t_i + 1
                     break
             # Break out of loop if start_index_in_CTD is found
@@ -176,7 +178,7 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
             print(end_index)
             for t_j in range(len(nc_adcp.time.data)):
                 if np.abs(date2ns(nc_adcp.time.data[t_j]) - date2ns(
-                        nc_ctd.time.data[-end_index])) < 4 * min2nano:
+                        nc_ctd.time.data[-end_index])) < max_minutes_diff * min2nano:
                     end_index_in_ADCP = t_j + 1
                     break
             # Break out of loop if start_index_in_CTD is found
@@ -200,9 +202,9 @@ def add_pressure_ctd(nc_adcp: xr.Dataset, nc_ctd: xr.Dataset):
     print('latest_end_index:', latest_end_index, sep=' ')
 
     for idx in [earliest_start_index, latest_end_index]:
-        if idx is not None and not np.isnan(idx):
-            IndexError('Invalid earliest start index or latest end index')
-
+        if idx is not None and np.isnan(idx):
+            print(f'CTD and ADCP sampling times offset by more than threshold = {max_minutes_diff} minutes')
+            return None
     # Step 2
 
     # Fill in pressure array that was initialized with nans
@@ -793,13 +795,15 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
         if hasattr(nc_sbe, 'PRESPR01'):
 
             # Calculate ADCP pressure from CTD pressure
+            # Returns None if the ctd and adcp sampling times are offset by too many minutes
             nc_adcp = add_pressure_ctd(nc_adcp=nc_adcp, nc_ctd=nc_sbe)
 
-            # Plot static and CTD-derived pressures
-            plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
+            if nc_adcp is not None:
+                # Plot static and CTD-derived pressures
+                plot_pres_comp = plot_pres_compare(nc_adcp, dest_dir)
 
-            # Update flag
-            use_prexmcat = True
+                # Update flag
+                use_prexmcat = True
         else:
             warnings.warn(f'{f_ctd} does not have PRESPR01 pressure variable', UserWarning)
 
