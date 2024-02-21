@@ -568,12 +568,14 @@ def write_history(nc, f_name, ds_is_segment=False, ctd_pressure_file=None):
 
 def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
     # Start
-    in_f_name = f.split("/")[-1]
+    in_f_name = os.path.basename(f)  # more robust
+    # in_f_name = f.split("/")[-1]
     # Create subdir for new netCDF file if one doesn't exist yet
     newnc_dir = './{}/'.format(dest_dir)
     if not os.path.exists(newnc_dir):
         os.makedirs(newnc_dir)
-    f_output = newnc_dir + in_f_name.split(".")[0] + ".adcp"
+    # Replace _L1.adcp.nc or _L2.adcp.nc suffix to make header file name
+    f_output = newnc_dir + in_f_name[:-11] + ".adcp"
     # print(f_output) prints to previously opened f_output in line 730
     nc_file = xr.open_dataset(f)
 
