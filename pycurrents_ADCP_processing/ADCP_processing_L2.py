@@ -396,6 +396,18 @@ def flag_below_seafloor(d):
     return
 
 
+def first_suspicious_bin_idx(diffs: np.ndarray):
+    """
+    For upward-facing ADCPs, find where backscatter increases in two consecutive bins towards the surface
+    """
+    indexer = np.where([i > 0 and j > 0 for i, j in zip(diffs, diffs[1:])])[0]  # returns a tuple
+    if len(indexer) > 0:
+        indexer = indexer[0] + 1  # Format correctly
+    else:
+        indexer = None
+    return indexer
+
+
 def flag_by_backsc(d: xr.Dataset):
     """
     Flag where beam-averaged backscatter increases at each time step for upwards-facing ADCPs
@@ -448,10 +460,25 @@ def flag_by_backsc(d: xr.Dataset):
     #         if flag == 1:
     #             break
 
+    # amp_beam_avg.shape = (B, T); diffs.shape = (B - 1, T); B is bin dim while T is time dim
     diffs = np.diff(amp_beam_avg, axis=0)
-    diffs[0, :] = 0  # to remove misleading increases often observed from the first to second bin
+
+    # Manipulate diffs into the same shape as amp_beam_avg by adding zeros
     zeros = np.zeros(len(d.time.data))  # to stack on top of diffs, because the y dim of diffs < y dim of d.distance
     diffs = np.vstack((zeros, diffs))
+
+    # 2024-03-01 update criteria to look for where diffs are positive twice in a row
+    mask = np.repeat(False, amp_beam_avg.shape[0] * amp_beam_avg.shape[1]).reshape(amp_beam_avg.shape)
+
+    for k in range(len(d.time.data)):
+        indexer = first_suspicious_bin_idx(diffs[:, k])
+        if indexer is not None:
+            # Where the first increase occurs - flag all observations later than this index
+            mask[indexer:, k] = True
+
+    # diffs[0, :] = 0  # to remove misleading increases often observed from the first to second bin
+    # zeros = np.zeros(len(d.time.data))  # to stack on top of diffs, because the y dim of diffs < y dim of d.distance
+    # diffs = np.vstack((zeros, diffs))
 
     # Flag the qc variables
     if d.instrument_subtype == 'Sentinel V' and flag_vb == 0:
@@ -476,14 +503,17 @@ def flag_by_backsc(d: xr.Dataset):
     #                 #susp_bin_list[t_i] and bad_bin_list[t_i] == -1 so no suspicious and no bad bins
     #                 v_QC[:, t_i] = 2  # probably_good_value flag=2, or good_value flag=1
 
+    # disregard if diffs are positive once in a row
     for v_QC in vels_QC:
-        v_QC[np.logical_and(diffs > 0, v_QC != 4)] = 3  # probably_bad_value
+        v_QC[np.logical_and(mask, v_QC != 4)] = 3  # probably_bad_value
+        # v_QC[np.logical_and(diffs > 0, v_QC != 4)] = 3  # probably_bad_value
         # v_QC[np.logical_and(diffs <= 0, v_QC != 4)] = 1  # probably_good_value flag=2, or good_value flag=1
 
     print('Velocity qc variables updated')
 
-    d.attrs['processing_history'] = d.processing_history + " Bins where beam-averaged backscatter increases were" \
-                                                           " flagged as probably_bad_value timestep by timestep."
+    d.attrs['processing_history'] = d.processing_history + (" Bins where beam-averaged backscatter increases over "
+                                                            "two consecutive bins were flagged as probably_bad_value "
+                                                            "timestep by timestep.")
 
     # # Commented out 2024-02-12
     # d.attrs['processing_history'] = d.processing_history + " The remaining bins were flagged as " \
@@ -589,10 +619,15 @@ def plot_backscatter_qc(d: xr.Dataset, dest_dir):
                 mean_bad_bin = i
                 break
 
-        for i in range(2, len(amp_mean_all)):
-            if amp_mean_all[i] > amp_mean_all[i - 1]:
-                mean_susp_bin = i
-                break
+        diffs = np.concatenate((np.zeros(1), np.diff(amp_mean_all)))
+        indexer = first_suspicious_bin_idx(diffs)
+        if indexer is not None:
+            mean_susp_bin = indexer  # [0] + 1
+
+        # for i in range(2, len(amp_mean_all)):
+        #     if amp_mean_all[i] > amp_mean_all[i - 1]:
+        #         mean_susp_bin = i
+        #         break
     else:
         for i in range(len(d.distance.data)):
             bin_depth = d.instrument_depth.data + d.distance.data[i]
@@ -758,19 +793,8 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
 
-    # # Set name for new output netCDF
-    # nc_out_name = os.path.basename(f_adcp).replace('L1', 'L2')
-    # print(nc_out_name)
-    # if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
-    #     out_absolute_name = os.path.abspath(dest_dir + '/' + nc_out_name)
-    # else:
-    #     out_absolute_name = os.path.abspath(dest_dir + nc_out_name)
-
     # Open netCDF ADCP file
     nc_adcp = xr.open_dataset(f_adcp)
-
-    # # Change value of filename variable to include "L2" instead of "L1"
-    # nc_adcp = nc_adcp.assign(filename=((), nc_out_name[:-3]))
 
     # # Produce pre-processing plots
     # plot_diagn = pwl.plots_diagnostic(nc_adcp, dest_dir)
@@ -833,8 +857,12 @@ def create_nc_L2(f_adcp: str, dest_dir: str, f_ctd=None):
     nc_adcp.attrs['processing_level'] = '2'
     nc_adcp.attrs['processing_history'] += ' L2 processing completed.'
 
+    L2_filename = os.path.join(dest_dir, os.path.basename(f_adcp).replace('L1.', 'L2.'))
+
+    # Change value of filename variable to include "L2" instead of "L1"
+    nc_adcp = nc_adcp.assign(filename=((), os.path.basename(L2_filename)[:-3]))
+
     # Export the processed L2 ADCP dataset
-    L2_filename = os.path.join(dest_dir, os.path.basename(f_adcp).replace('_L1.adcp.nc', '_L2.adcp.nc'))
     nc_adcp.to_netcdf(L2_filename, mode='w', format='NETCDF4')
 
     files_to_return = [L2_filename, plot_backsc]  # [plot_diagn,
