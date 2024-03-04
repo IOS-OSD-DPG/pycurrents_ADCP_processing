@@ -1,0 +1,34 @@
+Name,Value,Definition,Instructions
+acknowledgement,IOS Mooring Group,An acknowledgement of teams or individuals who have helped with the data set,Optional
+agency,"IOS, Ocean Sciences Division, Sidney, B.C.","The organization through which data collection and processing were conducted, reads 'DFO' then the organization acronym",Required
+anchor_drop_time,2012-06-13 01:41:00 UTC,The date and time (format YYYY-MM-DD hh:mm:ss UTC) at which the anchor was dropped; obtained from mooring logs,Optional
+anchor_release_time,2013-07-05 14:00:00 UTC,The date and time (format YYYY-MM-DD hh:mm:ss UTC) at which the anchor was released; obtained from mooring logs,Optional
+anchor_type,Unknown,The type of anchor used,Optional
+comment,An archived raw .000 file was used to make this data set.,"A comment on the data set, processing or otherwise",Optional
+country,Canada,The country of the agency,Required
+country_institute_code,1823,The code number for the institute found at https://www.nodc.noaa.gov/General/NODC-Archive/institutionlist.txt,Required
+cruise_description,The deployment cruise was taken on the John P. Tully. The recovery cruise was taken on the John P. Tully.,A description of the recovery and deployment missions,Optional
+cut_lead_ensembles,0,The number of leading ensembles to cut from the dataset,Required
+cut_trail_ensembles,16,The number of trailing ensembles to cut from the dataset,Required
+deployment_cruise_number,2012-031,The number of the deployment cruise,Required
+deployment_number,52,The deployment number (used to follow a lettering scheme),Required
+history,"The metadata were extracted from the corresponding processed .adcp file provided by Roy Hourston. Instrument depth was derived from the nearest trustworthy pressure sensors on the mooring (i.e., Sea-Bird) and the mooring line length.",The history of the processing and data set,Optional
+instrument_depth,91,Depth of the instrument in meters,Required
+instrument_subtype,Workhorse,The ADCP instrument subtype,Required
+latitude,49.2884,Latitude of mooring,Required
+longitude,-126.6036,Longitude of mooring,Required
+magnetic_variation,17.61,The average magnetic variation of the timeseries,Required
+platform,John P. Tully,The platform/ship name,Required
+project,La Perouse,The project under which data were collected,Required
+publisher_email,DFO.PAC.SCI.IOSData-DonneesISO.SCI.PAC.MPO@dfo-mpo.gc.ca,The email of the data shop which published and processed this data set,Required
+recovery_lat,,"If mooring was significantly displaced by a vessel strike, provide the latitude at the time of recovery",Optional
+recovery_lon,,"If mooring was significantly displaced by a vessel strike, provide the longitude at the time of recovery",Optional
+return_cruise_number,2013-050,The number of the return cruise,Required
+scientist,Thomson R.,The chief scientist of the project (last name first initial),Required
+sea_code,57A,The NODC code corresponding to the sea the station is in from NOAA at https://www.nodc.noaa.gov/General/NODC-Archive/seanamelist.txt,Optional
+sea_name,Northeast Pacific Ocean,From the list of sea names provided by NOAA at https://www.nodc.noaa.gov/General/NODC-Archive/seanamelist.txt,Optional
+segment_end_indices,,"End index or indices of the dataset starting at 1. If multiple due to mooring strikes, format value as ""index1,index2,...,indexN""",Optional
+segment_start_indices,,"Start index or indices of the dataset starting at 1. If multiple due to mooring strikes, format value as ""index1,index2,...,indexN""",Optional
+serial_number,3694,The ADCP serial number,Required
+station,E01,The station name for the mooring,Required
+water_depth,100,Water depth in meters,Required

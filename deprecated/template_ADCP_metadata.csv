@@ -1,35 +1,31 @@
 Name,Value,Definition,L0 Instructions,L1 Instructions
+instrument_depth,,Depth of the instrument in meters,Required,Required
+latitude,,Latitude of mooring in decimal degrees,Required,Required
+longitude,,Longitude of mooring in decimal degrees,Required,Required
+water_depth,,Water depth in meters,Required,Required
+serialNumber,,The serial number of the instrument,Required,Required
+instrumentSubtype,,"The instrument subtype (e.g. Workhorse, Broadband, Sentinel V)",Required,Required
+magnetic_variation,,The average magnetic variation of the timeseries (e.g. obtained from https://www.geomag.nrcan.gc.ca/calc/mdcal-en.php),Optional,Required
+cut_lead_ensembles,,The number of leading ensembles to cut from the dataset,Optional (use value = 0),Required
+cut_trail_ensembles,,The number of trailing ensembles to cut from the dataset,Optional (use value = 0),Required
 acknowledgement,,An acknowledgement of teams or individuals who have helped with the data set,Optional,Optional
 agency,,The organization through which data collection and processing were conducted (e.g. reads 'DFO' then the organization acronym),Optional,Optional
+anchor_type,,The type and weight of anchor used,Optional,Optional
 anchor_drop_time,,The date and time (format YYYY-MM-DD hh:mm:ss UTC) at which the anchor was dropped,Optional (obtained from mooring logs),Optional (obtained from mooring logs)
 anchor_release_time,,The date and time (format YYYY-MM-DD hh:mm:ss UTC) at which the anchor was released,Optional (obtained from mooring logs),Optional (obtained from mooring logs)
-anchor_type,,The type and weight of anchor used,Optional,Optional
 comment,,"A comment on the data set, processing or otherwise",Optional,Optional
 country,,The country of the agency,Optional,Optional
 country_institute_code,,The code number for the institute found at https://www.nodc.noaa.gov/General/NODC-Archive/institutionlist.txt (e.g. IOS has code 1823),Optional,Optional
-cruise_description, ,A description of the recovery and deployment missions,Optional,Optional
-cut_lead_ensembles,,The number of leading ensembles to cut from the dataset,Optional (use value = 0),Required
-cut_trail_ensembles,,The number of trailing ensembles to cut from the dataset,Optional (use value = 0),Required
+cruise_description,,A description of the recovery and deployment missions,Optional,Optional
 deployment_cruise_number,,The number of the deployment cruise,Optional,Optional
-deployment_number,,The deployment number (used to follow a lettering scheme),Optional,Optional
+geographic_area,,Geographic area of the station,Optional,Optional
 history,,The history of the processing and data set,Optional,Optional
-instrument_depth,,Depth of the instrument in meters,Required,Required
-instrument_subtype,,"The instrument subtype (e.g. Workhorse, Broadband, Sentinel V)",Required,Required
-latitude,,Latitude of mooring,Required,Required
-longitude,,Longitude of mooring,Required,Required
-magnetic_variation,,The average magnetic variation of the timeseries (e.g. obtained from https://www.geomag.nrcan.gc.ca/calc/mdcal-en.php),Optional,Required
 platform,,The platform/ship name,Optional,Optional
 project,,The project under which the data were collected,Optional,Optional
 publisher_email,,The email of the data shop which published and processed this data set,Optional,Optional
-recovery_lat,,"If mooring was significantly displaced by a vessel strike, provide the latitude at the time of recovery",Optional,
-recovery_lon,,"If mooring was significantly displaced by a vessel strike, provide the longitude at the time of recovery",Optional,
 return_cruise_number,,The number of the return cruise,Optional,Optional
 scientist,,The chief scientist of the project (last name first initial),Optional,Optional
 sea_code,,The NODC code corresponding to the sea the station is in from NOAA at https://www.nodc.noaa.gov/General/NODC-Archive/seanamelist.txt (e.g. Northeast Pacific Ocean has code 57A),Optional,Optional
 sea_name,,From the list of sea names provided by NOAA at https://www.nodc.noaa.gov/General/NODC-Archive/seanamelist.txt,Optional,Optional
-segment_end_indices,,"End index or indices of the dataset starting at 1. If multiple due to mooring strikes, format value as ""index1,index2,...,indexN""",Optional,
-segment_start_indices,,"Start index or indices of the dataset starting at 1. If multiple due to mooring strikes, format value as ""index1,index2,...,indexN""",Optional,
-serial_number,,The serial number of the instrument,Required,Required
 station,,"The station name for the mooring (e.g., A1)",Optional,Optional
-water_depth,,Water depth in meters,Required,Required
-,,
+deployment_number,,The deployment number (used to follow a lettering scheme),Optional,Optional
