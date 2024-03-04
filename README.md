@@ -36,13 +36,14 @@ on the [IOS Water Properties website](https://www.waterproperties.ca/).
 * Low-pass filtered versions of the above plots (Godin or X-hour rolling mean, e.g., 30 hour)
 * Eastward (LCEWAP01) bin 1 time series (check bad data close to ADCP)
 * Diagnostic plots for mean backscatter, mean velocity, and principal axis (orientation)
-* Feather plots for select bins: current vectors at the sea surface plotted over time
+* Feather plots for select bins: current vectors plotted over time
 * Rotary spectra for selected bins
 * Depth profile of rotary spectrum
 * Depth profile of tidal ellipses
 * Single bin North/East velocity plots
 
-Reference: [New tools for ADCP processing.](https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40993127.pdf) 
+Reference (now partially outdated): 
+[New tools for ADCP processing.](https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/40993127.pdf) 
 Canadian Technical Report of Hydrography and Ocean Sciences 336.
 
 ## Installation
