@@ -574,8 +574,8 @@ def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
     newnc_dir = './{}/'.format(dest_dir)
     if not os.path.exists(newnc_dir):
         os.makedirs(newnc_dir)
-    # Replace _L1.adcp.nc or _L2.adcp.nc suffix to make header file name
-    f_output = newnc_dir + in_f_name[:-11] + ".adcp"
+    # Replace .adcp.L1.nc or .adcp.L2.nc suffix to make header file name
+    f_output = newnc_dir + in_f_name.split('.')[0] + ".adcp"
     # print(f_output) prints to previously opened f_output in line 730
     nc_file = xr.open_dataset(f)
 
