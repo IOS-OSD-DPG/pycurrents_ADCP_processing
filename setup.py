@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pycurrents_ADCP_processing",
-    version="1.0.0",
+    version="1.0.1",
     author="Hana Hourston, Di Wan, Lu Guan, Maxim Krassovski",
     author_email="hana.hourston@dfo-mpo.gc.ca",
     description="A Python package for processing Acoustic Doppler Current Profiler (ADCP) data.",
