@@ -2556,7 +2556,7 @@ def create_westcoast_plots(
                 time_lim, bin_depths_lim, ns_lim, ew_lim, resampled
             )
             output_file_list.append(fname_tidal_ellipse)
-        except ValueError or IndexError as e:
+        except (ValueError, IndexError) as e:
             warnings.warn(f'Tidal analysis failed with error: {e}')
 
     # pcolor (pseudocolour) depth profile plot of rotary spectra
