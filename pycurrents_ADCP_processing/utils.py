@@ -2,6 +2,7 @@ from shapely.geometry import Polygon, Point
 import json
 import numpy as np
 import xarray as xr
+import os
 
 
 # general utility functions common to multiple classes
@@ -73,6 +74,15 @@ def find_geographic_area(poly_dict, point):
             name_str = '{}{} '.format(name_str, key.replace(' ', '-'))
             # print(name_str)
     return name_str
+
+
+def find_geographic_area_attr(lon: float, lat: float):
+    # Geojson definitions for IOS
+    json_file = 'ios_polygons.geojson'
+    json_file = os.path.join(os.path.abspath(os.path.dirname(__file__)), json_file)
+    # json_file = os.path.realpath(json_file)
+    polygons_dict = read_geojson(json_file)
+    return find_geographic_area(polygons_dict, Point(lon, lat))
 
 
 def parse_processing_history(processing_history: str):
@@ -174,3 +184,14 @@ def calculate_depths(dataset: xr.Dataset):
         return dataset.instrument_depth.data - dataset.distance.data
     else:
         return dataset.instrument_depth.data + dataset.distance.data
+
+
+def mean_orientation(o: list):
+    # orientation, o, is a list of bools with True=up and False=down
+    if sum(o) > len(o) / 2:
+        return 'up'
+    elif sum(o) < len(o) / 2:
+        return 'down'
+    else:
+        ValueError('Number of \"up\" orientations equals number of \"down\" '
+                   'orientations in data subset')
