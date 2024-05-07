@@ -2548,7 +2548,7 @@ def create_westcoast_plots(
                     )
                     fnames_rot_spec.append(fname_rot_spec)
                 except ValueError as e:
-                    print(f'Rotary spectra plot failed with error: {e}')
+                    print(f'Single-bin rotary spectra plot failed with error: {e}')
             else:
                 print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
                       f'length {len(bin_depths_lim)}')
@@ -2569,12 +2569,15 @@ def create_westcoast_plots(
 
     # pcolor (pseudocolour) depth profile plot of rotary spectra
     if do_profile_rotary_spectra or do_all_plots:
-        fnames_depth_prof = make_depth_prof_rot_spec(
-            dest_dir, ncdata.filename, station=ncdata.station, deployment_number=ncdata.deployment_number,
-            serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
-            bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
-        )
-        output_file_list.append(fnames_depth_prof)
+        try:
+            fnames_depth_prof = make_depth_prof_rot_spec(
+                dest_dir, ncdata.filename, station=ncdata.station, deployment_number=ncdata.deployment_number,
+                serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
+                bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
+            )
+            output_file_list.append(fnames_depth_prof)
+        except ValueError as e:
+            print(f'Depth profile rotary spectra plot failed with error: {e}')
 
     # Redo part of process with tidal-filtered data
     if do_filter_ne or do_filter_ac or do_all_plots:
