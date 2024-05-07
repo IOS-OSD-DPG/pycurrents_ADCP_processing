@@ -1581,14 +1581,14 @@ def nc_create_L0_L1(in_file, file_meta, dest_dir, level=1, time_file=None, verbo
     out.attrs['geospatial_lon_max'] = meta_dict['longitude']
     out.attrs['geospatial_lon_units'] = "degrees_east"
 
-    # sensor_depth was removed as a variable attribute
-    if level == 1:
-        depth = sensor_dep
-    else:
-        depth = meta_dict['instrument_depth']
+    # # sensor_depth was removed as a variable attribute
+    # if level == 1:
+    #     depth = sensor_dep
+    # else:
+    #     depth = meta_dict['instrument_depth']
 
     out.attrs['geospatial_vertical_min'], out.attrs['geospatial_vertical_max'] = utils.geospatial_vertical_extrema(
-        out.attrs['orientation'], sensor_depth=depth, distance=out.distance.data
+        out.attrs['orientation'], sensor_depth=meta_dict['instrument_depth'], distance=out.distance.data
     )
 
     if verbose:
