@@ -1620,14 +1620,19 @@ def make_plot_rotary_spectra(dest_dir: str, data_filename, station: str, deploym
 
     if do_tidal_annotation:
         # keep or filling of nans does not affect result frequencies
-        result = run_ttide(
-            U=u,
-            V=v,
-            xin_units='m/s',
-            time_lim=time_lim,
-            latitude=latitude,
-            constitnames=fnames
-        )
+        try:
+            result = run_ttide(
+                U=u,
+                V=v,
+                xin_units='m/s',
+                time_lim=time_lim,
+                latitude=latitude,
+                constitnames=fnames
+            )
+        except ValueError as e:
+            print('t_tide failed with error', e)
+            return
+
         # nameu might be in different order than fnames !!
         for fname_S4, fmark_cph in zip(result['nameu'], result['fu']):
             # Convert component name to string and remove any trailing whitespace
@@ -2532,15 +2537,16 @@ def create_westcoast_plots(
         for bin_idx in single_bin_inds:
             # Only proceed if the bin index is in range
             if bin_idx < len(bin_depths_lim):
-                fnames_rot_spec.append(
-                    make_plot_rotary_spectra(
-                        dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
-                        ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
-                        bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
-                        ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
-                        resampled=resampled, axis=-1
-                    )
+                # Add extra step in case the tidal analysis fails
+                plot_name = make_plot_rotary_spectra(
+                    dest_dir, ncdata.filename, ncdata.station, ncdata.deployment_number,
+                    ncdata.instrument_depth.data, ncdata.instrument_serial_number.data,
+                    bin_number=bin_idx, bin_depths_lim=bin_depths_lim, time_lim=time_lim,
+                    ns_lim=ns_lim, ew_lim=ew_lim, latitude=ncdata.latitude.data,
+                    resampled=resampled, axis=-1
                 )
+                if plot_name is not None:
+                    fnames_rot_spec.append(plot_name)
             else:
                 print(f'Warning: Bin index {bin_idx} for rotary spectra out of range of limited bins with '
                       f'length {len(bin_depths_lim)}')
