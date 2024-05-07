@@ -13,9 +13,8 @@ import datetime
 import warnings
 from pycurrents.adcp.rdiraw import rawfile
 from pycurrents.adcp.rdiraw import SysCfg
-from pycurrents_ADCP_processing.ADCP_processing_L1 import mean_orientation, \
-    convert_time_var, check_depths
-import pycurrents_ADCP_processing.add_var2nc as add_var2nc
+from pycurrents_ADCP_processing.ADCP_processing_L0_L1 import convert_time_var, check_depths
+from pycurrents_ADCP_processing import utils
 
 
 def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue,
@@ -423,7 +422,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue,
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_01'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 1'
-    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    var.attrs[
+        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -438,7 +438,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue,
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_02'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 2'
-    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    var.attrs[
+        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -453,7 +454,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue,
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_03'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 3'
-    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    var.attrs[
+        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
 
@@ -468,7 +470,8 @@ def add_attrs_2vars_L0(out_obj, metadata_dict, instrument_depth, fillValue,
     var.attrs['legacy_GF3_code'] = 'SDN:GF3::CMAG_04'
     var.attrs['sdn_parameter_name'] = 'Correlation magnitude of acoustic signal returns from the water body by ' \
                                       'moored acoustic doppler current profiler (ADCP) beam 4'
-    var.attrs['standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
+    var.attrs[
+        'standard_name'] = 'beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water'
     var.attrs['data_min'] = np.nanmin(var.data)
     var.attrs['data_max'] = np.nanmax(var.data)
     # done variables
@@ -564,7 +567,7 @@ def create_meta_dict_L0(f_meta):
                 print('Metadata file contains a blank row; skipping this row !')
             elif row[0] != '' and row[1] == '':
                 print('Metadata item in csv file has blank value; skipping this row '
-                              'in metadata file !')
+                      'in metadata file !')
             else:
                 meta_dict[row[0]] = row[1]
 
@@ -575,6 +578,11 @@ def create_meta_dict_L0(f_meta):
     meta_dict['naming_authority'] = 'BODC, MEDS, CF v72'
     meta_dict['variable_code_reference'] = 'BODC P01'
     meta_dict['Conventions'] = "CF-1.8"
+
+    # Use Geojson definitions for IOS
+    meta_dict['geographic_area'] = utils.find_geographic_area_attr(
+        lon=meta_dict['longitude'], lat=meta_dict['latitude']
+    )
 
     return meta_dict
 
@@ -590,12 +598,12 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
         :param time_file: full file name of csv file containing user-generated time data;
                     required if inFile has garbled out-of-range time data
     """
-    
+
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
 
     # Define the name for the netCDF file
-    out_name = os.path.basename(f_adcp)[:-4] + '.adcp.L0.nc'
+    out_name = os.path.basename(f_adcp)[:-4] + '_L0.adcp.nc'
     print(out_name)
     if not dest_dir.endswith('/') or not dest_dir.endswith('\\'):
         out_absolute_name = os.path.abspath(dest_dir + '/' + out_name)
@@ -719,7 +727,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     # Orientation values such as 65535 and 231 cause SysCfg().up to generate an IndexError: list index out of range
     try:
         orientations = [SysCfg(fl).up for fl in fixed_leader.raw.FixedLeader['SysCfg']]
-        meta_dict['orientation'] = mean_orientation(orientations)
+        meta_dict['orientation'] = utils.mean_orientation(orientations)
     except IndexError:
         warnings.warn('Orientation obtained from data.sysconfig[\'up\'] to avoid IndexError: list index out of range',
                       UserWarning)
@@ -733,8 +741,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
 
     # Set up dimensions and variables
 
-    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs,
-                                             metadata_dict=meta_dict,
+    time_s, time_DTUT8601 = convert_time_var(time_var=vel.dday, number_of_profiles=data.nprofs, meta_dict=meta_dict,
                                              origin_year=data.yearbase, time_csv=time_file)
 
     # Distance dimension
@@ -749,10 +756,10 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     # Do not create pressure variable if no data exists
     flag_no_pres = 0
     try:
-        decapascal2decibar = 1/1000
+        decapascal2decibar = 1 / 1000
         pressure = np.array(vel.VL['Pressure'] * decapascal2decibar, dtype='float32')
     except ValueError:
-        warnings.warn('No pressure data available (no field of name Pressure')
+        warnings.warn('No pressure data available (no field of name Pressure)')
         flag_no_pres += 1
 
     # ------------------------------Depth-------------------------------
@@ -805,7 +812,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     if flag_no_pres == 0:
         print('Assigning pressure variable')
         out = out.assign(PRESPR01=(('time'), pressure))
-    
+
     if flag_pg == 0:
         print('Assigning percent good variables')
         out = out.assign(PCGDAP00=(('distance', 'time'), pg.pg1.transpose()))
@@ -871,7 +878,7 @@ def nc_create_L0(f_adcp, f_meta, dest_dir, start_year=None, time_file=None):
     out.attrs['three_beam_used'] = str(vel.trans['threebeam']).upper()  # netCDF4 file format doesn't support bool
     out.attrs['valid_correlation_range'] = vel.FL['LowCorrThresh']  # lowCorrThresh
     out.attrs['min_percent_good'] = fixed_leader.FL['PGMin']
-    out.attrs['blank'] = '{} m'.format(fixed_leader.FL['Blank'] / 100) #convert cm to m
+    out.attrs['blank'] = '{} m'.format(fixed_leader.FL['Blank'] / 100)  # convert cm to m
     out.attrs['error_velocity_threshold'] = "{} mm s-1".format(fixed_leader.FL['EVMax'])
     tpp_min = '{0:0>2}'.format(fixed_leader.FL['TPP_min'])
     tpp_sec = '{0:0>2}'.format(fixed_leader.FL['TPP_sec'])
@@ -912,10 +919,8 @@ def example_L0_1():
 
     # Create netCDF file
     nc_name = nc_create_L0(raw_file, raw_file_meta, dest_dir, start_year=None, time_file=None)
-    # Produce new netCDF file that includes a geographic_area variable
-    geo_name = add_var2nc.add_geo(nc_name, dest_dir)
 
-    return nc_name, geo_name
+    return nc_name
 
 
 def example_L0_2():
@@ -934,7 +939,4 @@ def example_L0_2():
     # Create netCDF file
     nc_name = nc_create_L0(f_adcp=raw_file, f_meta=raw_file_meta, dest_dir=dest_dir, time_file=scott_time)
 
-    # Produce new netCDF file that includes a geographic_area variable
-    geo_name = add_var2nc.add_geo(nc_name, dest_dir)
-
-    return nc_name, geo_name
+    return nc_name
