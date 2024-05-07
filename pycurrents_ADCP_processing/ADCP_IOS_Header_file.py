@@ -314,6 +314,10 @@ def write_instrument(nc):
     # serial_number = nc.attrs["serial_number"]  nc.attrs["instrument_serial_number"]
     depth = str(nc.instrument_depth.data)
     orientation = nc.attrs["orientation"]
+    if nc.orientation == 'up':
+        bin_depths = nc.instrument_depth.data - nc.distance.data
+    else:
+        bin_depths = nc.instrument_depth.data + nc.distance.data
 
     print("*INSTRUMENT")
     print("    TYPE                : " + model)
@@ -322,9 +326,11 @@ def write_instrument(nc):
     print("    ORIENTATION         : " + orientation)
     print()
     print("    $ARRAY: BIN DEPTHS (M)")
-    n = nc.LCEWAP01["distance"].values.size
-    for i in range(0, n):
-        Bin_depth = str(round(nc.LCEWAP01["distance"].values[i], 2))
+    # n = nc.LCEWAP01["distance"].values.size
+    # for i in range(0, n):
+    for i in range(len(bin_depths)):
+        # Bin_depth = str(round(nc.LCEWAP01["distance"].values[i], 2))
+        Bin_depth = str(round(bin_depths[i], 2))
         num_space = 13 - len(str(Bin_depth))
         print(" " * num_space + Bin_depth)
     print("    $END")
