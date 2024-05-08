@@ -2482,13 +2482,21 @@ def create_westcoast_plots(
         output_file_list.append(fname_diagnostic)
 
     # Limit data if limits are not input by user
+    if level0:
+        east_vel = 'VEL_MAGNETIC_EAST'
+        north_vel = 'VEL_MAGNETIC_NORTH'
+    else:
+        east_vel = 'LCEWAP01'
+        north_vel = 'LCNSAP01'
+
     time_lim, bin_depths_lim, ns_lim, ew_lim, time_range_idx, bin_range_idx = limit_data(
-        ncdata, ncdata.LCEWAP01.data, ncdata.LCNSAP01.data, time_range, bin_range)
+        ncdata, ncdata[east_vel].data, ncdata[north_vel].data, time_range, bin_range)
 
     # Plot pressure PRESPR01 vs time
     if do_pressure or do_all_plots:
-        fname_pres = plot_adcp_pressure(ncdata, dest_dir, resampled)
-        output_file_list.append(fname_pres)
+        if hasattr(ncdata, 'PRESPR01'):
+            fname_pres = plot_adcp_pressure(ncdata, dest_dir, resampled)
+            output_file_list.append(fname_pres)
 
     # North/East velocity plots
     if do_ne or do_all_plots:
