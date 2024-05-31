@@ -153,7 +153,14 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
     # Get timedelta object with value of one year long
     # Use this duration because ADCPs aren't moored for over 2 years (sometimes just over one year)
     yr_value = pd.Timedelta(365 * 2, unit='D')
-    time_median = pd.to_datetime(pd.Series(t_s).astype('int64').median())
+
+    try:
+        # Works for pandas 2.x
+        time_median = pd.Series(t_s).median()
+    except TypeError:
+        # Works for pandas 1.x
+        time_median = pd.to_datetime(pd.Series(t_s).astype('int64').median())
+
     indexer_out_rng = np.where(t_s > time_median + yr_value)[0]
 
     # Some silly little conversions
