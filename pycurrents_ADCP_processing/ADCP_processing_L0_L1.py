@@ -166,7 +166,7 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
     # Some silly little conversions
     t_df = pd.Series(t_s)
     t_df.loc[indexer_out_rng] = pd.NaT
-    t_s = np.array(t_df, dtype='datetime64[s]')
+    t_s = np.array(t_df, dtype='datetime64[ns]')
 
     # t_s[indexer_out_rng] = pd.NaT
     # dtut_df = pd.Series(t_DTUT8601)
