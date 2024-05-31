@@ -99,7 +99,7 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
         # convert time variable to elapsed time since 1970-01-01T00:00:00Z
         t_s = np.array(
             pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
-            dtype='datetime64[s]'
+            dtype='datetime64[ns]'
         )
         # # DTUT8601 variable: time strings
         # t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin,
@@ -107,7 +107,7 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
         #     '%Y-%m-%d %H:%M:%S')  # don't need %Z in strftime
     except OutOfBoundsDatetime or OverflowError:
         warnings.warn('OutOfBoundsDateTime exception triggered by raw time data', UserWarning)
-        t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[s]')
+        t_s = np.zeros(shape=number_of_profiles, dtype='datetime64[ns]')
         # t_DTUT8601 = np.empty(shape=number_of_profiles, dtype='<U100')
         if type(time_csv) is str:
             with open(time_csv) as csv_file:
