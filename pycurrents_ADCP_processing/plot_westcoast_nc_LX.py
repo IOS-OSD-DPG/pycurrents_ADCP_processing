@@ -2583,7 +2583,7 @@ def create_westcoast_plots(
                 serial_number=ncdata.instrument_serial_number.data, instrument_depth=ncdata.instrument_depth.data,
                 bin_depths_lim=bin_depths_lim, ns_lim=ns_lim, ew_lim=ew_lim, time_lim=time_lim
             )
-            output_file_list.append(fnames_depth_prof)
+            output_file_list += fnames_depth_prof
         except ValueError as e:
             print(f'Depth profile rotary spectra plot failed with error: {e}')
 
