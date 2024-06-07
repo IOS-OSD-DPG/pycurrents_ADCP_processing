@@ -801,13 +801,12 @@ def make_pcolor_ac(nc: xr.Dataset, dest_dir, time_lim, bin_depths_lim, ns_lim, e
     return os.path.abspath(plot_dir + plot_name)
 
 
-def num_ens_per_hr(nc: xr.Dataset):
+def num_ens_per_hr(time_data: np.ndarray):
     """
     Calculate the number of ensembles recorded per hour
-    :param nc: dataset object obtained from reading in an ADCP netCDF file with the
-               xarray package
+    :param time_data: ncdata.time.data
     """
-    time_incr = float(nc.time.data[1] - nc.time.data[0])
+    time_incr = float(time_data[1] - time_data[0])
     hr2min = 60
     min2sec = 60
     sec2nsec = 1e9
@@ -827,7 +826,7 @@ def filter_godin(nc: xr.Dataset):
                series within nc, padded with nan's
     """
     # Determine the number of ensembles taken per hour
-    ens_per_hr = num_ens_per_hr(nc)
+    ens_per_hr = num_ens_per_hr(nc.time.data)
     # print('Time stamps per hour:', ens_per_hr, sep=' ')
     window = int(ens_per_hr)
     num_hrs = 24
@@ -840,6 +839,12 @@ def filter_godin(nc: xr.Dataset):
     else:
         ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
         ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
+
+    # Replace any nans with the mean value to avoid nans propagating
+    ew_df.fillna(value=np.nanmean(ew_df), inplace=True)
+
+    ns_df.fillna(value=np.nanmean(ns_df), inplace=True)
+
     # 24h rolling average
     ew_filt_temp1 = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True,
                                   win_type=None).median()
@@ -874,7 +879,7 @@ def filter_XXh(nc: xr.Dataset, num_hrs=30):
     """
 
     # Determine the number of ensembles taken per hour
-    ens_per_hr = num_ens_per_hr(nc)
+    ens_per_hr = num_ens_per_hr(nc.time.data)
     # print(ens_per_hr)
     window = int(ens_per_hr)
 
@@ -886,6 +891,12 @@ def filter_XXh(nc: xr.Dataset, num_hrs=30):
     else:
         ew_df = pd.DataFrame(data=nc.LCEWAP01.data.transpose())
         ns_df = pd.DataFrame(data=nc.LCNSAP01.data.transpose())
+
+    # Replace any nans with the mean value to avoid nans propagating
+    ew_df.fillna(value=np.nanmean(ew_df), inplace=True)
+
+    ns_df.fillna(value=np.nanmean(ns_df), inplace=True)
+
     ew_filt_final = ew_df.rolling(window=num_hrs * window, min_periods=None, center=True,
                                   win_type=None).median()
     ns_filt_final = ns_df.rolling(window=num_hrs * window, min_periods=None, center=True,
@@ -926,7 +937,7 @@ def binplot_compare_filt(nc: xr.Dataset, dest_dir, time, dat_raw, dat_filt, filt
         ValueError('direction', direction, 'not valid')
 
     # Calculate the number of ensembles in 1 month
-    ens_per_hr = num_ens_per_hr(nc)
+    ens_per_hr = num_ens_per_hr(nc.time.data)
     hr2day = 24
     day2mth = 30
     ens_per_mth = ens_per_hr * hr2day * day2mth
