@@ -97,10 +97,11 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
 
     try:
         # convert time variable to elapsed time since 1970-01-01T00:00:00Z
-        t_s = np.array(
-            pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
-            dtype='datetime64[ns]'
-        )
+        t_s = pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True)
+        # t_s = np.array(
+        #     pd.to_datetime(time_var, unit='D', origin=data_origin, utc=True).strftime('%Y-%m-%d %H:%M:%S'),
+        #     dtype='datetime64[ns]'
+        # )
         # # DTUT8601 variable: time strings
         # t_DTUT8601 = pd.to_datetime(time_var, unit='D', origin=data_origin,
         #                             utc=True).strftime(
@@ -159,7 +160,7 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
         time_median = pd.Series(t_s).median()
     except TypeError:
         # Works for pandas 1.x
-        time_median = pd.to_datetime(pd.Series(t_s).astype('int64').median())
+        time_median = pd.to_datetime(pd.Series(t_s).astype('int64').median(), utc=True)
 
     indexer_out_rng = np.where(t_s > time_median + yr_value)[0]
 
