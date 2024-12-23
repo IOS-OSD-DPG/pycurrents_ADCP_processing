@@ -430,8 +430,8 @@ def add_attrs_2vars(out_obj: xr.Dataset, meta_dict: dict):  # sensor_depth, pg_f
             if var_name == var_name.upper():
                 # Add a few more attrs to *select* vars
                 out_obj[var_name].attrs['_FillValue'] = _FillValue
-                out_obj[var_name].attrs['data_max'] = np.nanmax(var.data)
-                out_obj[var_name].attrs['data_min'] = np.nanmin(var.data)
+                out_obj[var_name].attrs['data_max'] = np.nanmax(out_obj[var_name].data)
+                out_obj[var_name].attrs['data_min'] = np.nanmin(out_obj[var_name].data)
             elif var_name in ['latitude', 'longitude']:
                 out_obj[var_name].attrs['_FillValue'] = _FillValue
 
