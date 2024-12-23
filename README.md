@@ -2,7 +2,7 @@
 
 Authors: Hana Hourston (@hhourston) , Di Wan (@onedwd), Lu Guan (@guanlu129), Maxim Krassovski
 
-**Note: L0 and L2 processing routines are currently out-of-date**
+**Note: L2 processing routine is currently out-of-date**
 
 For performing "level 0" (L0), "level 1" (L1), and "level 2" (L2) processing on raw 
 moored ADCP data in Python using the UHDAS `pycurrents` package and plotting the output netCDF data. 
