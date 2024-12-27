@@ -131,7 +131,9 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
 
             # Median is robust to outliers
             # Round frequency to nearest second
-            median_period = pd.Timedelta(np.nanmedian(np.diff(time_var))).round('s').total_seconds()
+            median_period = pd.Timedelta(
+                np.nanmedian(np.diff(time_var)), unit='day'
+            ).round('s').total_seconds()
             # List of accepted units here (use secondly):
             # https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#timeseries-offset-aliases
             median_period = f'{utils.round_to_int(median_period)}S'  # convert to string
@@ -162,7 +164,12 @@ def convert_time_var(time_var, number_of_profiles, meta_dict: dict, origin_year:
         # Works for pandas 1.x
         time_median = pd.to_datetime(pd.Series(t_s).astype('int64').median(), utc=True)
 
-    indexer_out_rng = np.where(t_s > time_median + yr_value)[0]
+    try:
+        indexer_out_rng = np.where(t_s > time_median + yr_value)[0]
+    except TypeError:
+        indexer_out_rng = np.where(
+            pd.to_datetime(t_s, utc=True) > time_median + yr_value
+        )[0]
 
     # Some silly little conversions
     t_df = pd.Series(t_s)
