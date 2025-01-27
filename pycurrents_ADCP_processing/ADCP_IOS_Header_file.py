@@ -98,7 +98,7 @@ def write_file(nc):
         if channel == 'DATE':
             channel_dict[channel] = {
                 'channel_num': str(channel_num),
-                'name_to_use': "UTC Date",
+                'name_to_use': "UTC_Date",
                 'unit': "YYYY-MM-DD", 'data_min': "n/a", 'data_max': "n/a",
                 'pad': "' '", 'width': "' '", 'format': 'YYYY-MM-DD', 'type': 'D',
                 'decimal_places': "' '"}
@@ -106,7 +106,7 @@ def write_file(nc):
         elif channel == 'TIME':
             channel_dict[channel] = {
                 'channel_num': str(channel_num),
-                'name_to_use': "UTC Time",
+                'name_to_use': "UTC_Time",
                 'unit': "HH:MM:SS", 'data_min': "n/a", 'data_max': "n/a",
                 'pad': "' '", 'width': "' '", 'format': 'HH:MM:SS', 'type': 'T',
                 'decimal_places': "' '"}
