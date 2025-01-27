@@ -14,7 +14,7 @@
 # old comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCEWAP01
   dtype: float32
-  units: m s-1
+  units: m/s
   long_name: eastward_sea_water_velocity
   ancillary_variables: LCEWAP01_QC
 #  sensor_type: adcp
@@ -37,7 +37,7 @@
 # old comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCNSAP01
   dtype: float32
-  units: m s-1
+  units: m/s
   long_name: northward_sea_water_velocity
   ancillary_variables: LCNSAP01_QC
 #  sensor_type: adcp
@@ -60,7 +60,7 @@
 # old comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LRZAAP01
   dtype: float32
-  units: m s-1
+  units: m/s
   long_name: upward_sea_water_velocity
   ancillary_variables: LRZAAP01_QC
 #  sensor_type: adcp
@@ -82,7 +82,7 @@
 
 - id: LERRAP01
   dtype: float32
-  units: m s-1
+  units: m/s
   long_name: error_velocity_in_sea_water
 #  sensor_type: adcp
   generic_name: e
@@ -97,7 +97,7 @@
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCEWAP01_QC
   dtype: float32
-  long_name: quality flag for LCEWAP01
+  long_name: quality_flag_for_LCEWAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
     bad_value, changed_value, value_below_detection, value_in_excess,
@@ -108,7 +108,7 @@
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCNSAP01_QC
   dtype: float32
-  long_name: quality flag for LCNSAP01
+  long_name: quality_flag_for_LCNSAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
     bad_value, changed_value, value_below_detection, value_in_excess,
@@ -119,7 +119,7 @@
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LRZAAP01_QC
   dtype: float32
-  long_name: quality flag for LRZAAP01
+  long_name: quality_flag_for_LRZAAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
     bad_value, changed_value, value_below_detection, value_in_excess,
@@ -272,7 +272,7 @@
   dtype: float32
   units: m
   positive: up
-  long_name: height of sea surface
+  long_name: height_of_sea_surface
   generic_name: height
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::HGHT
@@ -282,7 +282,7 @@
 - id: TEMPPR01
   dtype: float32
   units: degree_C
-  long_name: ADCP transducer temperature  # Temperature was abbreviated to Temp., change title case to lowercase
+  long_name: ADCP_transducer_temperature  # Temperature was abbreviated to Temp., change title case to lowercase
   generic_name: temp
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::te90
@@ -295,7 +295,7 @@
   dtype: float32
   units: m
   positive: down
-  long_name: instrument depth
+  long_name: instrument_depth
   generic_name: depth
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::DEPH
@@ -383,7 +383,7 @@
 
 - id: PRESPR01_QC
   dtype: float32
-  long_name: quality flag for PRESPR01
+  long_name: quality_flag_for_PRESPR01
   comment: >
     Quality flag resulting from cleaning of the beginning and end of the dataset and
     identification of negative pressure values
@@ -396,8 +396,8 @@
 
 - id: SVELCV01
   dtype: float32
-  units: m s-1
-  long_name: speed of sound
+  units: m/s
+  long_name: speed_of_sound
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::SVEL
   sdn_parameter_name: >
@@ -468,19 +468,19 @@
 - id: instrument_depth
   dtype: float32
   units: m
-  long_name: Instrument Depth
+  long_name: Instrument_Depth
   standard_name: instrument_depth
 
 - id: water_depth
   dtype: float32
   units: m
-  long_name: Water Depth
+  long_name: Water_Depth
   standard_name: sea_floor_depth_below_sea_surface
 
 # Sentinel V variables
 - id: LRZUVP01
   dtype: float32
-  units: m s-1
+  units: m/s
   long_name: upward_sea_water_velocity_by_vertical_beam
   ancillary_variables: LRZUVP01_QC
 #  sensor_type: adcp
@@ -498,7 +498,7 @@
 
 - id: LRZUVP01_QC
   dtype: float32
-  long_name: quality flag for LRZUVP01
+  long_name: quality_flag_for_LRZUVP01
   comment: Quality flag resulting from cleaning of the beginning and end of the dataset
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
