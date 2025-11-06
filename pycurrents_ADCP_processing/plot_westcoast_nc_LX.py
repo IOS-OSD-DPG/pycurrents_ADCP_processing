@@ -145,11 +145,11 @@ def get_plot_dir(filename, dest_dir):
     :return: name of subfolder for output files based on processing level of the
              input netCDF file
     """
-    if 'L0' in filename.data.tolist():
+    if 'L0' in filename: #filename.data.tolist():
         plot_dir = './{}/L0_plots/'.format(dest_dir)
-    elif 'L1' in filename.data.tolist():
+    elif 'L1' in filename: #filename.data.tolist():
         plot_dir = './{}/L1_plots/'.format(dest_dir)
-    elif 'L2' in filename.data.tolist():
+    elif 'L2' in filename: #data.tolist():
         plot_dir = './{}/L2_plots/'.format(dest_dir)
     else:
         ValueError('Input netCDF file must be a L0, L1 or L2-processed file.')
@@ -202,14 +202,14 @@ def plot_adcp_pressure(nc: xr.Dataset, dest_dir: str, resampled=None, is_pre_spl
         os.makedirs(plot_dir)
 
     plot_title = "{}-{} {} PRESPR01".format(nc.station, nc.deployment_number,
-                                            nc.instrument_serial_number.data)
+                                            nc.instrument_serial_number)
 
     png_name = plot_dir + "{}-{}_{}_{}m_PRESPR01.png".format(
-        nc.station, nc.deployment_number, nc.instrument_serial_number.data,
-        round_to_int(nc.instrument_depth.data))
+        nc.station, nc.deployment_number, nc.instrument_serial_number,
+        round_to_int(float(nc.instrument_depth.split()[0])))
 
     plot_title, png_name = review_plot_naming(
-        plot_title, png_name, nc.instrument_serial_number.data, is_pre_split, resampled
+        plot_title, png_name, nc.instrument_serial_number, is_pre_split, resampled
     )
 
     plt.title(plot_title)
@@ -423,9 +423,9 @@ def limit_data(ncdata: xr.Dataset, ew_data, ns_data, time_range=None, bin_range=
              cleaned north-south velocity data; and ew_lim; cleaned east-west velocity data
     """
     if ncdata.orientation == 'up':
-        bin_depths = ncdata.instrument_depth.data - ncdata.distance.data
+        bin_depths = float(ncdata.attrs['instrument_depth'].replace(" m", "")) - ncdata.distance.data
     else:
-        bin_depths = ncdata.instrument_depth.data + ncdata.distance.data
+        bin_depths = float(ncdata.attrs['instrument_depth'].replace(" m", "")) + ncdata.distance.data
     # print(bin_depths)
 
     # REVISION Jan 2024: bad leading and trailing ensembles are deleted from dataset, so don't need this step
