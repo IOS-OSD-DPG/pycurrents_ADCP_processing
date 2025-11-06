@@ -97,6 +97,7 @@
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCEWAP01_QC
   dtype: float32
+  units: n/a
   long_name: quality_flag_for_LCEWAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
@@ -108,6 +109,7 @@
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LCNSAP01_QC
   dtype: float32
+  units: n/a
   long_name: quality_flag_for_LCNSAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
@@ -119,6 +121,7 @@
 # Removed comment: Quality flag resulting from cleaning of the beginning and end of the dataset
 - id: LRZAAP01_QC
   dtype: float32
+  units: n/a
   long_name: quality_flag_for_LRZAAP01
   flag_meanings: >
     no_quality_control, good_value, probably_good_value, probably_bad_value,
@@ -248,7 +251,7 @@
 
 - id: PTCHGP01
   dtype: float32
-  units: degree
+  units: degrees
   long_name: pitch
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::PTCH
@@ -259,7 +262,7 @@
 
 - id: ROLLGP01
   dtype: float32
-  units: degree
+  units: degrees
   long_name: roll
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::PTCH
@@ -281,7 +284,7 @@
 
 - id: TEMPPR01
   dtype: float32
-  units: degree_C
+  units: deg_C_ITS90
   long_name: ADCP_transducer_temperature  # Temperature was abbreviated to Temp., change title case to lowercase
   generic_name: temp
 #  sensor_type: adcp
@@ -350,7 +353,7 @@
 
 - id: HEADCM01
   dtype: float32
-  units: degree
+  units: degrees
   long_name: heading
 #  sensor_type: adcp
   legacy_GF3_code: SDN:GF3::PTCH
@@ -362,7 +365,7 @@
 
 - id: PRESPR01
   dtype: float32
-  units: dbar
+  units: decibar
   long_name: pressure
 #  sensor_type: adcp
   ancillary_variables: PRESPR01_QC
@@ -383,6 +386,7 @@
 
 - id: PRESPR01_QC
   dtype: float32
+  units: n/a
   long_name: quality_flag_for_PRESPR01
   comment: >
     Quality flag resulting from cleaning of the beginning and end of the dataset and
@@ -465,17 +469,17 @@
     moored acoustic doppler current profiler (ADCP) beam 4
   standard_name: beam_consistency_indicator_from_multibeam_acoustic_doppler_velocity_profiler_in_sea_water
 
-- id: instrument_depth
-  dtype: float32
-  units: m
-  long_name: Instrument_Depth
-  standard_name: instrument_depth
+#- id: instrument_depth
+  #dtype: float32
+  #units: m
+  #long_name: Instrument_Depth
+  #standard_name: instrument_depth
 
-- id: water_depth
-  dtype: float32
-  units: m
-  long_name: Water_Depth
-  standard_name: sea_floor_depth_below_sea_surface
+#- id: water_depth
+  #dtype: float32
+  #units: m
+  #long_name: Water_Depth
+  #standard_name: sea_floor_depth_below_sea_surface
 
 # Sentinel V variables
 - id: LRZUVP01
