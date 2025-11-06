@@ -89,8 +89,8 @@ def write_file(nc):
                        'TNIHCE01', 'TNIHCE02', 'TNIHCE03', 'TNIHCE04', 'TNIHCE05',
                        'CMAGZZ01', 'CMAGZZ02', 'CMAGZZ03', 'CMAGZZ04', 'CMAGZZ05',
                        'PCGDAP00', 'PCGDAP02', 'PCGDAP03', 'PCGDAP04', 'PCGDAP05',
-                       'PTCHGP01', 'HEADCM01', 'ROLLGP01', 'TEMPPR01', 'DISTTRAN',
-                       'PPSAADCP', 'PRESPR01', 'PRESPR01_QC', 'SVELCV01', 'PREXMCAT']
+                       'PTCHGP01', 'HEADCM01', 'ROLLGP01', 'TEMPPR01', 'DISTTRAN', 'PPSAADCP',
+                       'PRESPR01', 'PRESPR01_QC', 'SVELCV01', 'PREXMCAT']
 
     channel_num = 1
     for channel in channels_to_use:
@@ -99,8 +99,8 @@ def write_file(nc):
             channel_dict[channel] = {
                 'channel_num': str(channel_num),
                 'name_to_use': "UTC_Date",
-                'unit': "YYYY-MM-DD", 'data_min': "n/a", 'data_max': "n/a",
-                'pad': "' '", 'width': "' '", 'format': 'YYYY-MM-DD', 'type': 'D',
+                'unit': "YYYY/MM/DD", 'data_min': "n/a", 'data_max': "n/a",
+                'pad': "' '", 'width': "' '", 'format': 'YYYY/MM/DD', 'type': 'D',
                 'decimal_places': "' '"}
             channel_num += 1
         elif channel == 'TIME':
@@ -193,15 +193,15 @@ def write_file(nc):
 
 def write_admin(nc):
     # define function to write administration section
-    agency = nc.attrs["agency"]
+    agency = nc.attrs["institution"]
     country = nc.attrs["country"]
-    project = nc.attrs["project"]
-    scientist = nc.attrs["scientist"]
-    platform = nc.attrs["platform"]
+    program = nc.attrs["program"]
+    scientist = nc.attrs["chief_scientist"]
+    platform = nc.attrs["deployment_platform_name"]
     print("*ADMINISTRATION")
     print("    " + '{:20}'.format('AGENCY') + ": " + agency)
     print("    " + '{:20}'.format('COUNTRY') + ": " + country)
-    print("    " + '{:20}'.format('PROJECT') + ": " + project)
+    print("    " + '{:20}'.format('PROGRAM') + ": " + program)
     print("    " + '{:20}'.format('SCIENTIST') + ": " + scientist)
     print("    " + '{:20}'.format('PLATFORM ') + ": " + platform)
     print()
@@ -246,13 +246,15 @@ def format_datetime(date_time: str):
 
 def write_location(nc):
     # Function to define geographic location
-    geo_area = str(nc.geographic_area.values)
+    #geo_area = str(nc.geographic_area.values)
+    geo_area = str(getattr(nc.geographic_area, 'values', nc.geographic_area))
     station = nc.attrs["station"]
     lat = nc.attrs["latitude"]
     lat_string = decimalDegrees2DMS(lat, "Latitude")  # call decimal degree conversion function
     lon = nc.attrs["longitude"]
     lon_string = decimalDegrees2DMS(lon, "Longitude")  # call decimal degree conversion function
-    water_depth = str(nc.water_depth.data)
+    #water_depth = str(nc.water_depth.data)
+    water_depth = str(nc.attrs.get("water_depth", "N/A"))
     if hasattr(nc, 'magnetic_declination'):
         mag_declination = str(nc.attrs["magnetic_declination"])
     elif hasattr(nc, 'magnetic_variation'):
@@ -280,7 +282,7 @@ def write_deployment_recovery(nc):
     else:
         anchor_drop_time = nc.attrs["anchor_drop_time"][:-4]
     remark = nc.attrs["anchor_type"]
-    mission_recovery = nc.attrs["return_cruise_number"]
+    mission_recovery = nc.attrs["recovery_cruise_number"]
     if type(nc.attrs["anchor_release_time"]) == str:
         anchor_release_time = format_datetime(nc.attrs["anchor_release_time"])
     else:
@@ -310,19 +312,40 @@ def write_instrument(nc):
     # define function to write instrument info
     # data_type = nc.attrs["instrument_type_type"].upper()
     model = nc.attrs["instrument_subtype"] + "-" + nc.attrs["instrument_type"]
-    serial_number = str(nc.instrument_serial_number.data) if nc.instrument_serial_number.data != 'Unknown' else ''
+    #serial_number = str(nc.instrument_serial_number.data) if nc.instrument_serial_number.data != 'Unknown' else ''
+    serial_raw = getattr(nc.instrument_serial_number, 'data', nc.instrument_serial_number)
+    serial_number = str(serial_raw) if serial_raw != 'Unknown' else ''
     # serial_number = nc.attrs["serial_number"]  nc.attrs["instrument_serial_number"]
-    depth = str(nc.instrument_depth.data)
-    orientation = nc.attrs["orientation"]
-    if nc.orientation == 'up':
-        bin_depths = nc.instrument_depth.data - nc.distance.data
+    #depth = str(nc.instrument_depth.data)
+    #depth = str(getattr(nc.instrument_depth, 'data', nc.instrument_depth))
+    #instr_depth = getattr(nc.instrument_depth, 'data', nc.instrument_depth)
+    # Extract instrument depth from global attributes (as float, no " m")
+    instr_depth_raw = nc.attrs.get("instrument_depth")
+    if instr_depth_raw is None:
+        raise ValueError("Global attribute 'instrument_depth' is missing.")
+
+    # Remove unit if present, then convert to float
+    if isinstance(instr_depth_raw, str) and instr_depth_raw.endswith(" m"):
+        depth = float(instr_depth_raw.replace(" m", ""))
     else:
-        bin_depths = nc.instrument_depth.data + nc.distance.data
+        depth = float(instr_depth_raw)
+    #if nc.orientation == 'up':
+    #    bin_depths = nc.instrument_depth.data - nc.distance.data
+    #else:
+    #    bin_depths = nc.instrument_depth.data + nc.distance.data
+
+    distance = getattr(nc.distance, 'data', nc.distance)
+    orientation = nc.attrs["orientation"]
+
+    if nc.orientation == 'up':
+        bin_depths = depth - distance
+    else:
+        bin_depths = depth + distance
 
     print("*INSTRUMENT")
     print("    TYPE                : " + model)
     print("    SERIAL NUMBER       : " + serial_number)
-    print("    DEPTH               : " + depth)
+    print("    DEPTH               : " + str(depth))
     print("    ORIENTATION         : " + orientation)
     print()
     print("    $ARRAY: BIN DEPTHS (M)")
@@ -357,7 +380,7 @@ def write_raw(nc):
     config = "NA"  # nc.attrs["systemConfiguration"]
     beam_angle = str(nc.attrs["beam_angle"])
     numbeams = str(nc.attrs["number_of_beams"])  # numbeams = str(nc.attrs["janus"]), janus was used in R
-    beam_freq = str(nc.attrs["frequency"])
+    beam_freq = str(nc.attrs["instrument_operating_frequency"])
     beam_pattern = nc.attrs["beam_pattern"]
     orientation = nc.attrs["orientation"]
     # simflag =  "??" # ?????????????????????????
@@ -614,7 +637,9 @@ def main_header(f, dest_dir, ds_is_segment=False, ctd_pressure_file=None):
 
 def example_usage_header():
     # Input
-    in_file = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
+    #in_file = './newnc/a1_20050503_20050504_0221m.adcp.L1.nc'
+    in_file = './dest_dir/a1_20180817_20190502_0481m_L1.adcp.nc'
+    in_file = './dest_dir/a1_20190504_20190730_0397m_L1.adcp.nc'
     dest_dir = 'dest_dir'
     header_name = main_header(f=in_file, dest_dir=dest_dir)
     return header_name
