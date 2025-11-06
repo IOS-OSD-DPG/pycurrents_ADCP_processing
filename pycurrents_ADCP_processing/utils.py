@@ -181,9 +181,9 @@ def calculate_depths(dataset: xr.Dataset):
     """
     # depths = np.mean(ncdata.PRESPR01[0,:]) - ncdata.distance  #What Di used
     if dataset.orientation == 'up':
-        return dataset.instrument_depth.data - dataset.distance.data
+        return float(ncdata.attrs['instrument_depth'].replace(" m", "")) - dataset.distance.data
     else:
-        return dataset.instrument_depth.data + dataset.distance.data
+        return float(ncdata.attrs['instrument_depth'].replace(" m", "")) + dataset.distance.data
 
 
 def mean_orientation(o: list):
